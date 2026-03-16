@@ -1,91 +1,174 @@
-// admin.service.ts — stubbed for Flash Sale schema (Session 7 will rewrite)
-
-import { Injectable, Logger } from '@nestjs/common'
-import { PrismaService } from '@local-prisma/prisma.service'
-import { RedisService } from '@redis/redis.service'
-import {
-  AdminDashboardDto,
-  AdminTransactionContractDto,
-  AdminTransactionDto,
-  BlockUserDto,
-  ChangeRoleDto,
-  createSubscriptionPlanDto,
-  GetListSubscriptionPlansDto,
-  getListUsersDto,
-  IGetListContractTransactionsOutput,
-  IGetListSubscriptionPlansOutput,
-  IGetListTransactionsOutput,
-  IGetListUsersOutput,
-  ResetManifestoDto
-} from '../dto/admin.dto'
-import { ConfigService } from '@nestjs/config'
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { RedisService } from '@infrastructure/redis/redis.service'
+import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
+import { AdminRepository } from '../repositories/admin.repository'
 
 @Injectable()
 export class AdminService {
-  private readonly logger = new Logger(AdminService.name)
-
   constructor(
-    private prismaService: PrismaService,
-    private redisService: RedisService,
-    private configService: ConfigService
+    private readonly adminRepository: AdminRepository,
+    private readonly redis: RedisService,
+    private readonly rabbitmq: RabbitMQService
   ) {}
 
-  public async getAdminDashboardStats(_query: AdminDashboardDto): Promise<any> {
-    return Promise.resolve(null as any)
+  // ─── Merchants ──────────────────────────────────────────────────────
+
+  async getMerchants(status?: string) {
+    return this.adminRepository.findMerchants(status)
   }
 
-  public async getListSubscriptionPlans(
-    _query: GetListSubscriptionPlansDto
-  ): Promise<IGetListSubscriptionPlansOutput> {
-    return Promise.resolve(null as any)
+  async approveMerchant(merchantId: string) {
+    const profile = await this.adminRepository.findMerchantById(merchantId)
+    if (!profile) throw new NotFoundException('Merchant không tồn tại')
+    await this.adminRepository.approveMerchant(merchantId, profile.userId)
+    return { success: true }
   }
 
-  public async createSubscriptionPlan(
-    _createData: createSubscriptionPlanDto
-  ): Promise<void> {
-    return Promise.resolve()
+  async rejectMerchant(merchantId: string, reason: string) {
+    const profile = await this.adminRepository.findMerchantById(merchantId)
+    if (!profile) throw new NotFoundException('Merchant không tồn tại')
+    return this.adminRepository.rejectMerchant(merchantId, reason)
   }
 
-  public async updateSubscriptionPlans(
-    _subscriptionPlansId: number,
-    _updateData: createSubscriptionPlanDto
-  ): Promise<void> {
-    return Promise.resolve()
+  // ─── Campaigns ──────────────────────────────────────────────────────
+
+  async getCampaigns(status?: string) {
+    return this.adminRepository.findCampaigns(status)
   }
 
-  public async removeSubscriptionPlans(
-    _subscriptionPlansId: number
-  ): Promise<void> {
-    return Promise.resolve()
+  async approveCampaign(campaignId: string) {
+    return this.adminRepository.updateCampaignStatus(campaignId, 'APPROVED')
   }
 
-  public async getListTransactions(
-    _query: AdminTransactionContractDto
-  ): Promise<IGetListContractTransactionsOutput> {
-    return Promise.resolve(null as any)
+  async rejectCampaign(campaignId: string) {
+    // Revert to DRAFT so merchant can revise
+    return this.adminRepository.updateCampaignStatus(campaignId, 'DRAFT')
   }
 
-  public async getTransactionNetworkFees(
-    _query: AdminTransactionDto
-  ): Promise<IGetListTransactionsOutput> {
-    return Promise.resolve(null as any)
+  // ─── Users ──────────────────────────────────────────────────────────
+
+  async getUsers(query: {
+    role?: string
+    search?: string
+    page?: number
+    limit?: number
+  }) {
+    return this.adminRepository.findUsers({
+      role: query.role,
+      search: query.search,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20
+    })
   }
 
-  public async BlockUser(_dto: BlockUserDto): Promise<void> {
-    return Promise.resolve()
+  async suspendUser(userId: string) {
+    return this.adminRepository.updateUserStatus(userId, 'BANNED')
   }
 
-  public async changeUserRole(_dto: ChangeRoleDto): Promise<void> {
-    return Promise.resolve()
+  async activateUser(userId: string) {
+    return this.adminRepository.updateUserStatus(userId, 'ACTIVE')
   }
 
-  public async getListUsers(
-    _query: getListUsersDto
-  ): Promise<IGetListUsersOutput> {
-    return Promise.resolve(null as any)
+  // ─── Statistics ─────────────────────────────────────────────────────
+
+  async getStats() {
+    return this.adminRepository.getStats()
   }
 
-  public async resetManifestoDto(_dto: ResetManifestoDto): Promise<void> {
-    return Promise.resolve()
+  async getOrdersByHour() {
+    const result = await this.adminRepository.getOrdersByHour()
+    const hourMap = new Map(result.map(r => [r.hour, Number(r.count)]))
+    return Array.from({ length: 24 }, (_, h) => ({
+      hour: `${h}:00`,
+      orders: hourMap.get(h) ?? 0
+    }))
+  }
+
+  async getRevenueTrend() {
+    const rows = await this.adminRepository.getRevenueTrend()
+    return rows.map(({ dayStart, revenue }) => ({
+      date: dayStart.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit'
+      }),
+      revenue
+    }))
+  }
+
+  async getActivity() {
+    const { recentOrders, recentApprovals } =
+      await this.adminRepository.getActivity()
+
+    return [
+      ...recentOrders.map(o => ({
+        type: 'ORDER',
+        message: `Đơn hàng mới từ ${
+          (o as any).customer?.fullName ?? 'Khách hàng'
+        }`,
+        createdAt: o.createdAt
+      })),
+      ...recentApprovals.map(m => ({
+        type: 'MERCHANT_APPROVED',
+        message: `Merchant ${m.businessName} đã được duyệt`,
+        createdAt: m.updatedAt
+      }))
+    ]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 10)
+  }
+
+  // ─── Dead Letter Queue ───────────────────────────────────────────────
+
+  async getDeadLetterJobs() {
+    return this.adminRepository.findDeadLetterJobs()
+  }
+
+  async retryJob(jobId: string) {
+    const job = await this.adminRepository.findDeadLetterJobById(jobId)
+    if (!job) throw new NotFoundException('Job không tồn tại')
+
+    const queue =
+      job.type === 'ORDER_PROCESSING' ? 'order.high' : 'notification'
+    await this.rabbitmq.publish(queue, job.payload as object)
+    await this.adminRepository.incrementJobRetryCount(jobId)
+    return { retried: true }
+  }
+
+  async discardJob(jobId: string) {
+    const job = await this.adminRepository.findDeadLetterJobById(jobId)
+    if (!job) throw new NotFoundException('Job không tồn tại')
+    await this.adminRepository.deleteDeadLetterJob(jobId)
+    return { discarded: true }
+  }
+
+  // ─── System Health ───────────────────────────────────────────────────
+
+  async getSystemHealth() {
+    const [postgres, redisOk, rabbitmqOk] = await Promise.all([
+      this.adminRepository['prisma'].$queryRaw`SELECT 1`
+        .then(() => 'UP')
+        .catch(() => 'DOWN'),
+      this.redis.client
+        .ping()
+        .then(() => 'UP')
+        .catch(() => 'DOWN'),
+      this.rabbitmq.getChannel()
+        ? Promise.resolve('UP')
+        : Promise.resolve('DOWN')
+    ])
+    return { postgres, redis: redisOk, rabbitmq: rabbitmqOk, api: 'UP' }
+  }
+
+  async getQueueStats() {
+    const [high, normal] = await Promise.all([
+      this.rabbitmq.getQueueStats('order.high'),
+      this.rabbitmq.getQueueStats('order.normal')
+    ])
+    return { high: high.messageCount, normal: normal.messageCount }
+  }
+
+  async getSystemLogs() {
+    const logs = await this.redis.client.lrange('system:logs', 0, 49)
+    return logs.map(l => JSON.parse(l) as object)
   }
 }

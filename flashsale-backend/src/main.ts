@@ -48,6 +48,13 @@ async function bootstrap() {
 
   app.use(express.urlencoded({ extended: true }))
   app.use(cookieParser())
+  app.use(compression())
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false
+    })
+  )
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -86,23 +93,22 @@ async function bootstrap() {
 
   if (isProd) {
     app.set('trust proxy', 1)
-    app
-      .use(compression())
-      .use(helmet())
-      .use(
-        RateLimit({
-          windowMs: 1 * 60 * 1000,
-          max: 1000
-        })
-      )
+    app.use(
+      RateLimit({
+        windowMs: 1 * 60 * 1000,
+        max: 1000
+      })
+    )
   }
 
   app.useGlobalFilters(new GlobalExceptionFilter())
   app.useGlobalPipes(
     new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: false
+        enableImplicitConversion: true
       },
       skipMissingProperties: false,
       exceptionFactory: (errors: ValidationError[]) => {

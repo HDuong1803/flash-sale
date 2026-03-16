@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <body className={inter.className}>
         <div className="fixed inset-0 -z-20"
           style={{ background: 'linear-gradient(135deg, #08071a 0%, #0f0a2a 30%, #0a1030 60%, #0d0b22 100%)' }} />

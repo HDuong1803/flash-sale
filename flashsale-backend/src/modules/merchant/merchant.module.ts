@@ -6,6 +6,6 @@ import { MerchantRepository } from './repositories/merchant.repository'
 @Module({
   controllers: [MerchantController],
   providers: [MerchantService, MerchantRepository],
-  exports: [MerchantRepository],
+  exports: [MerchantRepository]
 })
 export class MerchantModule {}

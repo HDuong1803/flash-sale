@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
 
-// TODO: Replace with Flash Sale RabbitMQ worker module in Session 4B
+// Legacy queue module — replaced by WorkersModule
 @Module({})
 export class QueueModule {}

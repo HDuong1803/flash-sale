@@ -1,2 +1,2 @@
-// TODO: Re-enable with @nestjs/terminus in Session 8 (polish)
+// Database health indicator — stub (terminus disabled)
 export {}

@@ -1,5 +1,3 @@
-// user.controller.ts
-
 import {
   Body,
   Controller,
@@ -8,160 +6,267 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
-  Put,
   Query,
   UseGuards,
   UseInterceptors
 } from '@nestjs/common'
-import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { ResponseInterceptor } from '@common/interceptors'
 import {
-  AdminDashboardDto,
-  AdminTransactionContractDto,
-  AdminTransactionDto,
-  BlockUserDto,
-  ChangeRoleDto,
-  createSubscriptionPlanDto,
-  GetListSubscriptionPlansDto,
-  getListUsersDto,
-  IGetListContractTransactionsOutput,
-  IGetListSubscriptionPlansOutput,
-  IGetListTransactionsOutput,
-  IGetListUsersOutput,
-  ResetManifestoDto
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiTags
+} from '@nestjs/swagger'
+import { ResponseInterceptor } from '@common/interceptors'
+import { AccessTokenGuard } from '@common/guards/access-token.guard'
+import { AdminGuard } from '@common/guards/admin.guard'
+import { AdminService } from '../services/admin.service'
+import {
+  ActivityItemDto,
+  AdminCampaignQueryDto,
+  AdminMerchantQueryDto,
+  AdminStatsResponseDto,
+  AdminUserQueryDto,
+  DlqJobResponseDto,
+  OrdersByHourItemDto,
+  QueueStatsResponseDto,
+  RejectReasonDto,
+  RevenueTrendItemDto,
+  SystemHealthResponseDto
 } from '../dto/admin.dto'
-import { AccessTokenGuard, AdminGuard } from '@common/guards'
-import { AdminService } from '../services'
 
 const moduleName = 'admin'
 
 @ApiTags(moduleName)
 @Controller(moduleName)
+@UseGuards(AccessTokenGuard, AdminGuard)
 @UseInterceptors(ResponseInterceptor)
+@ApiBearerAuth('JWT-auth')
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService) {}
 
-  @ApiOperation({ summary: 'Get admin dashboard statistics' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @Get('dashboard')
+  // ─── Merchants ──────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách merchant' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách merchant' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Chỉ ADMIN' })
+  @Get('merchants')
   @HttpCode(HttpStatus.OK)
-  async getAdminDashboardStats(
-    @Query() query: AdminDashboardDto
-  ): Promise<any> {
-    return await this.adminService.getAdminDashboardStats(query)
+  async getMerchants(
+    @Query() query: AdminMerchantQueryDto
+  ): Promise<unknown[]> {
+    return this.adminService.getMerchants(query.status)
   }
 
-  @ApiOperation({ summary: 'Get list subscription' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @Get('subscription/list')
+  @ApiOperation({ summary: 'Duyệt đơn đăng ký merchant' })
+  @ApiParam({ name: 'id', description: 'MerchantProfile ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Duyệt thành công, user.role = MERCHANT'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Merchant không tồn tại'
+  })
+  @Patch('merchants/:id/approve')
   @HttpCode(HttpStatus.OK)
-  async getListSubscriptionPlans(
-    @Query() query: GetListSubscriptionPlansDto
-  ): Promise<IGetListSubscriptionPlansOutput> {
-    return await this.adminService.getListSubscriptionPlans(query)
+  async approveMerchant(
+    @Param('id') id: string
+  ): Promise<{ success: boolean }> {
+    return this.adminService.approveMerchant(id)
   }
 
-  @ApiOperation({ summary: 'Create subscription plan' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @ApiBody({ type: createSubscriptionPlanDto })
-  @Post('subscription/create')
+  @ApiOperation({ summary: 'Từ chối đơn đăng ký merchant' })
+  @ApiParam({ name: 'id', description: 'MerchantProfile ID' })
+  @ApiBody({ type: RejectReasonDto })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Từ chối thành công' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Merchant không tồn tại'
+  })
+  @Patch('merchants/:id/reject')
   @HttpCode(HttpStatus.OK)
-  async createSubscriptionPlan(
-    @Body() createData: createSubscriptionPlanDto
-  ): Promise<void> {
-    return await this.adminService.createSubscriptionPlan(createData)
+  async rejectMerchant(
+    @Param('id') id: string,
+    @Body() dto: RejectReasonDto
+  ): Promise<unknown> {
+    return this.adminService.rejectMerchant(id, dto.reason)
   }
 
-  @ApiOperation({ summary: 'Update subscription plan' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @Put('subscription/:subscriptionPlansId')
+  // ─── Campaigns ──────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách chiến dịch (admin view)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách campaigns' })
+  @Get('campaigns')
   @HttpCode(HttpStatus.OK)
-  async updateSubscriptionPlans(
-    @Param('subscriptionPlansId') subscriptionPlansId: number,
-    @Body() updateData: createSubscriptionPlanDto
-  ): Promise<void> {
-    return await this.adminService.updateSubscriptionPlans(
-      subscriptionPlansId,
-      updateData
-    )
+  async getCampaigns(
+    @Query() query: AdminCampaignQueryDto
+  ): Promise<unknown[]> {
+    return this.adminService.getCampaigns(query.status)
   }
 
-  @ApiOperation({ summary: 'Remove subscription plan' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @Delete('subscription/:subscriptionPlansId')
+  @ApiOperation({ summary: 'Duyệt chiến dịch' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Duyệt thành công, status = APPROVED'
+  })
+  @Patch('campaigns/:id/approve')
   @HttpCode(HttpStatus.OK)
-  async removeSubscriptionPlans(
-    @Param('subscriptionPlansId') subscriptionPlansId: number
-  ): Promise<void> {
-    return await this.adminService.removeSubscriptionPlans(subscriptionPlansId)
+  async approveCampaign(@Param('id') id: string): Promise<unknown> {
+    return this.adminService.approveCampaign(id)
   }
 
-  @ApiOperation({ summary: 'Get list transactions' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @Get('get-transactions')
+  @ApiOperation({ summary: 'Từ chối chiến dịch (revert về DRAFT)' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiBody({ type: RejectReasonDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Từ chối, status = DRAFT'
+  })
+  @Patch('campaigns/:id/reject')
   @HttpCode(HttpStatus.OK)
-  async getListTransactions(
-    @Query() query: AdminTransactionContractDto
-  ): Promise<IGetListContractTransactionsOutput> {
-    return await this.adminService.getListTransactions(query)
+  async rejectCampaign(
+    @Param('id') id: string,
+    @Body() _dto: RejectReasonDto
+  ): Promise<unknown> {
+    return this.adminService.rejectCampaign(id)
   }
 
-  @ApiOperation({ summary: 'Get list network fees' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @Get('network-fees')
+  // ─── Users ──────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách người dùng' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách users' })
+  @Get('users')
   @HttpCode(HttpStatus.OK)
-  async getTransactionNetworkFees(
-    @Query() query: AdminTransactionDto
-  ): Promise<IGetListTransactionsOutput> {
-    return await this.adminService.getTransactionNetworkFees(query)
+  async getUsers(@Query() query: AdminUserQueryDto): Promise<unknown[]> {
+    return this.adminService.getUsers(query)
   }
 
-  @ApiOperation({ summary: 'Block user' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @ApiBody({ type: BlockUserDto })
-  @Post('block-user')
+  @ApiOperation({ summary: 'Khoá tài khoản user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Khoá thành công, status = BANNED'
+  })
+  @Patch('users/:id/suspend')
   @HttpCode(HttpStatus.OK)
-  async BlockUser(@Body() dto: BlockUserDto): Promise<void> {
-    return await this.adminService.BlockUser(dto)
+  async suspendUser(@Param('id') id: string): Promise<unknown> {
+    return this.adminService.suspendUser(id)
   }
 
-  @ApiOperation({ summary: 'Change role user' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @ApiBody({ type: ChangeRoleDto })
-  @Post('change-role')
+  @ApiOperation({ summary: 'Kích hoạt lại tài khoản user' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Kích hoạt thành công, status = ACTIVE'
+  })
+  @Patch('users/:id/activate')
   @HttpCode(HttpStatus.OK)
-  async changeUserRole(@Body() dto: ChangeRoleDto): Promise<void> {
-    return await this.adminService.changeUserRole(dto)
+  async activateUser(@Param('id') id: string): Promise<unknown> {
+    return this.adminService.activateUser(id)
   }
 
-  @ApiOperation({ summary: 'Get list network fees' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @Get('get-users')
+  // ─── Statistics ─────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Thống kê tổng quan hệ thống' })
+  @ApiResponse({ status: HttpStatus.OK, type: AdminStatsResponseDto })
+  @Get('stats')
   @HttpCode(HttpStatus.OK)
-  async getListUsers(
-    @Query() query: getListUsersDto
-  ): Promise<IGetListUsersOutput> {
-    return await this.adminService.getListUsers(query)
+  async getStats(): Promise<AdminStatsResponseDto> {
+    return this.adminService.getStats()
   }
 
-  @ApiOperation({ summary: 'Reset Manifesto' })
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(AccessTokenGuard, AdminGuard)
-  @ApiBody({ type: ResetManifestoDto })
-  @Post('manifesto')
+  @ApiOperation({ summary: 'Biểu đồ đơn hàng theo giờ trong ngày' })
+  @ApiResponse({ status: HttpStatus.OK, type: [OrdersByHourItemDto] })
+  @Get('stats/orders-by-hour')
   @HttpCode(HttpStatus.OK)
-  async resetManifestoDto(@Body() dto: ResetManifestoDto): Promise<void> {
-    return await this.adminService.resetManifestoDto(dto)
+  async getOrdersByHour(): Promise<OrdersByHourItemDto[]> {
+    return this.adminService.getOrdersByHour()
+  }
+
+  @ApiOperation({ summary: 'Biểu đồ doanh thu 7 ngày gần nhất' })
+  @ApiResponse({ status: HttpStatus.OK, type: [RevenueTrendItemDto] })
+  @Get('stats/revenue-trend')
+  @HttpCode(HttpStatus.OK)
+  async getRevenueTrend(): Promise<RevenueTrendItemDto[]> {
+    return this.adminService.getRevenueTrend()
+  }
+
+  @ApiOperation({ summary: 'Danh sách hoạt động gần đây' })
+  @ApiResponse({ status: HttpStatus.OK, type: [ActivityItemDto] })
+  @Get('activity')
+  @HttpCode(HttpStatus.OK)
+  async getActivity(): Promise<ActivityItemDto[]> {
+    return this.adminService.getActivity()
+  }
+
+  // ─── Dead Letter Queue ───────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách jobs thất bại (DLQ)' })
+  @ApiResponse({ status: HttpStatus.OK, type: [DlqJobResponseDto] })
+  @Get('dead-letter-queue')
+  @HttpCode(HttpStatus.OK)
+  async getDeadLetterJobs(): Promise<DlqJobResponseDto[]> {
+    return this.adminService.getDeadLetterJobs() as unknown as DlqJobResponseDto[]
+  }
+
+  @ApiOperation({ summary: 'Retry một job thất bại' })
+  @ApiParam({ name: 'id', description: 'DLQ Job ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: '{ retried: true }' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Job không tồn tại'
+  })
+  @Post('dead-letter-queue/:id/retry')
+  @HttpCode(HttpStatus.OK)
+  async retryJob(@Param('id') id: string): Promise<{ retried: boolean }> {
+    return this.adminService.retryJob(id)
+  }
+
+  @ApiOperation({ summary: 'Xoá job thất bại khỏi DLQ' })
+  @ApiParam({ name: 'id', description: 'DLQ Job ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: '{ discarded: true }' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Job không tồn tại'
+  })
+  @Delete('dead-letter-queue/:id')
+  @HttpCode(HttpStatus.OK)
+  async discardJob(@Param('id') id: string): Promise<{ discarded: boolean }> {
+    return this.adminService.discardJob(id)
+  }
+
+  // ─── System ──────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Kiểm tra trạng thái hệ thống' })
+  @ApiResponse({ status: HttpStatus.OK, type: SystemHealthResponseDto })
+  @Get('system/health')
+  @HttpCode(HttpStatus.OK)
+  async getSystemHealth(): Promise<SystemHealthResponseDto> {
+    return this.adminService.getSystemHealth()
+  }
+
+  @ApiOperation({ summary: 'Thống kê queue RabbitMQ' })
+  @ApiResponse({ status: HttpStatus.OK, type: QueueStatsResponseDto })
+  @Get('system/queue-stats')
+  @HttpCode(HttpStatus.OK)
+  async getQueueStats(): Promise<QueueStatsResponseDto> {
+    return this.adminService.getQueueStats()
+  }
+
+  @ApiOperation({ summary: 'Xem system logs gần nhất (50 entries)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Array of log objects' })
+  @Get('system/logs')
+  @HttpCode(HttpStatus.OK)
+  async getSystemLogs(): Promise<object[]> {
+    return this.adminService.getSystemLogs()
   }
 }

@@ -26,8 +26,8 @@ interface NotificationContext {
 }
 
 /**
- * Notification Helper Service
- * TODO: Rewrite for Flash Sale domain in Session 7
+ * Notification Helper Service — legacy stub, retained for backward compatibility.
+ * Flash Sale notification logic is handled by NotificationService.
  */
 @Injectable()
 export class NotificationHelperService {

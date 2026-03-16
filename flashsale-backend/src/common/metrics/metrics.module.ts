@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
 
-// TODO: Re-enable Prometheus metrics in Session 8 (polish)
+// Prometheus metrics — stub (disabled, no-op)
 @Module({})
 export class MetricsModule {}

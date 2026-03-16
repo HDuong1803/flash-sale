@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common'
 import { Observable } from 'rxjs'
 
-// TODO: Re-enable Prometheus metrics interceptor in Session 8 (polish)
+// Metrics interceptor — stub (Prometheus disabled, no-op pass-through)
 @Injectable()
 export class MetricsInterceptor implements NestInterceptor {
   intercept(

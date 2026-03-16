@@ -1,35 +1,36 @@
-// notification.service.ts — stubbed for Flash Sale schema (Session 7 will implement)
+import { Injectable } from '@nestjs/common'
+import { NotificationRepository } from '../repositories/notification.repository'
 
-import { Injectable, Logger } from '@nestjs/common'
-import { PrismaService } from '@local-prisma/prisma.service'
-import {
-  GetNotificationsQueryDto,
-  GetNotificationsResponseDto,
-  UpdateNotificationStatusDto,
-  UpdateNotificationStatusResponseDto
-} from '../dto/notification.dto'
-
-/**
- * Notification Service
- * TODO: Implement for Flash Sale domain in Session 7
- */
 @Injectable()
 export class NotificationService {
-  private readonly logger = new Logger(NotificationService.name)
+  constructor(
+    private readonly notificationRepository: NotificationRepository
+  ) {}
 
-  constructor(private readonly prismaService: PrismaService) {}
-
-  async getNotifications(
-    _userId: string,
-    _query: GetNotificationsQueryDto
-  ): Promise<GetNotificationsResponseDto> {
-    return Promise.resolve({ notifications: [], total: 0 })
+  async createNotification(
+    userId: string,
+    data: {
+      type:
+        | 'RESERVATION_EXPIRING'
+        | 'ORDER_CONFIRMED'
+        | 'PAYMENT_FAILED'
+        | 'CAMPAIGN_STARTING'
+      title: string
+      message: string
+    }
+  ): Promise<void> {
+    await this.notificationRepository.create({ userId, ...data })
   }
 
-  async updateNotificationStatus(
-    _userId: string,
-    _updateDto: UpdateNotificationStatusDto
-  ): Promise<UpdateNotificationStatusResponseDto> {
-    return Promise.resolve({ updatedCount: 0, updatedNotificationIds: [] })
+  async getNotifications(userId: string) {
+    return this.notificationRepository.findByUserId(userId)
+  }
+
+  async markRead(userId: string, notificationId: string) {
+    return this.notificationRepository.markRead(userId, notificationId)
+  }
+
+  async markAllRead(userId: string): Promise<void> {
+    await this.notificationRepository.markAllRead(userId)
   }
 }

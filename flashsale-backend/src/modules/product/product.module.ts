@@ -8,6 +8,6 @@ import { ProductRepository } from './repositories/product.repository'
   imports: [MerchantModule],
   controllers: [ProductController],
   providers: [ProductService, ProductRepository],
-  exports: [ProductRepository],
+  exports: [ProductRepository]
 })
 export class ProductModule {}
