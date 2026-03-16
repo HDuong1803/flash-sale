@@ -1,0 +1,43 @@
+{
+  "projects": [
+    {
+      "displayName": "unit",
+      "testEnvironment": "node",
+      "rootDir": "src",
+      "testMatch": ["**/*.spec.ts"],
+      "moduleFileExtensions": ["js", "jsx", "ts", "tsx", "json"],
+      "transform": {
+        "^.+\\.(t|j)s$": "ts-jest"
+      },
+      "coverageDirectory": "../coverage/unit",
+      "preset": "ts-jest",
+      "verbose": true,
+      "moduleNameMapper": {
+        "^@modules/(.*)$": "<rootDir>/modules/$1",
+        "^@config/(.*)$": "<rootDir>/config/$1",
+        "^@common/(.*)$": "<rootDir>/common/$1",
+        "^@local-prisma/(.*)$": "<rootDir>/prisma/$1",
+        "^@redis/(.*)$": "<rootDir>/redis/$1"
+      }
+    },
+    {
+      "displayName": "e2e",
+      "testEnvironment": "node",
+      "rootDir": ".",
+      "testRegex": ".e2e-spec.ts$",
+      "moduleFileExtensions": ["js", "json", "ts"],
+      "transform": {
+        "^.+\\.(t|j)s$": "ts-jest"
+      },
+      "coverageDirectory": "./coverage/e2e",
+      "verbose": true,
+      "moduleNameMapper": {
+        "^@modules/(.*)$": "<rootDir>/src/modules/$1",
+        "^@config/(.*)$": "<rootDir>/src/config/$1",
+        "^@common/(.*)$": "<rootDir>/src/common/$1",
+        "^@local-prisma/(.*)$": "<rootDir>/src/prisma/$1",
+        "^@redis/(.*)$": "<rootDir>/src/redis/$1"
+      }
+    }
+  ]
+}

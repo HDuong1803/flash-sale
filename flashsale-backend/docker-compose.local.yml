@@ -1,0 +1,103 @@
+services:
+  # PostgreSQL Primary Database with optimized settings
+  postgres:
+    container_name: flashsale_postgres
+    image: postgres:15-alpine
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-decot}
+      PGDATA: /data/postgres
+      TZ: 'Etc/UTC'
+      # Connection pool optimizations
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - postgres:/data/postgres
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    command: |
+      postgres
+      -c config_file=/etc/postgresql/postgresql.conf
+      -c shared_preload_libraries=pg_stat_statements
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c random_page_cost=1.1
+      -c temp_file_limit=2GB
+      -c log_min_duration_statement=1000
+      -c log_connections=on
+      -c log_disconnections=on
+      -c log_lock_waits=on
+      -c log_statement=all
+      -c log_line_prefix='%t [%p]: [%l-1] user=%u,db=%d,app=%a,client=%h '
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-decot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ${NETWORK:-decot_network}
+
+  # PgBouncer Connection Pooler
+  pgbouncer:
+    container_name: flashsale_pgbouncer
+    image: pgbouncer/pgbouncer:latest
+    restart: unless-stopped
+    ports:
+      - '6432:6432'
+    environment:
+      DATABASES_HOST: postgres
+      DATABASES_PORT: 8080
+      DATABASES_USER: ${DB_USER:-postgres}
+      DATABASES_PASSWORD: ${DB_PASSWORD:-postgres}
+      DATABASES_DBNAME: ${DB_NAME:-decot}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 20
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      SERVER_RESET_QUERY: DISCARD ALL
+      AUTH_TYPE: md5
+      ADMIN_USERS: ${DB_USER:-postgres}
+      STATS_USERS: ${DB_USER:-postgres}
+    volumes:
+      - ./docker/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
+      - pgbouncer_logs:/var/log/pgbouncer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "psql -h localhost -p 6432 -U ${DB_USER:-postgres} -d pgbouncer -c 'SHOW STATS;' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - ${NETWORK:-decot_network}
+
+  redis:
+    container_name: flashsale_redis
+    image: redis:latest
+    ports:
+      - '6379:6379'
+    environment:
+      TZ: 'Etc/UTC'
+    volumes:
+      - redis:/data
+    networks:
+      - ${NETWORK:-flashsale_network}
+
+networks:
+  flashsale_network:
+    driver: bridge
+    name: ${NETWORK}
+
+volumes:
+  postgres:
+  redis:
+  pgbouncer_logs:

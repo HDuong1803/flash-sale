@@ -1,0 +1,55 @@
+import apiClient, { withRetry } from '@/lib/api-client'
+import type { Campaign, CampaignProduct } from '@/types'
+
+export interface CampaignFilters {
+  status?: string
+  search?: string
+  page?: number
+  limit?: number
+}
+
+export interface CreateCampaignDto {
+  name: string
+  description: string
+  startTime: string
+  endTime: string
+}
+
+export interface AddCampaignProductDto {
+  productId: string
+  salePrice: number
+  saleQuantity: number
+  perUserLimit: number
+}
+
+class CampaignService {
+  getAll(filters?: CampaignFilters): Promise<Campaign[]> {
+    return withRetry(() => apiClient.get('/campaigns', { params: filters }))
+  }
+  getById(id: string): Promise<Campaign> {
+    return withRetry(() => apiClient.get(`/campaigns/${id}`))
+  }
+  create(data: CreateCampaignDto): Promise<Campaign> {
+    return apiClient.post('/campaigns', data)
+  }
+  update(id: string, data: Partial<CreateCampaignDto>): Promise<Campaign> {
+    return apiClient.put(`/campaigns/${id}`, data)
+  }
+  addProduct(campaignId: string, data: AddCampaignProductDto): Promise<CampaignProduct> {
+    return apiClient.post(`/campaigns/${campaignId}/products`, data)
+  }
+  removeProduct(campaignId: string, productId: string): Promise<void> {
+    return apiClient.delete(`/campaigns/${campaignId}/products/${productId}`)
+  }
+  preRegister(campaignId: string): Promise<void> {
+    return apiClient.post(`/campaigns/${campaignId}/register`)
+  }
+  submit(id: string): Promise<Campaign> {
+    return apiClient.post(`/campaigns/${id}/submit`)
+  }
+  getReport(id: string): Promise<unknown> {
+    return withRetry(() => apiClient.get(`/campaigns/${id}/report`))
+  }
+}
+
+export const campaignService = new CampaignService()

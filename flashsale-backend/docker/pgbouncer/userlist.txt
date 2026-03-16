@@ -1,0 +1,20 @@
+# userlist.txt - PgBouncer user authentication file
+# Format: "username" "password"
+# Passwords should be MD5 hashed: md5 + md5(password + username)
+
+# Default postgres user (update with your actual credentials)
+"postgres" "SCRAM-SHA-256$4096:salt$hash:hash"
+
+# Application user for NestJS app
+"decot_user" "SCRAM-SHA-256$4096:salt$hash:hash"
+
+# Read-only user for monitoring
+"decot_readonly" "SCRAM-SHA-256$4096:salt$hash:hash"
+
+# Admin user for management
+"decot_admin" "SCRAM-SHA-256$4096:salt$hash:hash"
+
+# Instructions for generating password hashes:
+# 1. For MD5: echo -n 'md5'; echo -n 'passwordusername' | md5sum | cut -d' ' -f1
+# 2. For SCRAM-SHA-256: Use PostgreSQL's gen_random_uuid() or external tools
+# 3. Example: SELECT encode(digest('password' || 'username', 'md5'), 'hex');

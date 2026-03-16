@@ -1,0 +1,39 @@
+declare namespace NodeJS {
+  interface ProcessEnv {
+    readonly NODE_ENV: 'development' | 'production' | 'test'
+    readonly PORT: string
+    readonly HOST: string
+    readonly SERVER_URL: string
+    readonly CLIENT_URL: string
+    readonly DB_CONNECTOR: string
+    readonly DB_HOST: string
+    readonly DB_USER: string
+    readonly DB_PASSWORD: string
+    readonly DB_DATABASE: string
+    readonly DB_PORT: string
+    readonly DATABASE_URL: string
+
+    // redis
+    readonly REDIS_HOST: string
+    readonly REDIS_PORT: string
+    readonly REDIS_USERNAME: string
+    readonly REDIS_PASSWORD: string
+    readonly REDIS_URL: string
+    readonly REDIS_CACHE_EXPIRATION: string
+
+    // secrets
+    readonly JWT_PRIVATE_KEY: string
+    readonly JWT_REFRESH_PRIVATE_KEY: string
+    readonly JWT_CLIENT_PRIVATE_KEY: string
+    readonly JWT_PUBLIC_KEY: string
+    readonly JWT_ALGORITHM: string
+    readonly JWT_EXPIRE_TIME: string
+    readonly JWT_EXPIRE_REFRESH_TIME: string
+    readonly SESSION_SECRET: string
+
+    // ipfs
+    readonly GET_UPLOAD_FILE_BASE_URL: string
+    UPLOAD_SERVER_BASE_URL: string
+    LOCAL_SERVER_BASE_URL: string
+  }
+}

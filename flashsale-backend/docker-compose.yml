@@ -1,0 +1,120 @@
+services:
+  flashsale_backend:
+    container_name: flashsale_backend
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    # command: npm run start:dev
+    env_file:
+      - .env
+    ports:
+      - 8080:8080
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - ${NETWORK}
+
+  postgres:
+    container_name: flashsale_postgres
+    image: postgres
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /data/postgres
+      TZ: 'Etc/UTC'
+    volumes:
+      - postgres:/data/postgres
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    networks:
+      - ${NETWORK}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_NAME}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pgbouncer:
+    container_name: flashsale_pgbouncer
+    image: edoburu/pgbouncer:latest
+    ports:
+      - '6432:6432'
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 20
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      MAX_DB_CONNECTIONS: 100
+      AUTH_TYPE: md5
+      ADMIN_USERS: ${DB_USER}
+      STATS_USERS: ${DB_USER}
+    volumes:
+      - ./docker/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ${NETWORK}
+    restart: unless-stopped
+
+  pgpool:
+    container_name: flashsale_pgpool
+    image: bitnami/pgpool:latest
+    ports:
+      - '5433:5433'
+    environment:
+      PGPOOL_BACKEND_NODES: 0:postgres:5432
+      PGPOOL_SR_CHECK_USER: ${DB_USER}
+      PGPOOL_SR_CHECK_PASSWORD: ${DB_PASSWORD}
+      PGPOOL_SR_CHECK_DATABASE: ${DB_NAME}
+      PGPOOL_ENABLE_LDAP: 'no'
+      PGPOOL_POSTGRES_USERNAME: ${DB_USER}
+      PGPOOL_POSTGRES_PASSWORD: ${DB_PASSWORD}
+      PGPOOL_ADMIN_USERNAME: ${DB_USER}
+      PGPOOL_ADMIN_PASSWORD: ${DB_PASSWORD}
+      PGPOOL_ENABLE_LOAD_BALANCING: 'yes'
+      PGPOOL_MAX_POOL: 15
+      PGPOOL_CHILD_LIFE_TIME: 300
+      PGPOOL_CONNECTION_LIFE_TIME: 600
+      PGPOOL_CLIENT_IDLE_LIMIT: 0
+      PGPOOL_NUM_INIT_CHILDREN: 10
+    volumes:
+      - ./docker/pgpool/pgpool.conf:/opt/bitnami/pgpool/conf/pgpool.conf
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ${NETWORK}
+    restart: unless-stopped
+
+  redis:
+    container_name: flashsale_redis
+    image: redis:latest
+    ports:
+      - '6379:6379'
+    environment:
+      TZ: 'Etc/UTC'
+    volumes:
+      - redis:/data
+    networks:
+      - ${NETWORK}
+
+networks:
+  flashsale_network:
+    driver: bridge
+    name: ${NETWORK}
+
+volumes:
+  postgres:
+  redis:

@@ -1,0 +1,42 @@
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency', currency: 'VND',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
+export function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleString('vi-VN', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+export function formatTimeAgo(dateString: string): string {
+  const diff = Date.now() - new Date(dateString).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'vừa xong'
+  if (mins < 60) return `${mins} phút trước`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs} giờ trước`
+  return `${Math.floor(hrs / 24)} ngày trước`
+}
+
+export function calculateDiscount(original: number, sale: number): number {
+  return Math.round(((original - sale) / original) * 100)
+}
+
+export function maskString(str: string): string {
+  return str.replace(/\B\w/g, '*')
+}
+
+export function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}

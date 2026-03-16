@@ -1,0 +1,381 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  engineType    = "binary"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String?    // Null nếu đăng nhập bằng Google OAuth
+  role         UserRole   @default(CUSTOMER) 
+  status       UserStatus @default(ACTIVE)
+  fullName     String
+  avatarUrl    String?
+  lastLoginAt  DateTime?  // Dùng để detect inactive users
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  merchantProfile  MerchantProfile?
+  customerProfile  CustomerProfile?
+  preRegistrations PreRegistration[]
+  reservations     Reservation[]
+  orders           Order[]
+  notifications    Notification[]
+
+  @@map("users")
+}
+
+model MerchantProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  businessName    String
+  taxCode         String    @unique
+  description     String?
+  phone           String?
+  address         String?
+  kycStatus       KycStatus @default(PENDING)
+  rejectionReason String?   // Admin ghi lý do từ chối, merchant xem được
+  approvedAt      DateTime? // Thời điểm được admin duyệt
+  approvedBy      String?   // ID của admin đã duyệt (audit trail)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+  orders    Order[]
+  products  Product[]
+
+  @@index([kycStatus]) // Admin query WHERE kycStatus = 'PENDING'
+  @@map("merchant_profiles")
+}
+
+model CustomerProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  phone          String?
+  defaultAddress String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@map("customer_profiles")
+}
+
+model Product {
+  id            String        @id @default(cuid())
+  merchantId    String
+  name          String
+  description   String?
+  category      String?       // Phân loại sản phẩm (optional, chưa normalize)
+  originalPrice Decimal       @db.Decimal(12, 2)
+  imageUrl      String?
+  status        ProductStatus @default(ACTIVE)
+  deletedAt     DateTime?     // Soft delete — merchant deactivate hoặc xóa
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  merchant         MerchantProfile   @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  inventory        Inventory[]
+  campaignProducts CampaignProduct[]
+  orderItems       OrderItem[]
+  stockAuditLogs   StockAuditLog[]
+
+  @@index([merchantId])
+  @@index([status, deletedAt]) // Query sản phẩm đang active, chưa bị xóa
+  @@map("products")
+}
+
+model Inventory {
+  id          String   @id @default(cuid())
+  productId   String
+  warehouseId String   @default("default")
+  quantity    Int      @default(0)
+  reserved    Int      @default(0) // Số lượng đang được giữ chỗ bởi các reservation HOLDING
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, warehouseId])
+  @@index([productId])
+  @@map("inventory")
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  merchantId      String
+  name            String
+  description     String?
+  startTime       DateTime
+  endTime         DateTime
+  status          CampaignStatus @default(DRAFT)
+  rejectionReason String?        // Admin ghi lý do từ chối, merchant xem được
+  approvedAt      DateTime?      // Thời điểm được admin duyệt
+  approvedBy      String?        // ID của admin đã duyệt (audit trail)
+  deletedAt       DateTime?      // Soft delete — admin xóa campaign vi phạm
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  merchant         MerchantProfile   @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  campaignProducts CampaignProduct[]
+  preRegistrations PreRegistration[]
+
+  @@index([status, startTime])
+  @@index([merchantId])
+  @@index([startTime])  // Scheduler query campaigns sắp bắt đầu
+  @@index([endTime])    // Scheduler query WHERE endTime <= NOW() để đóng campaign
+  @@map("campaigns")
+}
+
+model CampaignProduct {
+  id                String  @id @default(cuid())
+  campaignId        String
+  productId         String
+  salePrice         Decimal @db.Decimal(12, 2)
+  saleQuantity      Int     // Tổng số lượng được bán trong campaign
+  perUserLimit      Int     @default(1)
+  // remainingQuantity được quản lý bằng Redis Lua script (atomic DECR).
+  // Giá trị trong DB chỉ dùng để khởi tạo và đồng bộ lại sau campaign.
+  // KHÔNG dùng DB để check còn hàng — luôn dùng Redis.
+  remainingQuantity Int
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+  reservations Reservation[]
+
+  @@unique([campaignId, productId])
+  @@index([campaignId])
+  @@map("campaign_products")
+}
+
+model PreRegistration {
+  id           String   @id @default(cuid())
+  customerId   String
+  campaignId   String
+  registeredAt DateTime @default(now())
+  reminderSent Boolean  @default(false) // Đã gửi reminder email trước giờ mở bán chưa
+
+  customer User     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, campaignId])
+  @@index([campaignId])
+  @@map("pre_registrations")
+}
+
+model Reservation {
+  id                String            @id @default(cuid())
+  customerId        String
+  campaignProductId String
+  quantity          Int
+  status            ReservationStatus @default(HOLDING)
+  statusReason      String?
+  shippingAddress   String?           // Checkout lưu vào đây — Saga đọc ra để tạo Order, không cần Redis workaround
+  expiredAt         DateTime          // Worker đặt TTL; scheduler cleanup reservation HOLDING quá hạn
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  customer        User            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  campaignProduct CampaignProduct @relation(fields: [campaignProductId], references: [id], onDelete: Restrict)
+  order           Order?
+  payment         Payment?
+
+  @@index([status, expiredAt]) // Scheduler cleanup HOLDING đã hết hạn
+  @@index([customerId, campaignProductId])
+  @@index([customerId, campaignProductId, status])
+  @@map("reservations")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  customerId      String
+  merchantId      String
+  reservationId   String      @unique
+  status          OrderStatus @default(PENDING)
+  totalAmount     Decimal     @db.Decimal(12, 2)
+  shippingAddress String      // Copy từ Reservation.shippingAddress lúc tạo Order
+  cancelledAt     DateTime?   // Thời điểm hủy đơn
+  cancelReason    String?     // Lý do hủy — merchant hoặc customer điền
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customer    User            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  merchant    MerchantProfile @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  reservation Reservation     @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  items       OrderItem[]
+  payment     Payment?
+
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([merchantId, createdAt(sort: Desc)])
+  @@index([status]) // Admin filter orders by status
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String  @id @default(cuid())
+  orderId       String
+  productId     String
+  quantity      Int
+  unitPrice     Decimal @db.Decimal(12, 2) // Giá bán tại thời điểm mua (= salePrice)
+  originalPrice Decimal @db.Decimal(12, 2) // Giá gốc tại thời điểm mua — dùng tính discount history
+  createdAt     DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  @@map("order_items")
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  reservationId  String        @unique // FK chính — Payment tạo ngay lúc Checkout, trước khi Order tồn tại
+  orderId        String?       @unique // Nullable — được set sau khi Order được tạo bởi Worker
+  amount         Decimal       @db.Decimal(12, 2)
+  method         PaymentMethod
+  status         PaymentStatus @default(PENDING)
+  transactionId  String?       @unique // ID transaction từ payment gateway (VNPay/Momo/Stripe)
+  idempotencyKey String        @unique // Chống duplicate payment
+  failureReason  String?       // Lý do thất bại từ gateway — dùng để debug và retry
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  reservation Reservation @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  order       Order?      @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([idempotencyKey])
+  @@index([transactionId])
+  @@index([status]) // Admin báo cáo payment failed
+  @@map("payments")
+}
+
+model StockAuditLog {
+  id          String   @id @default(cuid())
+  productId   String
+  delta       Int      // Số lượng thay đổi (âm = giảm, dương = tăng)
+  stockBefore Int
+  stockAfter  Int
+  reason      String   // Mô tả lý do thay đổi (ví dụ: "reservation", "cancel", "restock")
+  referenceId String?  // ID tham chiếu (reservationId, orderId, ...)
+  triggeredBy String?  // userId hoặc "system"
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt(sort: Desc)])
+  @@index([referenceId])
+  @@index([createdAt(sort: Desc)]) // Time-based queries, báo cáo theo khoảng thời gian
+  @@map("stock_audit_logs")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt(sort: Desc)]) // Feed notification theo thời gian
+  @@map("notifications")
+}
+
+model DeadLetterJob {
+  id            String    @id @default(cuid())
+  type          String    // Loại job (ví dụ: "order.process", "notification.send")
+  originalQueue String    // Queue gốc mà job đến từ — dùng để retry đúng queue
+  errorMessage  String
+  payload       Json
+  retryCount    Int       @default(0)
+  lastRetryAt   DateTime? // Thời điểm retry gần nhất
+  failedAt      DateTime  @default(now())
+
+  @@index([type])                  // Filter theo loại job để retry hàng loạt
+  @@index([failedAt(sort: Desc)])  // Admin xem jobs thất bại gần nhất
+  @@map("dead_letter_jobs")
+}
+
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  MERCHANT
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum KycStatus {
+  PENDING  // Đang chờ admin duyệt
+  APPROVED // Đã được duyệt
+  REJECTED // Bị từ chối
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CampaignStatus {
+  DRAFT     // Merchant tạo, chưa gửi duyệt
+  APPROVED  // Admin đã duyệt
+  SCHEDULED // Đã duyệt, chưa đến giờ bắt đầu
+  ACTIVE    // Đang diễn ra
+  ENDED     // Kết thúc
+}
+
+enum ReservationStatus {
+  HOLDING // Đang giữ chỗ, chờ thanh toán
+  PAID    // Đã thanh toán thành công
+  EXPIRED // Hết hạn giữ chỗ
+}
+
+enum OrderStatus {
+  PENDING   // Vừa tạo, chờ xử lý
+  CONFIRMED // Đã xác nhận
+  SHIPPING  // Đang giao hàng
+  DONE      // Giao hàng thành công
+  CANCELLED // Đã hủy
+}
+
+enum PaymentMethod {
+  VNPAY
+  MOMO
+  STRIPE
+}
+
+enum PaymentStatus {
+  PENDING  // Chờ người dùng thanh toán
+  SUCCESS  // Thanh toán thành công
+  FAILED   // Thanh toán thất bại
+  REFUNDED // Đã hoàn tiền
+}
+
+enum NotificationType {
+  RESERVATION_EXPIRING // Nhắc nhở reservation sắp hết hạn
+  ORDER_CONFIRMED      // Đơn hàng được xác nhận
+  PAYMENT_FAILED       // Thanh toán thất bại
+  CAMPAIGN_STARTING    // Flash sale sắp bắt đầu
+}
