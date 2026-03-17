@@ -129,5 +129,11 @@ export const config = {
 
   frontend: {
     FRONTEND_URL: process.env.CLIENT_API_HOST
+  },
+
+  admin: {
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    ADMIN_NAME: process.env.ADMIN_NAME
   }
 }

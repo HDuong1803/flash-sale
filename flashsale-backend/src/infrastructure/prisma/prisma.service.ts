@@ -5,7 +5,8 @@ import {
   Logger
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, UserRole, UserStatus } from '@prisma/client'
+import * as bcrypt from 'bcrypt'
 
 @Injectable()
 export class PrismaService
@@ -57,10 +58,36 @@ export class PrismaService
           inet_server_port() as port
       `
       this.logger.log('Database info:', connectionInfo)
+
+      await this.seedDefaultAdmin()
     } catch (error) {
       this.logger.error('❌ Failed to connect to database:', error)
       throw error
     }
+  }
+
+  private async seedDefaultAdmin(): Promise<void> {
+    const email = this.configService.get<string>('ADMIN_EMAIL')
+    const password = this.configService.get<string>('ADMIN_PASSWORD')
+    const fullName = this.configService.get<string>('ADMIN_NAME')
+
+    const existing = await this.user.findUnique({ where: { email } })
+    if (existing) {
+      this.logger.log(`Admin account already exists (${email}), skipping seed`)
+      return
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10)
+    await this.user.create({
+      data: {
+        email,
+        passwordHash,
+        fullName,
+        role: UserRole.ADMIN,
+        status: UserStatus.ACTIVE
+      }
+    })
+    this.logger.log(`✅ Default admin created: ${email}`)
   }
 
   async onModuleDestroy() {
@@ -68,7 +95,7 @@ export class PrismaService
       this.logger.log('Disconnecting from database...')
       await this.$disconnect()
       this.logger.log('✅ Database disconnected successfully')
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Error disconnecting from database:', error)
     }
   }
@@ -99,7 +126,7 @@ export class PrismaService
         WHERE datname = current_database()
       `
       return poolStats
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error('Failed to get connection pool status:', error)
       return null
     }
@@ -123,7 +150,7 @@ export class PrismaService
             timeout: 30000 // 30 seconds
           }
         )
-      } catch (error) {
+      } catch (error: any) {
         lastError = error
         this.logger.warn(
           `Transaction attempt ${attempt} failed:`,

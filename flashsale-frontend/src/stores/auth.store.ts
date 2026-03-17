@@ -21,7 +21,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_merchant_orders',
     'view_merchant_dashboard',
   ],
-  ADMIN: ['browse_campaigns', 'admin_approve', 'admin_users', 'admin_system'],
+  ADMIN: [
+    'browse_campaigns', 'purchase', 'view_own_orders',
+    'pre_register',
+    'create_campaign', 'manage_products',
+    'view_merchant_orders', 'view_merchant_dashboard',
+    'admin_approve', 'admin_users', 'admin_system',
+  ],
 }
 
 /**

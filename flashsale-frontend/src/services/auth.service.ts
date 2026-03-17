@@ -28,6 +28,10 @@ class AuthService {
     return apiClient.get('/user/me')
   }
 
+  updateProfile(dto: { fullName?: string; avatarUrl?: string }): Promise<User> {
+    return apiClient.patch('/user/profile', dto)
+  }
+
   /** Clears auth cookies server-side. Best-effort — never throws. */
   async logout(): Promise<void> {
     try {

@@ -1,7 +1,7 @@
 'use client'
 
-import { useReducer, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useReducer, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,7 +9,9 @@ import { CheckCircle, Package, Plus, Trash2, AlertCircle, Loader2 } from 'lucide
 import { useCreateCampaign } from '@/hooks/mutations/useCreateCampaign'
 import { useAddCampaignProduct } from '@/hooks/mutations/useAddCampaignProduct'
 import { useSubmitCampaign } from '@/hooks/mutations/useSubmitCampaign'
+import { useUpdateCampaign } from '@/hooks/mutations/useUpdateCampaign'
 import { useMyProducts } from '@/hooks/queries/useMyProducts'
+import { useCampaign } from '@/hooks/queries/useCampaign'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { formatCurrency, calculateDiscount } from '@/lib/utils'
 import type { Product } from '@/types'
@@ -77,32 +79,55 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
 
 const STEPS = ['Thông tin cơ bản', 'Chọn sản phẩm', 'Xem lại & Gửi']
 
-export default function CreateCampaignPage() {
+function CreateCampaignPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const editId = searchParams.get('edit')
+
   const [state, dispatch] = useReducer(reducer, { step: 1, step1Data: null, products: [] })
   const { mutate: createCampaign, loading: creating } = useCreateCampaign()
   const { mutate: addCampaignProduct } = useAddCampaignProduct()
   const { mutate: submitCampaign } = useSubmitCampaign()
+  const { mutate: updateCampaign, loading: updating } = useUpdateCampaign()
+  const { data: editCampaign } = useCampaign(editId)
   const [submitting, setSubmitting] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<Step1Form>({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<Step1Form>({
     resolver: zodResolver(step1Schema),
   })
+
+  useEffect(() => {
+    if (editCampaign && editId) {
+      reset({
+        name: editCampaign.name,
+        description: editCampaign.description ?? '',
+        startTime: editCampaign.startTime.slice(0, 16),
+        endTime: editCampaign.endTime.slice(0, 16),
+      })
+    }
+  }, [editCampaign, editId, reset])
 
   const handleFinalSubmit = async () => {
     if (!state.step1Data || state.products.length === 0) return
     setSubmitting(true)
     try {
-      const campaign = await createCampaign({ ...state.step1Data, description: state.step1Data.description ?? '' })
-      await Promise.all(state.products.map((p) =>
-        addCampaignProduct(campaign.id, {
-          productId: p.product.id,
-          salePrice: p.salePrice,
-          saleQuantity: p.saleQuantity,
-          perUserLimit: p.perUserLimit,
-        })
-      ))
-      await submitCampaign(campaign.id)
+      let campaignId: string
+      if (editId) {
+        await updateCampaign(editId, { ...state.step1Data, description: state.step1Data.description ?? '' })
+        campaignId = editId
+      } else {
+        const campaign = await createCampaign({ ...state.step1Data, description: state.step1Data.description ?? '' })
+        campaignId = campaign.id
+        await Promise.all(state.products.map((p) =>
+          addCampaignProduct(campaignId, {
+            productId: p.product.id,
+            salePrice: p.salePrice,
+            saleQuantity: p.saleQuantity,
+            perUserLimit: p.perUserLimit,
+          })
+        ))
+      }
+      await submitCampaign(campaignId)
       router.push('/merchant/campaigns')
     } catch { /* toast shown */ } finally {
       setSubmitting(false)
@@ -111,7 +136,9 @@ export default function CreateCampaignPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <h1 className="text-white text-2xl font-bold">Tạo chiến dịch mới</h1>
+      <h1 className="text-white text-2xl font-bold">
+        {editId ? 'Chỉnh sửa chiến dịch' : 'Tạo chiến dịch mới'}
+      </h1>
 
       {/* Step indicator */}
       <div className="flex items-center">
@@ -204,7 +231,7 @@ export default function CreateCampaignPage() {
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => dispatch({ type: 'BACK' })} className="btn-glass">← Quay lại</button>
-            <button onClick={handleFinalSubmit} disabled={submitting || creating} className="btn-primary disabled:opacity-50">
+            <button onClick={handleFinalSubmit} disabled={submitting || creating || updating} className="btn-primary disabled:opacity-50">
               {submitting ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -359,5 +386,13 @@ function Step2({ state, dispatch }: { state: WizardState; dispatch: React.Dispat
         </button>
       </div>
     </div>
+  )
+}
+
+export default function CreateCampaignPageWrapper() {
+  return (
+    <Suspense fallback={<div className="glass rounded-2xl p-8 text-center text-white/60">Đang tải...</div>}>
+      <CreateCampaignPage />
+    </Suspense>
   )
 }

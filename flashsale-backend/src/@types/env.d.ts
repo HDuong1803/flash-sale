@@ -35,5 +35,10 @@ declare namespace NodeJS {
     readonly GET_UPLOAD_FILE_BASE_URL: string
     UPLOAD_SERVER_BASE_URL: string
     LOCAL_SERVER_BASE_URL: string
+
+    // admin
+    readonly ADMIN_EMAIL: string
+    readonly ADMIN_PASSWORD: string
+    readonly ADMIN_NAME: string
   }
 }

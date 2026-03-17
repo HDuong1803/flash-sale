@@ -30,10 +30,6 @@ const PAYMENT_METHODS = [
   { id: 'STRIPE' as const, icon: Globe, title: 'Thẻ quốc tế', subtitle: 'Visa/Mastercard' },
 ]
 
-// Placeholder: 15 minutes from now for demo
-const PLACEHOLDER_EXPIRY = new Date(Date.now() + 15 * 60 * 1000).toISOString()
-const PLACEHOLDER_AMOUNT = 299000
-
 function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -42,10 +38,19 @@ function CheckoutContent() {
   const { checkout, loading } = useCheckout()
   const [selectedMethod, setSelectedMethod] = useState<'VNPAY' | 'MOMO' | 'STRIPE'>('VNPAY')
   const [expiredDialog, setExpiredDialog] = useState(false)
+  const [amount, setAmount] = useState(0)
+  const [expiredAt, setExpiredAt] = useState<string | null>(null)
 
   useEffect(() => {
     if (!reservationId) router.replace('/campaigns')
   }, [reservationId, router])
+
+  useEffect(() => {
+    const expiredAtParam = searchParams.get('expiredAt')
+    const amountParam = searchParams.get('amount')
+    if (expiredAtParam) setExpiredAt(expiredAtParam)
+    if (amountParam) setAmount(Number(amountParam))
+  }, [searchParams])
 
   const { register, handleSubmit, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(schema),
@@ -139,7 +144,7 @@ function CheckoutContent() {
             <div className="glass-brand rounded-xl p-3">
               <p className="text-white/60 text-xs mb-2">Reservation hết hạn sau</p>
               <CountdownTimer
-                targetDate={PLACEHOLDER_EXPIRY}
+                targetDate={expiredAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString()}
                 size="sm"
                 onExpire={() => setExpiredDialog(true)}
               />
@@ -149,7 +154,7 @@ function CheckoutContent() {
             <div className="space-y-2 py-3 border-y border-white/10">
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Tạm tính</span>
-                <span className="text-white">{formatCurrency(PLACEHOLDER_AMOUNT)}</span>
+                <span className="text-white">{formatCurrency(amount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Phí vận chuyển</span>
@@ -158,7 +163,7 @@ function CheckoutContent() {
             </div>
             <div className="flex justify-between">
               <span className="text-white font-semibold">Tổng cộng</span>
-              <span className="text-indigo-300 text-xl font-bold">{formatCurrency(PLACEHOLDER_AMOUNT)}</span>
+              <span className="text-indigo-300 text-xl font-bold">{formatCurrency(amount)}</span>
             </div>
 
             <button
@@ -172,7 +177,7 @@ function CheckoutContent() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Đang xử lý...
                 </span>
-              ) : `Hoàn tất thanh toán — ${formatCurrency(PLACEHOLDER_AMOUNT)}`}
+              ) : `Hoàn tất thanh toán — ${formatCurrency(amount)}`}
             </button>
           </div>
         </div>

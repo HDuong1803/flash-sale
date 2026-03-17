@@ -33,6 +33,18 @@ class OrderService {
   getMerchantOrders(filters?: OrderFilters): Promise<Order[]> {
     return withRetry(() => apiClient.get('/merchants/orders', { params: filters }))
   }
+  getReservation(reservationId: string): Promise<{
+    id: string
+    quantity: number
+    expiredAt: string
+    shippingAddress?: string
+    campaignProduct: {
+      salePrice: number
+      product: { name: string; imageUrl?: string }
+    }
+  }> {
+    return withRetry(() => apiClient.get(`/reservations/${reservationId}`))
+  }
 }
 
 export const orderService = new OrderService()

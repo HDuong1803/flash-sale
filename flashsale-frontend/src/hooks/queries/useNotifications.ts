@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { notificationService } from '@/services/notification.service'
+import { ApiError } from '@/lib/api-client'
 import type { Notification } from '@/types'
 
 export function useNotifications() {
@@ -15,12 +16,17 @@ export function useNotifications() {
       setData(result)
     } catch (err) {
       setData([])
-      setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu')
+      setError(err instanceof ApiError ? err.message : 'Không thể tải dữ liệu')
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    fetch()
+    const interval = setInterval(fetch, 60_000)
+    return () => clearInterval(interval)
+  }, [fetch])
+
   return { data, loading, error, refetch: fetch }
 }

@@ -3,13 +3,13 @@ import { NextRequest, NextResponse } from 'next/server'
 const PUBLIC = ['/', '/campaigns', '/register', '/payment/return']
 
 const ROLE_ROUTES: Record<string, string[]> = {
-  '/merchant': ['MERCHANT'],
+  '/merchant': ['MERCHANT', 'ADMIN'],
   '/admin':    ['ADMIN'],
 }
 
-const AUTH_ROUTES = ['/checkout', '/orders', '/purchase', '/profile']
+const AUTH_ROUTES = ['/checkout', '/orders', '/purchase', '/profile', '/notifications']
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // access_token is HttpOnly but Next.js middleware runs server-side — it CAN read it.

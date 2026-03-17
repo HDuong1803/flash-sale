@@ -1,38 +1,39 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsOptional, IsString, IsInt } from 'class-validator'
+import { IsOptional, IsString, IsInt, IsEnum } from 'class-validator'
 import { Type } from 'class-transformer'
+import { CampaignStatus, KycStatus, UserRole } from '@common/enums/prisma-enums'
 
 export class AdminMerchantQueryDto {
   @ApiProperty({
     description: 'Lọc theo trạng thái KYC',
-    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+    enum: KycStatus,
     required: false
   })
   @IsOptional()
-  @IsString()
-  status?: string
+  @IsEnum(KycStatus)
+  status?: KycStatus
 }
 
 export class AdminCampaignQueryDto {
   @ApiProperty({
     description: 'Lọc theo trạng thái',
-    enum: ['DRAFT', 'APPROVED', 'ACTIVE', 'ENDED'],
+    enum: CampaignStatus,
     required: false
   })
   @IsOptional()
-  @IsString()
-  status?: string
+  @IsEnum(CampaignStatus)
+  status?: CampaignStatus
 }
 
 export class AdminUserQueryDto {
   @ApiProperty({
     description: 'Lọc theo role',
-    enum: ['CUSTOMER', 'MERCHANT', 'ADMIN'],
+    enum: UserRole,
     required: false
   })
   @IsOptional()
-  @IsString()
-  role?: string
+  @IsEnum(UserRole)
+  role?: UserRole
 
   @ApiProperty({ description: 'Tìm kiếm theo email hoặc tên', required: false })
   @IsOptional()

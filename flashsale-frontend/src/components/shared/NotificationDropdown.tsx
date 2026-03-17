@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Bell, Clock, CheckCircle, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatTimeAgo } from '@/lib/utils'
@@ -88,9 +89,9 @@ export function NotificationDropdown({ notifications, onMarkRead, onMarkAllRead 
             </div>
 
             <div className="border-t border-white/10 px-4 py-2">
-              <button className="w-full text-center text-indigo-400 text-xs hover:text-indigo-300 transition-colors py-1">
+              <Link href="/notifications" className="block w-full text-center text-indigo-400 text-xs hover:text-indigo-300 transition-colors py-1">
                 Xem tất cả
-              </button>
+              </Link>
             </div>
           </div>
         </>

@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Users, AlertCircle, Search } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAdminUsers } from '@/hooks/queries/useAdminUsers'
 import { useSuspendUser } from '@/hooks/mutations/useSuspendUser'
 import { useActivateUser } from '@/hooks/mutations/useActivateUser'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { formatDate } from '@/lib/utils'
+import { adminService } from '@/services/admin.service'
 import type { UserRole } from '@/types'
 
 const ROLES: { label: string; value: UserRole | '' }[] = [
@@ -29,6 +31,8 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'suspend' | 'activate' } | null>(null)
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
+  const [bulkSuspending, setBulkSuspending] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -54,6 +58,22 @@ export default function AdminUsersPage() {
     }
   }
 
+  const handleBulkSuspend = async () => {
+    if (selected.size === 0) return
+    setBulkSuspending(true)
+    try {
+      await Promise.all(Array.from(selected).map((id) => adminService.suspendUser(id)))
+      toast.success(`Đã đình chỉ ${selected.size} người dùng`)
+      setSelected(new Set())
+      refetch()
+    } catch {
+      toast.error('Có lỗi xảy ra khi đình chỉ người dùng')
+    } finally {
+      setBulkSuspending(false)
+      setBulkConfirmOpen(false)
+    }
+  }
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
@@ -67,7 +87,10 @@ export default function AdminUsersPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-white text-2xl font-bold">Quản lý Người dùng</h1>
         {selected.size > 0 && (
-          <button className="btn-glass text-sm text-red-300 border-red-500/20">
+          <button
+            onClick={() => setBulkConfirmOpen(true)}
+            className="btn-glass text-sm text-red-300 border-red-500/20"
+          >
             Đình chỉ {selected.size} người dùng
           </button>
         )}
@@ -150,6 +173,17 @@ export default function AdminUsersPage() {
         onConfirm={handleAction}
         onCancel={() => setConfirmAction(null)}
         loading={suspending || activating}
+      />
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        title={`Đình chỉ ${selected.size} người dùng?`}
+        description="Các người dùng này sẽ không thể đăng nhập. Bạn có chắc chắn không?"
+        confirmLabel="Đình chỉ tất cả"
+        cancelLabel="Hủy"
+        variant="destructive"
+        onConfirm={handleBulkSuspend}
+        onCancel={() => setBulkConfirmOpen(false)}
+        loading={bulkSuspending}
       />
     </div>
   )

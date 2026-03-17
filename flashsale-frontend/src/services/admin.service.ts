@@ -1,5 +1,5 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Merchant, Campaign, User, DeadLetterJob, SystemHealth, AdminStats } from '@/types'
+import type { Merchant, Campaign, User, DeadLetterJob, SystemHealth, AdminStats, QueueStats, SystemLog, ActivityLog, OrdersByHour, RevenueTrend } from '@/types'
 
 class AdminService {
   getMerchants(status?: string): Promise<Merchant[]> {
@@ -43,6 +43,21 @@ class AdminService {
   }
   getStats(): Promise<AdminStats> {
     return withRetry(() => apiClient.get('/admin/stats'))
+  }
+  getOrdersByHour(): Promise<OrdersByHour[]> {
+    return withRetry(() => apiClient.get('/admin/stats/orders-by-hour'))
+  }
+  getRevenueTrend(): Promise<RevenueTrend[]> {
+    return withRetry(() => apiClient.get('/admin/stats/revenue-trend'))
+  }
+  getActivity(): Promise<ActivityLog[]> {
+    return withRetry(() => apiClient.get('/admin/activity'))
+  }
+  getQueueStats(): Promise<QueueStats> {
+    return withRetry(() => apiClient.get('/admin/system/queue-stats'))
+  }
+  getSystemLogs(): Promise<SystemLog[]> {
+    return withRetry(() => apiClient.get('/admin/system/logs'))
   }
 }
 

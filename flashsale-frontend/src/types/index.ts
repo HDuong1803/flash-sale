@@ -60,6 +60,12 @@ export interface AdminStats {
   failedJobs?: number
 }
 
+export interface QueueStats { high: number; normal: number }
+export interface SystemLog { level: 'ERROR' | 'WARN' | 'INFO'; message: string; timestamp: string }
+export interface ActivityLog { type: string; message: string; createdAt: string }
+export interface OrdersByHour { hour: string; orders: number }
+export interface RevenueTrend { date: string; revenue: number }
+
 // Auth store state — tokens live in HttpOnly cookies, not in JS state
 export interface AuthState {
   user: User | null

@@ -89,7 +89,7 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
             />
             <div className="flex flex-col gap-3">
               <Link
-                href={`/checkout?reservationId=${data.reservationId}`}
+                href={`/checkout?reservationId=${data.reservationId}&expiredAt=${encodeURIComponent(data.expiredAt ?? '')}`}
                 className="btn-primary"
               >
                 Tiến hành thanh toán

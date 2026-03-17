@@ -133,10 +133,7 @@ export class AdminController {
   })
   @Patch('campaigns/:id/reject')
   @HttpCode(HttpStatus.OK)
-  async rejectCampaign(
-    @Param('id') id: string,
-    @Body() _dto: RejectReasonDto
-  ): Promise<unknown> {
+  async rejectCampaign(@Param('id') id: string): Promise<unknown> {
     return this.adminService.rejectCampaign(id)
   }
 
