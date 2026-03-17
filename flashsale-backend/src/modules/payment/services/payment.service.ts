@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { PaymentStatus } from '@prisma/client'
 import { PaymentRepository } from '../repositories/payment.repository'
 import { SagaCoordinatorService } from './saga-coordinator.service'
 import { PaymentWebhookDto } from '../dto/payment.dto'
@@ -20,7 +21,7 @@ export class PaymentService {
     }
 
     // Idempotency: skip if already processed
-    if (payment.status !== 'PENDING') {
+    if (payment.status !== PaymentStatus.PENDING) {
       this.logger.log(
         `Webhook duplicate for paymentId=${dto.paymentId}, status=${payment.status}`
       )

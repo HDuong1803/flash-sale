@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Users, Store, Zap, ShoppingCart, DollarSign, AlertTriangle, X, Bell } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { useAdminMerchants } from '@/hooks/queries/useAdminMerchants'
+import type { CampaignStatus } from '@/types'
 import { useAdminCampaigns } from '@/hooks/queries/useAdminCampaigns'
 import { useSystemHealth } from '@/hooks/queries/useSystemHealth'
 import { useDeadLetterJobs } from '@/hooks/queries/useDeadLetterJobs'
@@ -44,7 +45,7 @@ const TYPE_COLORS: Record<string, string> = {
 export default function AdminOverviewPage() {
   const [alertDismissed, setAlertDismissed] = useState(false)
   const { data: pendingMerchants } = useAdminMerchants('PENDING')
-  const { data: pendingCampaigns } = useAdminCampaigns('PENDING')
+  const { data: pendingCampaigns } = useAdminCampaigns('DRAFT' as CampaignStatus)
   const { data: health } = useSystemHealth()
   const { data: jobs } = useDeadLetterJobs()
   const { data: stats, loading: statsLoading } = useAdminStats()
@@ -86,7 +87,7 @@ export default function AdminOverviewPage() {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard icon={Users} label="Tổng người dùng" value={stats?.totalUsers?.toLocaleString() ?? '—'} color="bg-blue-500/20" />
           <StatCard icon={Store} label="Merchant hoạt động" value={String(stats?.activeMerchants ?? '—')} color="bg-emerald-500/20" />
-          <StatCard icon={Zap} label="Chiến dịch đang chạy" value={String(stats?.activeCampaigns ?? '—')} color="bg-indigo-500/20" />
+          <StatCard icon={Zap} label="Chiến dịch đang chạy" value={String(stats?.liveCampaigns ?? '—')} color="bg-indigo-500/20" />
           <StatCard icon={ShoppingCart} label="Đơn hàng hôm nay" value={String(stats?.ordersToday ?? '—')} color="bg-purple-500/20" />
           <StatCard icon={DollarSign} label="Doanh thu hôm nay" value={formatCurrency(stats?.revenueToday ?? 0)} color="bg-emerald-500/20" />
           <StatCard icon={AlertTriangle} label="Job thất bại" value={String(jobs.length ?? '—')} color={jobs.length > 0 ? 'bg-red-500/20' : 'bg-gray-500/20'} href="/admin/dead-letter-queue" />

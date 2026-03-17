@@ -1,5 +1,5 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Order, PurchaseResult } from '@/types'
+import type { Order, PurchaseResult, OrderStatus } from '@/types'
 
 export interface PurchaseDto {
   campaignProductId: string
@@ -8,9 +8,21 @@ export interface PurchaseDto {
 }
 
 export interface OrderFilters {
-  status?: string
+  status?: OrderStatus
   page?: number
   limit?: number
+}
+
+export interface ReservationDetail {
+  id: string
+  status: 'HOLDING' | 'PAID' | 'EXPIRED'
+  quantity: number
+  expiredAt: string
+  shippingAddress?: string
+  campaignProduct: {
+    salePrice: number
+    product: { name: string; imageUrl?: string }
+  }
 }
 
 class OrderService {
@@ -33,16 +45,7 @@ class OrderService {
   getMerchantOrders(filters?: OrderFilters): Promise<Order[]> {
     return withRetry(() => apiClient.get('/merchants/orders', { params: filters }))
   }
-  getReservation(reservationId: string): Promise<{
-    id: string
-    quantity: number
-    expiredAt: string
-    shippingAddress?: string
-    campaignProduct: {
-      salePrice: number
-      product: { name: string; imageUrl?: string }
-    }
-  }> {
+  getReservation(reservationId: string): Promise<ReservationDetail> {
     return withRetry(() => apiClient.get(`/reservations/${reservationId}`))
   }
 }

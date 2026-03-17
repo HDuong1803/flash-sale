@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { ReservationStatus } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { ReservationRepository } from '../repositories/reservation.repository'
 
@@ -27,7 +28,7 @@ export class ReservationService {
         customerId: data.customerId,
         campaignProductId: data.campaignProductId,
         quantity: String(data.quantity),
-        status: 'HOLDING',
+        status: ReservationStatus.HOLDING,
         expiredAt: expiredAt.toISOString()
       },
       TTL
@@ -67,7 +68,7 @@ export class ReservationService {
     // Update DB record
     await this.reservationRepository.updateStatus(
       reservationId,
-      'EXPIRED',
+      ReservationStatus.EXPIRED,
       reason
     )
   }

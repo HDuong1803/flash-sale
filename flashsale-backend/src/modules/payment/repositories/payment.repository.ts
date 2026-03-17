@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Payment } from '@prisma/client'
+import { OrderStatus, Payment, PaymentStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -28,14 +28,14 @@ export class PaymentRepository {
   async updatePaymentSuccess(id: string, transactionId: string): Promise<void> {
     await this.prisma.payment.update({
       where: { id },
-      data: { status: 'SUCCESS', transactionId, paidAt: new Date() }
+      data: { status: PaymentStatus.SUCCESS, transactionId, paidAt: new Date() }
     })
   }
 
   async updatePaymentFailed(id: string): Promise<void> {
     await this.prisma.payment.update({
       where: { id },
-      data: { status: 'FAILED' }
+      data: { status: PaymentStatus.FAILED }
     })
   }
 
@@ -58,7 +58,7 @@ export class PaymentRepository {
           customerId: data.customerId,
           merchantId: data.merchantId,
           reservationId: data.reservationId,
-          status: 'CONFIRMED',
+          status: OrderStatus.CONFIRMED,
           totalAmount: data.totalAmount,
           shippingAddress: data.shippingAddress,
           items: {

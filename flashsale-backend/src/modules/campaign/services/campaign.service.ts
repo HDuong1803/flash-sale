@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { CampaignStatus, KycStatus } from '@prisma/client'
 import { MerchantRepository } from '@modules/merchant/repositories/merchant.repository'
 import { ProductRepository } from '@modules/product/repositories/product.repository'
 import { CampaignRepository } from '../repositories/campaign.repository'
@@ -25,7 +26,7 @@ export class CampaignService {
   private async getApprovedMerchant(userId: string) {
     const merchant = await this.merchantRepository.findByUserId(userId)
     if (!merchant) throw new ForbiddenException('Bạn chưa đăng ký làm merchant')
-    if (merchant.kycStatus !== 'APPROVED')
+    if (merchant.kycStatus !== KycStatus.APPROVED)
       throw new ForbiddenException('Merchant chưa được duyệt')
     return merchant
   }
@@ -73,7 +74,7 @@ export class CampaignService {
       merchant.id
     )
     if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
-    if (campaign.status !== 'DRAFT')
+    if (campaign.status !== CampaignStatus.DRAFT)
       throw new BadRequestException(
         'Chỉ có thể sửa chiến dịch ở trạng thái DRAFT'
       )
@@ -103,7 +104,7 @@ export class CampaignService {
       merchant.id
     )
     if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
-    if (campaign.status !== 'DRAFT')
+    if (campaign.status !== CampaignStatus.DRAFT)
       throw new BadRequestException(
         'Chỉ thêm sản phẩm khi chiến dịch ở trạng thái DRAFT'
       )
@@ -136,7 +137,7 @@ export class CampaignService {
       merchant.id
     )
     if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
-    if (campaign.status !== 'DRAFT')
+    if (campaign.status !== CampaignStatus.DRAFT)
       throw new BadRequestException(
         'Chỉ xóa sản phẩm khi chiến dịch ở trạng thái DRAFT'
       )
@@ -153,19 +154,23 @@ export class CampaignService {
         merchant.id
       )
     if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
-    if (campaign.status !== 'DRAFT')
+    if (campaign.status !== CampaignStatus.DRAFT)
       throw new BadRequestException('Chiến dịch không ở trạng thái DRAFT')
     if (campaign.campaignProducts.length === 0)
       throw new BadRequestException(
         'Cần có ít nhất 1 sản phẩm trước khi gửi duyệt'
       )
 
-    return this.campaignRepository.updateStatus(id, 'APPROVED')
+    return this.campaignRepository.updateStatus(id, CampaignStatus.APPROVED)
   }
 
   async preRegister(userId: string, campaignId: string) {
     const campaign = await this.campaignRepository.findById(campaignId)
-    if (!campaign || !['APPROVED', 'SCHEDULED'].includes(campaign.status))
+    if (
+      !campaign ||
+      (campaign.status !== CampaignStatus.APPROVED &&
+        campaign.status !== CampaignStatus.SCHEDULED)
+    )
       throw new BadRequestException('Chiến dịch không nhận đăng ký trước')
 
     await this.campaignRepository.upsertPreRegistration(userId, campaignId)

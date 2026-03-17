@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminService } from '@/services/admin.service'
-import type { Merchant } from '@/types'
+import type { Merchant, KycStatus } from '@/types'
 
-export function useAdminMerchants(status?: string) {
+export function useAdminMerchants(status?: KycStatus) {
   const [data, setData] = useState<Merchant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

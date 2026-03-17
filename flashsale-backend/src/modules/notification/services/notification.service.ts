@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { NotificationType } from '@prisma/client'
 import { NotificationRepository } from '../repositories/notification.repository'
 
 @Injectable()
@@ -10,11 +11,7 @@ export class NotificationService {
   async createNotification(
     userId: string,
     data: {
-      type:
-        | 'RESERVATION_EXPIRING'
-        | 'ORDER_CONFIRMED'
-        | 'PAYMENT_FAILED'
-        | 'CAMPAIGN_STARTING'
+      type: NotificationType
       title: string
       message: string
     }

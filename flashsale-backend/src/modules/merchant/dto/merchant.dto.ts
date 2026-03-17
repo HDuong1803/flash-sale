@@ -3,9 +3,11 @@ import {
   IsString,
   IsNotEmpty,
   IsOptional,
+  IsEnum,
   MaxLength,
   Matches
 } from 'class-validator'
+import { OrderStatus } from '@prisma/client'
 
 export class ApplyMerchantDto {
   @ApiProperty({ description: 'Tên doanh nghiệp', example: 'Cửa hàng ABC' })
@@ -78,11 +80,11 @@ export class MerchantStatsResponseDto {
 export class MerchantOrderQueryDto {
   @ApiProperty({
     required: false,
-    enum: ['PENDING', 'CONFIRMED', 'SHIPPING', 'DONE', 'CANCELLED']
+    enum: OrderStatus
   })
   @IsOptional()
-  @IsString()
-  status?: string
+  @IsEnum(OrderStatus)
+  status?: OrderStatus
 
   @ApiProperty({ required: false, default: 1, example: 1 })
   @IsOptional()

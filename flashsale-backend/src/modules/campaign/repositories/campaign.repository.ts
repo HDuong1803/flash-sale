@@ -3,13 +3,14 @@ import {
   Campaign,
   CampaignProduct,
   CampaignStatus,
+  OrderStatus,
   PreRegistration
 } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 export type CampaignWithProducts = Campaign & {
   campaignProducts: Array<
-    CampaignProduct & { product: { name: string; imageUrl: string | null } }
+    CampaignProduct & { product: { name: string; imageUrl: string | null; originalPrice: number } }
   >
   merchant: { businessName: string }
 }
@@ -27,7 +28,7 @@ export class CampaignRepository {
       where: { id },
       include: {
         campaignProducts: {
-          include: { product: { select: { name: true, imageUrl: true } } }
+          include: { product: { select: { name: true, imageUrl: true, originalPrice: true } } }
         },
         merchant: { select: { businessName: true } }
       }
@@ -52,7 +53,7 @@ export class CampaignRepository {
   }
 
   async findAll(filters: {
-    status?: string
+    status?: CampaignStatus
     search?: string
     merchantId?: string
     page: number
@@ -60,7 +61,7 @@ export class CampaignRepository {
   }): Promise<CampaignWithProducts[]> {
     return this.prisma.campaign.findMany({
       where: {
-        ...(filters.status ? { status: filters.status as CampaignStatus } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
         ...(filters.merchantId ? { merchantId: filters.merchantId } : {}),
         ...(filters.search
           ? { name: { contains: filters.search, mode: 'insensitive' as const } }
@@ -68,7 +69,7 @@ export class CampaignRepository {
       },
       include: {
         campaignProducts: {
-          include: { product: { select: { name: true, imageUrl: true } } }
+          include: { product: { select: { name: true, imageUrl: true, originalPrice: true } } }
         },
         merchant: { select: { businessName: true } }
       },
@@ -153,13 +154,13 @@ export class CampaignRepository {
         }),
         this.prisma.order.count({
           where: {
-            status: 'CANCELLED',
+            status: OrderStatus.CANCELLED,
             reservation: { campaignProduct: { campaignId } }
           }
         }),
         this.prisma.order.aggregate({
           where: {
-            status: { not: 'CANCELLED' },
+            status: { not: OrderStatus.CANCELLED },
             reservation: { campaignProduct: { campaignId } }
           },
           _sum: { totalAmount: true }

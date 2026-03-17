@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { CampaignStatus, OrderStatus, UserRole } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { OrderRepository } from '../repositories/order.repository'
@@ -31,7 +32,7 @@ export class OrderGatewayService {
       dto.campaignProductId
     )
     if (!cp) throw new BadRequestException('Sản phẩm không tồn tại')
-    if (cp.campaign.status !== 'ACTIVE')
+    if (cp.campaign.status !== CampaignStatus.ACTIVE)
       throw new BadRequestException('Flash Sale chưa bắt đầu hoặc đã kết thúc')
 
     // 3. Check per-user limit
@@ -80,7 +81,7 @@ export class OrderGatewayService {
   async getMyOrders(
     userId: string,
     role: string,
-    query: { status?: string; page?: number; limit?: number }
+    query: { status?: OrderStatus; page?: number; limit?: number }
   ) {
     const filters = {
       status: query.status,
@@ -88,7 +89,7 @@ export class OrderGatewayService {
       limit: query.limit ?? 10
     }
 
-    if (role === 'MERCHANT') {
+    if (role === UserRole.MERCHANT) {
       return this.orderRepository.findAllForMerchant(userId, filters)
     }
     return this.orderRepository.findAllForCustomer(userId, filters)
@@ -98,14 +99,14 @@ export class OrderGatewayService {
     const order = await this.orderRepository.findById(orderId)
     if (!order) throw new NotFoundException('Đơn hàng không tồn tại')
 
-    if (role === 'ADMIN') return order
-    if ((order as any).customerId === userId) return order
+    if (role === UserRole.ADMIN) return order
+    if (order.customerId === userId) return order
 
-    if (role === 'MERCHANT') {
+    if (role === UserRole.MERCHANT) {
       const merchant =
         await this.orderRepository.findMerchantByUserIdAndOrderMerchantId(
           userId,
-          (order as any).merchantId
+          order.merchantId
         )
       if (merchant) return order
     }

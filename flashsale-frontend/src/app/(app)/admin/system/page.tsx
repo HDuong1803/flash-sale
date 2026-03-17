@@ -14,7 +14,7 @@ const SERVICE_CONFIG = [
   { key: 'api' as const, label: 'API Server', icon: Server, desc: 'Backend REST API' },
 ]
 
-const LEVEL_COLORS = {
+const LEVEL_COLORS: Record<string, string> = {
   ERROR: 'bg-red-500/15 text-red-300 border-red-500/20',
   WARN: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/20',
   INFO: 'bg-blue-500/15 text-blue-300 border-blue-500/20',

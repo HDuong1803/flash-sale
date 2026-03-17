@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { KycStatus, ProductStatus } from '@prisma/client'
 import { MerchantRepository } from '@modules/merchant/repositories/merchant.repository'
 import { ProductRepository } from '../repositories/product.repository'
 import {
@@ -21,7 +22,7 @@ export class ProductService {
   private async getApprovedMerchant(userId: string) {
     const merchant = await this.merchantRepository.findByUserId(userId)
     if (!merchant) throw new ForbiddenException('Bạn chưa đăng ký làm merchant')
-    if (merchant.kycStatus !== 'APPROVED')
+    if (merchant.kycStatus !== KycStatus.APPROVED)
       throw new ForbiddenException('Tài khoản merchant chưa được duyệt')
     return merchant
   }

@@ -1,17 +1,21 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Merchant, Campaign, User, DeadLetterJob, SystemHealth, AdminStats, QueueStats, SystemLog, ActivityLog, OrdersByHour, RevenueTrend } from '@/types'
+import type {
+  Merchant, Campaign, User, DeadLetterJob, SystemHealth,
+  AdminStats, QueueStats, SystemLog, ActivityLog, OrdersByHour,
+  RevenueTrend, KycStatus, CampaignStatus, UserRole,
+} from '@/types'
 
 class AdminService {
-  getMerchants(status?: string): Promise<Merchant[]> {
+  getMerchants(status?: KycStatus): Promise<Merchant[]> {
     return withRetry(() => apiClient.get('/admin/merchants', { params: { status } }))
   }
-  approveMerchant(id: string): Promise<Merchant> {
+  approveMerchant(id: string): Promise<{ success: boolean }> {
     return apiClient.patch(`/admin/merchants/${id}/approve`)
   }
   rejectMerchant(id: string, reason: string): Promise<Merchant> {
     return apiClient.patch(`/admin/merchants/${id}/reject`, { reason })
   }
-  getCampaigns(status?: string): Promise<Campaign[]> {
+  getCampaigns(status?: CampaignStatus): Promise<Campaign[]> {
     return withRetry(() => apiClient.get('/admin/campaigns', { params: { status } }))
   }
   approveCampaign(id: string): Promise<Campaign> {
@@ -20,7 +24,7 @@ class AdminService {
   rejectCampaign(id: string, reason: string): Promise<Campaign> {
     return apiClient.patch(`/admin/campaigns/${id}/reject`, { reason })
   }
-  getUsers(filters?: { role?: string; search?: string }): Promise<User[]> {
+  getUsers(filters?: { role?: UserRole; search?: string; page?: number; limit?: number }): Promise<User[]> {
     return withRetry(() => apiClient.get('/admin/users', { params: filters }))
   }
   suspendUser(id: string): Promise<User> {
@@ -32,10 +36,10 @@ class AdminService {
   getDeadLetterJobs(): Promise<DeadLetterJob[]> {
     return withRetry(() => apiClient.get('/admin/dead-letter-queue'))
   }
-  retryJob(id: string): Promise<void> {
+  retryJob(id: string): Promise<{ retried: boolean }> {
     return apiClient.post(`/admin/dead-letter-queue/${id}/retry`)
   }
-  discardJob(id: string): Promise<void> {
+  discardJob(id: string): Promise<{ discarded: boolean }> {
     return apiClient.delete(`/admin/dead-letter-queue/${id}`)
   }
   getSystemHealth(): Promise<SystemHealth> {

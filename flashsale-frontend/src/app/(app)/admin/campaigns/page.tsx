@@ -83,8 +83,8 @@ export default function AdminCampaignsPage() {
                     <td className="px-4 py-3 text-white font-medium text-sm max-w-[200px]">
                       <p className="line-clamp-1">{c.name}</p>
                     </td>
-                    <td className="px-4 py-3 text-white/60 text-sm">{c.merchantName}</td>
-                    <td className="px-4 py-3 text-white/60 text-sm">{c.products.length}</td>
+                    <td className="px-4 py-3 text-white/60 text-sm">{c.merchant?.businessName}</td>
+                    <td className="px-4 py-3 text-white/60 text-sm">{c.campaignProducts?.length ?? 0}</td>
                     <td className="px-4 py-3 text-white/50 text-xs">
                       <p>{formatDate(c.startTime)}</p>
                       <p>→ {formatDate(c.endTime)}</p>
@@ -115,7 +115,7 @@ export default function AdminCampaignsPage() {
           {selectedCampaign && (
             <div className="mt-6 space-y-4 overflow-y-auto">
               <div className="glass rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-white/50">Merchant</span><span className="text-white">{selectedCampaign.merchantName}</span></div>
+                <div className="flex justify-between"><span className="text-white/50">Merchant</span><span className="text-white">{selectedCampaign.merchant?.businessName}</span></div>
                 <div className="flex justify-between"><span className="text-white/50">Bắt đầu</span><span className="text-white">{formatDate(selectedCampaign.startTime)}</span></div>
                 <div className="flex justify-between"><span className="text-white/50">Kết thúc</span><span className="text-white">{formatDate(selectedCampaign.endTime)}</span></div>
                 {selectedCampaign.description && (
@@ -123,7 +123,7 @@ export default function AdminCampaignsPage() {
                 )}
               </div>
 
-              {selectedCampaign.products.length > 0 && (
+              {(selectedCampaign.campaignProducts?.length ?? 0) > 0 && (
                 <div className="glass rounded-xl overflow-hidden">
                   <p className="px-4 py-2 text-white/40 text-xs font-semibold uppercase border-b border-white/10">Sản phẩm</p>
                   <table className="w-full text-xs">
@@ -133,12 +133,12 @@ export default function AdminCampaignsPage() {
                       ))}
                     </tr></thead>
                     <tbody>
-                      {selectedCampaign.products.map((p) => (
+                       {(selectedCampaign.campaignProducts ?? []).map((p) => (
                         <tr key={p.id} className="border-b border-white/5">
-                          <td className="px-3 py-2 text-white/70 line-clamp-1 max-w-[100px]">{p.productName}</td>
-                          <td className="px-3 py-2 text-white/50 line-through">{formatCurrency(p.originalPrice)}</td>
+                           <td className="px-3 py-2 text-white/70 line-clamp-1 max-w-[100px]">{p.product?.name}</td>
+                           <td className="px-3 py-2 text-white/50 line-through">{formatCurrency(p.product?.originalPrice ?? 0)}</td>
                           <td className="px-3 py-2 text-indigo-300 font-bold">{formatCurrency(p.salePrice)}</td>
-                          <td className="px-3 py-2"><span className="bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full">-{calculateDiscount(p.originalPrice, p.salePrice)}%</span></td>
+                           <td className="px-3 py-2"><span className="bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full">-{calculateDiscount(p.product?.originalPrice ?? 0, p.salePrice)}%</span></td>
                           <td className="px-3 py-2 text-white/60">{p.saleQuantity}</td>
                           <td className="px-3 py-2 text-white/60">{p.perUserLimit}</td>
                         </tr>

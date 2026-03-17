@@ -24,13 +24,18 @@ export class ProductRepository {
 
   async findAllByMerchant(
     merchantId: string,
-    filters: { search?: string; status?: string; page: number; limit: number }
+    filters: {
+      search?: string
+      status?: ProductStatus
+      page: number
+      limit: number
+    }
   ) {
     return this.prisma.product.findMany({
       where: {
         merchantId,
         deletedAt: null,
-        ...(filters.status ? { status: filters.status as ProductStatus } : {}),
+        ...(filters.status ? { status: filters.status } : {}),
         ...(filters.search
           ? { name: { contains: filters.search, mode: 'insensitive' as const } }
           : {})
@@ -76,7 +81,9 @@ export class ProductRepository {
     currentStatus: ProductStatus
   ): Promise<Product> {
     const next: ProductStatus =
-      currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+      currentStatus === ProductStatus.ACTIVE
+        ? ProductStatus.INACTIVE
+        : ProductStatus.ACTIVE
     return this.prisma.product.update({ where: { id }, data: { status: next } })
   }
 

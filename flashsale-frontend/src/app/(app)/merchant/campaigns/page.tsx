@@ -66,8 +66,8 @@ export default function MerchantCampaignsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filtered.map((campaign) => {
-            const totalStock = campaign.products.reduce((s, p) => s + p.saleQuantity, 0)
-            const remaining = campaign.products.reduce((s, p) => s + p.remainingQuantity, 0)
+            const totalStock = campaign.campaignProducts?.reduce((s, p) => s + p.saleQuantity, 0)
+            const remaining = campaign.campaignProducts?.reduce((s, p) => s + p.remainingQuantity, 0)
             return (
               <div key={campaign.id} className="glass rounded-2xl p-5 space-y-4">
                 <div className="flex items-start justify-between gap-2">
@@ -81,7 +81,7 @@ export default function MerchantCampaignsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Package size={14} />
-                    <span>{campaign.products.length} sản phẩm</span>
+                    <span>{(campaign.campaignProducts?.length ?? 0)} sản phẩm</span>
                     {campaign.status === 'ACTIVE' && (
                       <span className="flex items-center gap-1 text-emerald-400 text-xs">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live" />

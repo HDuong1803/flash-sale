@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Reservation } from '@prisma/client'
+import { Reservation, ReservationStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -21,7 +21,7 @@ export class ReservationRepository {
         customerId: data.customerId,
         campaignProductId: data.campaignProductId,
         quantity: data.quantity,
-        status: 'HOLDING',
+        status: ReservationStatus.HOLDING,
         expiredAt: data.expiredAt
       }
     })
@@ -29,14 +29,14 @@ export class ReservationRepository {
 
   async updateStatus(
     id: string,
-    status: string,
+    status: ReservationStatus,
     statusReason?: string
   ): Promise<Reservation | null> {
     try {
       return await this.prisma.reservation.update({
         where: { id },
         data: {
-          status: status as any,
+          status,
           ...(statusReason ? { statusReason } : {})
         }
       })
@@ -50,7 +50,7 @@ export class ReservationRepository {
   async markAsPaid(id: string): Promise<void> {
     await this.prisma.reservation.update({
       where: { id },
-      data: { status: 'PAID' }
+      data: { status: ReservationStatus.PAID }
     })
   }
 

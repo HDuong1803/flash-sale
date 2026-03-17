@@ -13,7 +13,7 @@ import { useAdminMerchants } from '@/hooks/queries/useAdminMerchants'
 import { useAdminCampaigns } from '@/hooks/queries/useAdminCampaigns'
 import { useApplicationStatus } from '@/hooks/queries/useApplicationStatus'
 import { cn } from '@/lib/utils'
-import type { Permission } from '@/types'
+import type { Permission, CampaignStatus } from '@/types'
 
 type NavItem = {
   label: string
@@ -90,7 +90,7 @@ export function AppSidebar() {
     user?.role === 'ADMIN' ? 'PENDING' : undefined
   )
   const { data: pendingCampaigns } = useAdminCampaigns(
-    user?.role === 'ADMIN' ? 'PENDING' : undefined
+    user?.role === 'ADMIN' ? 'DRAFT' as CampaignStatus : undefined
   )
 
   // Application status — for the Merchant CTA

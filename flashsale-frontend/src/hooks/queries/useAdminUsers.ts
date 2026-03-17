@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminService } from '@/services/admin.service'
-import type { User } from '@/types'
+import type { User, UserRole } from '@/types'
 
-export function useAdminUsers(filters?: { role?: string; search?: string }) {
+export function useAdminUsers(filters?: { role?: UserRole; search?: string; page?: number; limit?: number }) {
   const [data, setData] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

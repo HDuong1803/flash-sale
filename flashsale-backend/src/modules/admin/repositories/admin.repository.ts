@@ -1,4 +1,11 @@
 import { Injectable } from '@nestjs/common'
+import {
+  CampaignStatus,
+  KycStatus,
+  OrderStatus,
+  UserRole,
+  UserStatus
+} from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -7,9 +14,9 @@ export class AdminRepository {
 
   // ─── Merchants ──────────────────────────────────────────────────────
 
-  async findMerchants(status?: string) {
+  async findMerchants(status?: KycStatus) {
     return this.prisma.merchantProfile.findMany({
-      where: status ? { kycStatus: status as any } : undefined,
+      where: status ? { kycStatus: status } : undefined,
       include: {
         user: { select: { email: true, fullName: true, createdAt: true } }
       },
@@ -25,11 +32,11 @@ export class AdminRepository {
     await this.prisma.$transaction([
       this.prisma.merchantProfile.update({
         where: { id: merchantId },
-        data: { kycStatus: 'APPROVED' }
+        data: { kycStatus: KycStatus.APPROVED }
       }),
       this.prisma.user.update({
         where: { id: userId },
-        data: { role: 'MERCHANT' }
+        data: { role: UserRole.MERCHANT }
       })
     ])
   }
@@ -37,15 +44,15 @@ export class AdminRepository {
   async rejectMerchant(merchantId: string, reason: string) {
     return this.prisma.merchantProfile.update({
       where: { id: merchantId },
-      data: { kycStatus: 'REJECTED', rejectionReason: reason }
+      data: { kycStatus: KycStatus.REJECTED, rejectionReason: reason }
     })
   }
 
   // ─── Campaigns ──────────────────────────────────────────────────────
 
-  async findCampaigns(status?: string) {
+  async findCampaigns(status?: CampaignStatus) {
     return this.prisma.campaign.findMany({
-      where: status ? { status: status as any } : undefined,
+      where: status ? { status } : undefined,
       include: {
         merchant: { select: { businessName: true } },
         campaignProducts: { include: { product: { select: { name: true } } } },
@@ -55,24 +62,24 @@ export class AdminRepository {
     })
   }
 
-  async updateCampaignStatus(id: string, status: string) {
+  async updateCampaignStatus(id: string, status: CampaignStatus) {
     return this.prisma.campaign.update({
       where: { id },
-      data: { status: status as any }
+      data: { status }
     })
   }
 
   // ─── Users ──────────────────────────────────────────────────────────
 
   async findUsers(filters: {
-    role?: string
+    role?: UserRole
     search?: string
     page: number
     limit: number
   }) {
     return this.prisma.user.findMany({
       where: {
-        ...(filters.role ? { role: filters.role as any } : {}),
+        ...(filters.role ? { role: filters.role } : {}),
         ...(filters.search
           ? {
               OR: [
@@ -97,10 +104,10 @@ export class AdminRepository {
     })
   }
 
-  async updateUserStatus(userId: string, status: string) {
+  async updateUserStatus(userId: string, status: UserStatus) {
     return this.prisma.user.update({
       where: { id: userId },
-      data: { status: status as any }
+      data: { status }
     })
   }
 
@@ -119,11 +126,16 @@ export class AdminRepository {
       failedJobs
     ] = await Promise.all([
       this.prisma.user.count(),
-      this.prisma.merchantProfile.count({ where: { kycStatus: 'APPROVED' } }),
-      this.prisma.campaign.count({ where: { status: 'ACTIVE' } }),
+      this.prisma.merchantProfile.count({
+        where: { kycStatus: KycStatus.APPROVED }
+      }),
+      this.prisma.campaign.count({ where: { status: CampaignStatus.ACTIVE } }),
       this.prisma.order.count({ where: { createdAt: { gte: todayStart } } }),
       this.prisma.order.aggregate({
-        where: { createdAt: { gte: todayStart }, status: { not: 'CANCELLED' } },
+        where: {
+          createdAt: { gte: todayStart },
+          status: { not: OrderStatus.CANCELLED }
+        },
         _sum: { totalAmount: true }
       }),
       this.prisma.deadLetterJob.count()
@@ -165,7 +177,7 @@ export class AdminRepository {
         const result = await this.prisma.order.aggregate({
           where: {
             createdAt: { gte: dayStart, lt: dayEnd },
-            status: { not: 'CANCELLED' }
+            status: { not: OrderStatus.CANCELLED }
           },
           _sum: { totalAmount: true }
         })
@@ -182,7 +194,7 @@ export class AdminRepository {
         include: { customer: { select: { fullName: true } } }
       }),
       this.prisma.merchantProfile.findMany({
-        where: { kycStatus: 'APPROVED' },
+        where: { kycStatus: KycStatus.APPROVED },
         take: 5,
         orderBy: { updatedAt: 'desc' },
         include: { user: { select: { fullName: true } } }

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
+import { CampaignStatus, NotificationType } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { ReservationService } from '@modules/reservation/services/reservation.service'
 import { NotificationService } from '@modules/notification/services/notification.service'
@@ -38,7 +39,7 @@ export class SchedulerService {
 
         await this.schedulerRepository.updateCampaignStatus(
           campaign.id,
-          'ACTIVE'
+          CampaignStatus.ACTIVE
         )
         this.logger.log(`Campaign activated: ${campaign.id} (${campaign.name})`)
       } catch (err: unknown) {
@@ -69,7 +70,7 @@ export class SchedulerService {
         }
         await this.schedulerRepository.updateCampaignStatus(
           campaign.id,
-          'ENDED'
+          CampaignStatus.ENDED
         )
         this.logger.log(`Campaign closed: ${campaign.id} (${campaign.name})`)
       } catch (err: unknown) {
@@ -110,7 +111,7 @@ export class SchedulerService {
       for (const reg of campaign.preRegistrations) {
         try {
           await this.notificationService.createNotification(reg.customerId, {
-            type: 'CAMPAIGN_STARTING',
+            type: NotificationType.CAMPAIGN_STARTING,
             title: 'Flash Sale sắp bắt đầu!',
             message: `${campaign.name} bắt đầu sau 15 phút. Hãy sẵn sàng!`
           })

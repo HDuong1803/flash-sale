@@ -25,7 +25,10 @@ export class SchedulerRepository {
 
   async findCampaignsToActivate(): Promise<CampaignWithActivationData[]> {
     return this.prisma.campaign.findMany({
-      where: { status: 'APPROVED', startTime: { lte: new Date() } },
+      where: {
+        status: CampaignStatus.APPROVED,
+        startTime: { lte: new Date() }
+      },
       include: {
         campaignProducts: { select: { id: true, saleQuantity: true } },
         preRegistrations: { select: { customerId: true } }
@@ -35,7 +38,7 @@ export class SchedulerRepository {
 
   async findCampaignsToClose(): Promise<CampaignWithCloseData[]> {
     return this.prisma.campaign.findMany({
-      where: { status: 'ACTIVE', endTime: { lte: new Date() } },
+      where: { status: CampaignStatus.ACTIVE, endTime: { lte: new Date() } },
       include: { campaignProducts: { select: { id: true } } }
     }) as Promise<CampaignWithCloseData[]>
   }
@@ -46,7 +49,7 @@ export class SchedulerRepository {
 
     return this.prisma.campaign.findMany({
       where: {
-        status: 'APPROVED',
+        status: CampaignStatus.APPROVED,
         startTime: { gte: now, lte: fifteenMinutesFromNow }
       },
       include: {
@@ -60,7 +63,7 @@ export class SchedulerRepository {
 
   async findActiveCampaignProducts(): Promise<Array<{ id: string }>> {
     const campaigns = await this.prisma.campaign.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: CampaignStatus.ACTIVE },
       include: { campaignProducts: { select: { id: true } } }
     })
     return campaigns.flatMap(c => c.campaignProducts)

@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException
 } from '@nestjs/common'
+import { NotificationType, PaymentStatus } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { ReservationService } from '@modules/reservation/services/reservation.service'
 import { NotificationService } from '@modules/notification/services/notification.service'
@@ -26,7 +27,7 @@ export class SagaCoordinatorService {
   ): Promise<void> {
     const payment = await this.paymentRepository.findById(paymentId)
     if (!payment) throw new NotFoundException('Payment không tồn tại')
-    if (payment.status !== 'PENDING') {
+    if (payment.status !== PaymentStatus.PENDING) {
       this.logger.warn(
         `Payment ${paymentId} already processed: ${payment.status}`
       )
@@ -78,7 +79,7 @@ export class SagaCoordinatorService {
 
       // Step 4: Notify customer
       await this.notificationService.createNotification(resv.customerId, {
-        type: 'ORDER_CONFIRMED',
+        type: NotificationType.ORDER_CONFIRMED,
         title: 'Đặt hàng thành công!',
         message: 'Đơn hàng của bạn đã được xác nhận và đang được xử lý.'
       })
@@ -119,7 +120,7 @@ export class SagaCoordinatorService {
       )
 
       await this.notificationService.createNotification(resv.customerId, {
-        type: 'PAYMENT_FAILED',
+        type: NotificationType.PAYMENT_FAILED,
         title: 'Thanh toán thất bại',
         message:
           'Đặt hàng thất bại. Tồn kho đã được hoàn trả. Vui lòng thử lại.'

@@ -1,8 +1,8 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Campaign, CampaignProduct } from '@/types'
+import type { Campaign, CampaignProduct, CampaignStatus, CampaignReport } from '@/types'
 
 export interface CampaignFilters {
-  status?: string
+  status?: CampaignStatus
   search?: string
   page?: number
   limit?: number
@@ -10,7 +10,7 @@ export interface CampaignFilters {
 
 export interface CreateCampaignDto {
   name: string
-  description: string
+  description?: string
   startTime: string
   endTime: string
 }
@@ -47,7 +47,7 @@ class CampaignService {
   submit(id: string): Promise<Campaign> {
     return apiClient.post(`/campaigns/${id}/submit`)
   }
-  getReport(id: string): Promise<unknown> {
+  getReport(id: string): Promise<CampaignReport> {
     return withRetry(() => apiClient.get(`/campaigns/${id}/report`))
   }
 }

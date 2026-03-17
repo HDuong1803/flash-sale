@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { KycStatus, MerchantProfile } from '@prisma/client'
+import {
+  CampaignStatus,
+  KycStatus,
+  MerchantProfile,
+  OrderStatus
+} from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -58,11 +63,13 @@ export class MerchantRepository {
         where: {
           merchantId,
           createdAt: { gte: todayStart },
-          status: { not: 'CANCELLED' }
+          status: { not: OrderStatus.CANCELLED }
         },
         _sum: { totalAmount: true }
       }),
-      this.prisma.campaign.count({ where: { merchantId, status: 'ACTIVE' } }),
+      this.prisma.campaign.count({
+        where: { merchantId, status: CampaignStatus.ACTIVE }
+      }),
       this.prisma.order.count({
         where: { merchantId, createdAt: { gte: todayStart } }
       }),
@@ -76,7 +83,7 @@ export class MerchantRepository {
         where: {
           merchantId,
           createdAt: { gte: todayStart },
-          status: { not: 'CANCELLED' }
+          status: { not: OrderStatus.CANCELLED }
         }
       })
     ])
@@ -94,12 +101,12 @@ export class MerchantRepository {
 
   async getOrders(
     merchantId: string,
-    filters: { status?: string; page: number; limit: number }
+    filters: { status?: OrderStatus; page: number; limit: number }
   ) {
     return this.prisma.order.findMany({
       where: {
         merchantId,
-        ...(filters.status ? { status: filters.status as any } : {})
+        ...(filters.status ? { status: filters.status } : {})
       },
       include: {
         items: {

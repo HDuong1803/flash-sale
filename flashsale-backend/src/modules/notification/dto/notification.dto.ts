@@ -90,10 +90,10 @@ export class NotificationItemDto {
   title: string
 
   @ApiProperty()
-  content: any
+  content: unknown
 
   @ApiProperty()
-  metadata: any
+  metadata: unknown
 
   @ApiProperty()
   userId: number

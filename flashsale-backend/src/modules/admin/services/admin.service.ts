@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
+import { CampaignStatus, KycStatus, UserRole, UserStatus } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { AdminRepository } from '../repositories/admin.repository'
@@ -13,7 +14,7 @@ export class AdminService {
 
   // ─── Merchants ──────────────────────────────────────────────────────
 
-  async getMerchants(status?: string) {
+  async getMerchants(status?: KycStatus) {
     return this.adminRepository.findMerchants(status)
   }
 
@@ -32,23 +33,29 @@ export class AdminService {
 
   // ─── Campaigns ──────────────────────────────────────────────────────
 
-  async getCampaigns(status?: string) {
+  async getCampaigns(status?: CampaignStatus) {
     return this.adminRepository.findCampaigns(status)
   }
 
   async approveCampaign(campaignId: string) {
-    return this.adminRepository.updateCampaignStatus(campaignId, 'APPROVED')
+    return this.adminRepository.updateCampaignStatus(
+      campaignId,
+      CampaignStatus.APPROVED
+    )
   }
 
   async rejectCampaign(campaignId: string) {
     // Revert to DRAFT so merchant can revise
-    return this.adminRepository.updateCampaignStatus(campaignId, 'DRAFT')
+    return this.adminRepository.updateCampaignStatus(
+      campaignId,
+      CampaignStatus.DRAFT
+    )
   }
 
   // ─── Users ──────────────────────────────────────────────────────────
 
   async getUsers(query: {
-    role?: string
+    role?: UserRole
     search?: string
     page?: number
     limit?: number
@@ -62,11 +69,11 @@ export class AdminService {
   }
 
   async suspendUser(userId: string) {
-    return this.adminRepository.updateUserStatus(userId, 'BANNED')
+    return this.adminRepository.updateUserStatus(userId, UserStatus.BANNED)
   }
 
   async activateUser(userId: string) {
-    return this.adminRepository.updateUserStatus(userId, 'ACTIVE')
+    return this.adminRepository.updateUserStatus(userId, UserStatus.ACTIVE)
   }
 
   // ─── Statistics ─────────────────────────────────────────────────────
@@ -102,9 +109,7 @@ export class AdminService {
     return [
       ...recentOrders.map(o => ({
         type: 'ORDER',
-        message: `Đơn hàng mới từ ${
-          (o as any).customer?.fullName ?? 'Khách hàng'
-        }`,
+        message: `Đơn hàng mới từ ${o.customer?.fullName ?? 'Khách hàng'}`,
         createdAt: o.createdAt
       })),
       ...recentApprovals.map(m => ({

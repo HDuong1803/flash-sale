@@ -104,8 +104,8 @@ export default function MerchantDashboardPage() {
                 </thead>
                 <tbody>
                   {campaigns.slice(0, 5).map((c) => {
-                    const totalStock = c.products.reduce((s, p) => s + p.saleQuantity, 0)
-                    const remaining = c.products.reduce((s, p) => s + p.remainingQuantity, 0)
+                    const totalStock = c.campaignProducts?.reduce((s, p) => s + p.saleQuantity, 0)
+                    const remaining = c.campaignProducts?.reduce((s, p) => s + p.remainingQuantity, 0)
                     return (
                       <tr key={c.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
                         <td className="px-4 py-3">

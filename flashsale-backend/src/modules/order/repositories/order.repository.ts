@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Order, OrderStatus } from '@prisma/client'
+import { Order, OrderStatus, ReservationStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -21,7 +21,7 @@ export class OrderRepository {
       where: {
         customerId: userId,
         campaignProductId,
-        status: 'HOLDING'
+        status: ReservationStatus.HOLDING
       }
     })
   }
@@ -48,12 +48,12 @@ export class OrderRepository {
 
   async findAllForCustomer(
     customerId: string,
-    filters: { status?: string; page: number; limit: number }
+    filters: { status?: OrderStatus; page: number; limit: number }
   ): Promise<Order[]> {
     return this.prisma.order.findMany({
       where: {
         customerId,
-        ...(filters.status ? { status: filters.status as OrderStatus } : {})
+        ...(filters.status ? { status: filters.status } : {})
       },
       include: { items: { include: { product: true } }, payment: true },
       orderBy: { createdAt: 'desc' },
@@ -64,12 +64,12 @@ export class OrderRepository {
 
   async findAllForMerchant(
     merchantUserId: string,
-    filters: { status?: string; page: number; limit: number }
+    filters: { status?: OrderStatus; page: number; limit: number }
   ): Promise<Order[]> {
     return this.prisma.order.findMany({
       where: {
         merchant: { userId: merchantUserId },
-        ...(filters.status ? { status: filters.status as OrderStatus } : {})
+        ...(filters.status ? { status: filters.status } : {})
       },
       include: { items: { include: { product: true } }, payment: true },
       orderBy: { createdAt: 'desc' },

@@ -28,8 +28,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [selectedProductIdx, setSelectedProductIdx] = useState(0)
   const [activeTab, setActiveTab] = useState<'desc' | 'seller'>('desc')
 
-  const product = campaign?.products[selectedProductIdx]
-  const discount = product ? calculateDiscount(product.originalPrice, product.salePrice) : 0
+  const product = campaign?.campaignProducts?.[selectedProductIdx]
+  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
   const isSoldOut = product ? product.remainingQuantity === 0 : false
   const isActive = campaign?.status === 'ACTIVE'
   const isScheduled = campaign?.status === 'SCHEDULED'
@@ -82,8 +82,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         {/* Left: Image Gallery */}
         <div className="space-y-3">
           <div className="relative aspect-square glass rounded-2xl overflow-hidden">
-            {product?.imageUrl ? (
-              <Image src={product.imageUrl} alt={product.productName} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+            {product?.product?.imageUrl ? (
+              <Image src={product.product.imageUrl} alt={product.product?.name ?? ''} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Store size={64} className="text-white/20" />
@@ -96,15 +96,15 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
           </div>
           {/* Thumbnail strip */}
-          {campaign.products.length > 1 && (
+          {(campaign.campaignProducts?.length ?? 0) > 1 && (
             <div className="flex gap-2 overflow-x-auto">
-              {campaign.products.map((p, i) => (
+              {(campaign.campaignProducts ?? []).map((p, i) => (
                 <button
                   key={p.id}
                   onClick={() => setSelectedProductIdx(i)}
                   className={`relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 transition-all ${i === selectedProductIdx ? 'ring-2 ring-indigo-500' : 'opacity-50 hover:opacity-80'}`}
                 >
-                  {p.imageUrl && <Image src={p.imageUrl} alt={p.productName} fill className="object-cover" sizes="64px" />}
+                  {p.product?.imageUrl && <Image src={p.product.imageUrl} alt={p.product.name} fill className="object-cover" sizes="64px" />}
                 </button>
               ))}
             </div>
@@ -117,12 +117,12 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             {/* Merchant */}
             <div className="flex items-center gap-2 text-white/50 text-sm">
               <Store size={14} />
-              <span>{campaign.merchantName}</span>
+              <span>{campaign.merchant?.businessName}</span>
               <StatusBadge status={campaign.status} />
             </div>
 
             {/* Title */}
-            <h1 className="text-white text-2xl font-bold">{product?.productName ?? campaign.name}</h1>
+            <h1 className="text-white text-2xl font-bold">{product?.product?.name ?? campaign.name}</h1>
 
             {/* Countdown */}
             {isActive && (
@@ -141,7 +141,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             {/* Price */}
             {product && (
               <div className="flex items-baseline gap-3">
-                <span className="text-white/40 text-base line-through">{formatCurrency(product.originalPrice)}</span>
+                <span className="text-white/40 text-base line-through">{formatCurrency(product.product?.originalPrice ?? 0)}</span>
                 <span className="text-indigo-300 text-3xl font-bold">{formatCurrency(product.salePrice)}</span>
                 {discount > 0 && (
                   <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">-{discount}%</span>
@@ -235,10 +235,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full flex items-center justify-center text-indigo-300 font-bold"
                 style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>
-                {campaign.merchantName[0]}
+                {(campaign.merchant?.businessName ?? '?')[0]}
               </div>
               <div>
-                <p className="text-white font-semibold">{campaign.merchantName}</p>
+                <p className="text-white font-semibold">{campaign.merchant?.businessName}</p>
                 <p className="text-white/40 text-sm">Merchant đã xác minh</p>
               </div>
             </div>

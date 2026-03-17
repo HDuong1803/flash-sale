@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsIn, IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { IsEnum, IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { PaymentMethod } from '@prisma/client'
 
 export class CheckoutDto {
   @ApiProperty({
@@ -19,11 +20,11 @@ export class CheckoutDto {
 
   @ApiProperty({
     description: 'Phương thức thanh toán',
-    enum: ['VNPAY', 'MOMO', 'STRIPE'],
-    example: 'STRIPE'
+    enum: PaymentMethod,
+    example: PaymentMethod.STRIPE
   })
-  @IsIn(['VNPAY', 'MOMO', 'STRIPE'])
-  paymentMethod: string
+  @IsEnum(PaymentMethod)
+  paymentMethod: PaymentMethod
 }
 
 export class CheckoutResponseDto {

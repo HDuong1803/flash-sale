@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator'
+import { IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator'
 import { Type } from 'class-transformer'
+import { OrderStatus } from '@prisma/client'
 
 export class PurchaseDto {
   @ApiProperty({ description: 'ID sản phẩm trong chiến dịch', example: 'uuid' })
@@ -17,12 +18,12 @@ export class PurchaseDto {
 export class OrderQueryDto {
   @ApiProperty({
     description: 'Lọc theo trạng thái',
-    enum: ['PENDING', 'CONFIRMED', 'SHIPPING', 'DONE', 'CANCELLED'],
+    enum: OrderStatus,
     required: false
   })
   @IsOptional()
-  @IsString()
-  status?: string
+  @IsEnum(OrderStatus)
+  status?: OrderStatus
 
   @ApiProperty({ required: false, default: 1, example: 1 })
   @IsOptional()
@@ -74,9 +75,9 @@ export class OrderResponseDto {
   @ApiProperty({ example: 'uuid' }) merchantId: string
   @ApiProperty({
     example: 'CONFIRMED',
-    enum: ['PENDING', 'CONFIRMED', 'SHIPPING', 'DONE', 'CANCELLED']
+    enum: OrderStatus
   })
-  status: string
+  status: OrderStatus
   @ApiProperty({ example: 24990000, description: 'Tổng tiền (VND)' })
   totalAmount: number
   @ApiProperty({ example: '123 Nguyễn Huệ, Q.1' }) shippingAddress: string

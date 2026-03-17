@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminService } from '@/services/admin.service'
-import type { Campaign } from '@/types'
+import type { Campaign, CampaignStatus } from '@/types'
 
-export function useAdminCampaigns(status?: string) {
+export function useAdminCampaigns(status?: CampaignStatus) {
   const [data, setData] = useState<Campaign[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

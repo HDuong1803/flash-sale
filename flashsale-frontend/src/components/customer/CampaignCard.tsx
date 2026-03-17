@@ -25,8 +25,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const { preRegister, loading: regLoading } = usePreRegister()
 
   // Use first product for display
-  const product = campaign.products[0] as CampaignProduct | undefined
-  const discount = product ? calculateDiscount(product.originalPrice, product.salePrice) : 0
+  const product = campaign.campaignProducts?.[0] as CampaignProduct | undefined
+  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
   const isSoldOut = product ? product.remainingQuantity === 0 : true
   const isActive = campaign.status === 'ACTIVE'
   const isScheduled = campaign.status === 'SCHEDULED'
@@ -51,10 +51,10 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       <div className="glass rounded-2xl overflow-hidden hover:border-white/20 transition-all hover:shadow-brand">
         {/* Image area */}
         <div className="relative aspect-square bg-white/5 overflow-hidden">
-          {product?.imageUrl ? (
+          {product?.product?.imageUrl ? (
             <Image
-              src={product.imageUrl}
-              alt={product.productName}
+              src={product.product.imageUrl}
+              alt={product.product?.name ?? ''}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-500"
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -98,13 +98,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         <div className="p-4 space-y-3">
           <div>
             <h3 className="text-white font-semibold text-sm line-clamp-1">{campaign.name}</h3>
-            <p className="text-white/50 text-xs mt-0.5">{campaign.merchantName}</p>
+            <p className="text-white/50 text-xs mt-0.5">{campaign.merchant?.businessName}</p>
           </div>
 
           {product && (
             <>
               <div className="flex items-baseline gap-2">
-                <span className="text-white/40 text-xs line-through">{formatCurrency(product.originalPrice)}</span>
+                <span className="text-white/40 text-xs line-through">{formatCurrency(product.product?.originalPrice ?? 0)}</span>
                 <span className="text-indigo-300 text-xl font-bold">{formatCurrency(product.salePrice)}</span>
               </div>
               <StockProgressBar remaining={product.remainingQuantity} total={product.saleQuantity} size="sm" />

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Payment } from '@prisma/client'
+import { Payment, PaymentMethod, PaymentStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -22,15 +22,15 @@ export class CheckoutRepository {
   async createPayment(data: {
     reservationId: string
     amount: number
-    method: string
+    method: PaymentMethod
     idempotencyKey: string
   }): Promise<Payment> {
     return this.prisma.payment.create({
       data: {
         reservationId: data.reservationId,
         amount: data.amount,
-        method: data.method as any,
-        status: 'PENDING',
+        method: data.method,
+        status: PaymentStatus.PENDING,
         idempotencyKey: data.idempotencyKey
       }
     })

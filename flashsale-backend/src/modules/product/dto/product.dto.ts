@@ -5,11 +5,13 @@ import {
   IsOptional,
   IsNumber,
   IsInt,
+  IsEnum,
   Min,
   MaxLength,
   IsUrl
 } from 'class-validator'
 import { Type } from 'class-transformer'
+import { ProductStatus } from '@prisma/client'
 
 export class CreateProductDto {
   @ApiProperty({ description: 'Tên sản phẩm', example: 'iPhone 15 Pro Max' })
@@ -90,12 +92,12 @@ export class ProductQueryDto {
 
   @ApiProperty({
     description: 'Lọc theo trạng thái',
-    enum: ['ACTIVE', 'INACTIVE'],
+    enum: ProductStatus,
     required: false
   })
-  @IsString()
   @IsOptional()
-  status?: string
+  @IsEnum(ProductStatus)
+  status?: ProductStatus
 
   @ApiProperty({ required: false, default: 1 })
   @IsOptional()
@@ -118,8 +120,8 @@ export class ProductResponseDto {
   @ApiProperty({ required: false, nullable: true }) category: string | null
   @ApiProperty({ example: 34990000 }) originalPrice: number
   @ApiProperty({ required: false, nullable: true }) imageUrl: string | null
-  @ApiProperty({ example: 'ACTIVE', enum: ['ACTIVE', 'INACTIVE'] })
-  status: string
+  @ApiProperty({ example: 'ACTIVE', enum: ProductStatus })
+  status: ProductStatus
   @ApiProperty() createdAt: Date
 }
 

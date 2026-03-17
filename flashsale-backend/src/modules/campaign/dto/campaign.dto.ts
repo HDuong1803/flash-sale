@@ -7,11 +7,12 @@ import {
   IsInt,
   IsISO8601,
   IsUUID,
+  IsEnum,
   Min,
-  MaxLength,
-  IsIn
+  MaxLength
 } from 'class-validator'
 import { Type } from 'class-transformer'
+import { CampaignStatus } from '@prisma/client'
 
 export class CreateCampaignDto {
   @ApiProperty({
@@ -100,13 +101,12 @@ export class AddCampaignProductDto {
 export class CampaignQueryDto {
   @ApiProperty({
     description: 'Lọc theo trạng thái',
-    enum: ['DRAFT', 'APPROVED', 'ACTIVE', 'ENDED'],
+    enum: CampaignStatus,
     required: false
   })
-  @IsString()
   @IsOptional()
-  @IsIn(['DRAFT', 'APPROVED', 'ACTIVE', 'ENDED'])
-  status?: string
+  @IsEnum(CampaignStatus)
+  status?: CampaignStatus
 
   @ApiProperty({ description: 'Tìm kiếm theo tên', required: false })
   @IsString()
@@ -131,11 +131,8 @@ export class CampaignResponseDto {
   @ApiProperty({ example: 'uuid' }) merchantId: string
   @ApiProperty({ example: 'Flash Sale iPhone 15' }) name: string
   @ApiProperty({ required: false, nullable: true }) description: string | null
-  @ApiProperty({
-    example: 'DRAFT',
-    enum: ['DRAFT', 'APPROVED', 'ACTIVE', 'ENDED']
-  })
-  status: string
+  @ApiProperty({ example: 'DRAFT', enum: CampaignStatus })
+  status: CampaignStatus
   @ApiProperty({ example: '2026-04-01T20:00:00Z' }) startTime: Date
   @ApiProperty({ example: '2026-04-01T22:00:00Z' }) endTime: Date
   @ApiProperty() createdAt: Date
