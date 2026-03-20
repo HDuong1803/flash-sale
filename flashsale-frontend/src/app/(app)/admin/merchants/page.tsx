@@ -8,7 +8,7 @@ import { useRejectMerchant } from '@/hooks/mutations/useRejectMerchant'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatDate } from '@/lib/utils'
 import type { Merchant, KycStatus } from '@/types'
 
@@ -105,17 +105,17 @@ export default function AdminMerchantsPage() {
         </div>
       )}
 
-      {/* Detail Sheet */}
-      <Sheet open={!!selectedMerchant} onOpenChange={(open) => { if (!open) { setSelectedMerchant(null); setShowRejectForm(false); setRejectReason('') } }}>
-        <SheetContent className="glass-strong border-white/15 bg-transparent w-[480px]">
-          <SheetHeader>
-            <SheetTitle className="text-white flex items-center gap-2">
+      {/* Detail Modal */}
+      <Dialog open={!!selectedMerchant} onOpenChange={(open) => { if (!open) { setSelectedMerchant(null); setShowRejectForm(false); setRejectReason('') } }}>
+        <DialogContent className="glass-strong border border-white/15 bg-[rgba(15,10,42,0.85)] backdrop-blur-2xl max-w-lg w-full">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
               {selectedMerchant?.businessName}
               {selectedMerchant && <StatusBadge status={selectedMerchant.kycStatus} />}
-            </SheetTitle>
-          </SheetHeader>
+            </DialogTitle>
+          </DialogHeader>
           {selectedMerchant && (
-            <div className="mt-6 space-y-4">
+            <div className="space-y-4">
               <div className="glass rounded-xl p-4 space-y-2">
                 <p className="text-white/40 text-xs font-semibold uppercase">Thông tin chủ sở hữu</p>
                 <div className="flex justify-between text-sm"><span className="text-white/50">Email</span><span className="text-white">{selectedMerchant.email}</span></div>
@@ -163,8 +163,8 @@ export default function AdminMerchantsPage() {
               )}
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={!!confirmApprove}

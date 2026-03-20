@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Lock, Shield } from 'lucide-react'
+import { Lock, Shield, Upload } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUpdateProfile } from '@/hooks/mutations/useUpdateProfile'
 import { useLogout } from '@/hooks/mutations/useLogout'
@@ -15,7 +15,6 @@ import type { UserRole } from '@/types'
 
 const schema = z.object({
   fullName: z.string().min(1, 'Vui lòng nhập họ tên'),
-  avatarUrl: z.string().url('URL không hợp lệ').optional().or(z.literal('')),
 })
 
 type ProfileForm = z.infer<typeof schema>
@@ -36,17 +35,29 @@ export default function ProfilePage() {
   const { user } = useAuthStore()
   const { update, loading } = useUpdateProfile()
   const { logout, loading: logoutLoading } = useLogout()
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { register, handleSubmit, watch, reset, formState: { errors, isDirty } } = useForm<ProfileForm>({
+  const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm<ProfileForm>({
     resolver: zodResolver(schema),
-    defaultValues: { fullName: user?.fullName ?? '', avatarUrl: user?.avatarUrl ?? '' },
+    defaultValues: { fullName: user?.fullName ?? '' },
   })
 
   useEffect(() => {
-    if (user) reset({ fullName: user.fullName, avatarUrl: user.avatarUrl ?? '' })
+    if (user) {
+      reset({ fullName: user.fullName })
+      setAvatarPreview(user.avatarUrl ?? null)
+    }
   }, [user, reset])
 
-  const avatarUrlValue = watch('avatarUrl')
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPendingFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
 
   if (!user) return (
     <div className="max-w-2xl mx-auto glass rounded-2xl p-8 text-center text-white/40">
@@ -57,7 +68,8 @@ export default function ProfilePage() {
   const initials = user.fullName.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
 
   const onSubmit = async (data: ProfileForm) => {
-    await update({ fullName: data.fullName, avatarUrl: data.avatarUrl || undefined })
+    await update({ fullName: data.fullName }, pendingFile ?? undefined)
+    setPendingFile(null)
   }
 
   return (
@@ -66,12 +78,18 @@ export default function ProfilePage() {
 
       {/* Section 1 — Avatar & Name */}
       <div className="glass rounded-2xl p-6 flex items-center gap-5">
-        <div className="w-16 h-16 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xl overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>
-          {user.avatarUrl ? (
-            <Image src={user.avatarUrl} alt={user.fullName} width={64} height={64} className="w-full h-full object-cover" />
-          ) : initials}
+        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+          <div className="w-16 h-16 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xl overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>
+            {avatarPreview ? (
+              <Image src={avatarPreview} alt={user.fullName} width={64} height={64} className="w-full h-full object-cover" unoptimized />
+            ) : initials}
+          </div>
+          <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Upload size={16} className="text-white" />
+          </div>
         </div>
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
         <div className="flex-1 min-w-0">
           <p className="text-white text-xl font-semibold truncate">{user.fullName}</p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -94,18 +112,12 @@ export default function ProfilePage() {
           <input {...register('fullName')} className="input-glass" placeholder="Nhập họ và tên" />
           {errors.fullName && <p className="text-red-400 text-xs mt-1">{errors.fullName.message}</p>}
         </div>
-        <div>
-          <label className="text-white/60 text-sm mb-1 block">URL ảnh đại diện</label>
-          <input {...register('avatarUrl')} className="input-glass" placeholder="https://..." />
-          {errors.avatarUrl && <p className="text-red-400 text-xs mt-1">{errors.avatarUrl.message}</p>}
-          {avatarUrlValue && !errors.avatarUrl && (
-            <div className="mt-2 w-12 h-12 rounded-full overflow-hidden">
-              <Image src={avatarUrlValue} alt="Preview" width={48} height={48} className="w-full h-full object-cover" onError={() => {}} />
-            </div>
-          )}
-        </div>
+        {pendingFile && (
+          <p className="text-indigo-400 text-xs">Ảnh mới đã được chọn — sẽ được lưu khi bạn bấm &ldquo;Lưu thay đổi&rdquo;.</p>
+        )}
+        <p className="text-white/30 text-xs">Để đổi ảnh đại diện, nhấn vào ảnh ở trên để upload từ máy tính.</p>
         <div className="flex justify-end">
-          <button type="submit" disabled={loading || !isDirty} className="btn-primary disabled:opacity-50">
+          <button type="submit" disabled={loading || (!isDirty && !pendingFile)} className="btn-primary disabled:opacity-50">
             {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
           </button>
         </div>

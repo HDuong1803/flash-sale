@@ -5,7 +5,7 @@ type StatusType = CampaignStatus | ReservationStatus | OrderStatus | PaymentStat
 
 const statusConfig: Record<string, { bg: string; border: string; text: string; dot: string; animate?: boolean }> = {
   DRAFT:     { bg: 'bg-white/10',         border: 'border-white/20',          text: 'text-white/60',    dot: 'bg-gray-400' },
-  APPROVED:  { bg: 'bg-yellow-500/15',    border: 'border-yellow-500/30',     text: 'text-yellow-300',  dot: 'bg-yellow-400' },
+  APPROVED:  { bg: 'bg-emerald-500/15',   border: 'border-emerald-500/30',    text: 'text-emerald-300', dot: 'bg-emerald-400' },
   SCHEDULED: { bg: 'bg-purple-500/15',    border: 'border-purple-500/30',     text: 'text-purple-300',  dot: 'bg-purple-400' },
   ACTIVE:    { bg: 'bg-emerald-500/15',   border: 'border-emerald-500/30',    text: 'text-emerald-300', dot: 'bg-emerald-400', animate: true },
   ENDED:     { bg: 'bg-white/5',          border: 'border-white/10',          text: 'text-white/40',    dot: 'bg-gray-500' },
@@ -30,7 +30,7 @@ interface StatusBadgeProps {
 }
 
 const statusLabels: Record<string, string> = {
-  DRAFT: 'Nháp', APPROVED: 'Chờ duyệt', SCHEDULED: 'Đã lên lịch', ACTIVE: 'Đang diễn ra', ENDED: 'Đã kết thúc',
+  DRAFT: 'Nháp', APPROVED: 'Đã duyệt', SCHEDULED: 'Đã lên lịch', ACTIVE: 'Đang diễn ra', ENDED: 'Đã kết thúc',
   HOLDING: 'Đang giữ', PAID: 'Đã thanh toán', EXPIRED: 'Hết hạn',
   PENDING: 'Chờ xử lý', CONFIRMED: 'Đã xác nhận', SHIPPING: 'Đang giao', DONE: 'Hoàn thành', CANCELLED: 'Đã hủy',
   SUCCESS: 'Thành công', FAILED: 'Thất bại', REFUNDED: 'Hoàn tiền',

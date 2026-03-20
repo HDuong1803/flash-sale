@@ -16,6 +16,7 @@ import { CheckoutModule } from '@modules/checkout/checkout.module'
 import { PaymentModule } from '@modules/payment/payment.module'
 import { SchedulerModule } from '@modules/scheduler/scheduler.module'
 import { DashboardModule } from '@modules/dashboard/dashboard.module'
+import { FileModule } from '@modules/file/file.module'
 
 import { CommonModule } from './common'
 import { configuration } from './config'
@@ -50,7 +51,8 @@ import { RequestMiddleware, LoggerMiddleware } from '@common/middleware'
     CheckoutModule,
     PaymentModule,
     SchedulerModule,
-    DashboardModule
+    DashboardModule,
+    FileModule
   ]
 })
 export class AppModule implements NestModule {

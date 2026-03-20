@@ -5,6 +5,7 @@ import { UserRole } from '@common/interfaces/role.interface'
 
 export type SafeUser = Omit<
   User & {
+    photo: { url: string } | null
     merchantProfile: MerchantProfile | null
     customerProfile: CustomerProfile | null
   },
@@ -14,10 +15,12 @@ export type SafeUser = Omit<
 const safeUserSelect = {
   id: true,
   email: true,
+  emailVerified: true,
   fullName: true,
   role: true,
   status: true,
-  avatarUrl: true,
+  avatarId: true,
+  photo: { select: { url: true } },
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
@@ -46,7 +49,6 @@ export class UserRepository {
     email: string
     fullName: string
     passwordHash?: string
-    avatarUrl?: string
     role: UserRole
   }): Promise<SafeUser> {
     return this.prisma.user.create({
@@ -54,7 +56,6 @@ export class UserRepository {
         email: data.email,
         fullName: data.fullName,
         passwordHash: data.passwordHash,
-        avatarUrl: data.avatarUrl,
         role: data.role,
         customerProfile: { create: {} }
       },
@@ -71,9 +72,9 @@ export class UserRepository {
 
   async updateUserFields(
     id: string,
-    data: { fullName?: string; avatarUrl?: string }
+    data: { fullName?: string; avatarId?: string }
   ): Promise<void> {
-    if (!data.fullName && !data.avatarUrl) return
+    if (!data.fullName && !data.avatarId) return
     await this.prisma.user.update({ where: { id }, data })
   }
 

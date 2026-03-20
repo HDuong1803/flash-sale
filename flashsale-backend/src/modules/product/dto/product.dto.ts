@@ -7,8 +7,7 @@ import {
   IsInt,
   IsEnum,
   Min,
-  MaxLength,
-  IsUrl
+  MaxLength
 } from 'class-validator'
 import { Type } from 'class-transformer'
 import { ProductStatus } from '@prisma/client'
@@ -41,11 +40,6 @@ export class CreateProductDto {
   @Type(() => Number)
   originalPrice: number
 
-  @ApiProperty({ description: 'URL hình ảnh', required: false })
-  @IsUrl()
-  @IsOptional()
-  imageUrl?: string
-
   @ApiProperty({ description: 'Tồn kho ban đầu', example: 100 })
   @IsInt()
   @Min(0)
@@ -77,11 +71,6 @@ export class UpdateProductDto {
   @IsOptional()
   @Type(() => Number)
   originalPrice?: number
-
-  @ApiProperty({ description: 'URL hình ảnh', required: false })
-  @IsUrl()
-  @IsOptional()
-  imageUrl?: string
 }
 
 export class ProductQueryDto {
@@ -119,7 +108,12 @@ export class ProductResponseDto {
   @ApiProperty({ required: false, nullable: true }) description: string | null
   @ApiProperty({ required: false, nullable: true }) category: string | null
   @ApiProperty({ example: 34990000 }) originalPrice: number
-  @ApiProperty({ required: false, nullable: true }) imageUrl: string | null
+  @ApiProperty({
+    description: 'URL hình ảnh sản phẩm (từ IPFS)',
+    required: false,
+    nullable: true
+  })
+  imageUrl: string | null
   @ApiProperty({ example: 'ACTIVE', enum: ProductStatus })
   status: ProductStatus
   @ApiProperty() createdAt: Date

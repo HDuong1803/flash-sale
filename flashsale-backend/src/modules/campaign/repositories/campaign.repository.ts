@@ -17,6 +17,32 @@ export type CampaignWithProducts = Campaign & {
   merchant: { businessName: string }
 }
 
+function mapCampaignProducts(raw: unknown): CampaignWithProducts {
+  const c = raw as Campaign & {
+    campaignProducts: Array<
+      CampaignProduct & {
+        product: {
+          name: string
+          photo: { url: string } | null
+          originalPrice: number
+        }
+      }
+    >
+    merchant: { businessName: string }
+  }
+  return {
+    ...c,
+    campaignProducts: c.campaignProducts.map(cp => ({
+      ...cp,
+      product: {
+        name: cp.product.name,
+        originalPrice: cp.product.originalPrice,
+        imageUrl: cp.product.photo?.url ?? null
+      }
+    }))
+  }
+}
+
 @Injectable()
 export class CampaignRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -26,19 +52,24 @@ export class CampaignRepository {
   }
 
   async findByIdWithProducts(id: string): Promise<CampaignWithProducts | null> {
-    return this.prisma.campaign.findUnique({
+    const raw = await this.prisma.campaign.findUnique({
       where: { id },
       include: {
         campaignProducts: {
           include: {
             product: {
-              select: { name: true, imageUrl: true, originalPrice: true }
+              select: {
+                name: true,
+                photo: { select: { url: true } },
+                originalPrice: true
+              }
             }
           }
         },
         merchant: { select: { businessName: true } }
       }
-    }) as unknown as Promise<CampaignWithProducts | null>
+    })
+    return raw ? mapCampaignProducts(raw) : null
   }
 
   async findByIdAndMerchant(
@@ -66,7 +97,7 @@ export class CampaignRepository {
     page: number
     limit: number
   }): Promise<CampaignWithProducts[]> {
-    return this.prisma.campaign.findMany({
+    const raws = await this.prisma.campaign.findMany({
       where: {
         ...(filters.statuses
           ? { status: { in: filters.statuses } }
@@ -82,7 +113,11 @@ export class CampaignRepository {
         campaignProducts: {
           include: {
             product: {
-              select: { name: true, imageUrl: true, originalPrice: true }
+              select: {
+                name: true,
+                photo: { select: { url: true } },
+                originalPrice: true
+              }
             }
           }
         },
@@ -91,7 +126,8 @@ export class CampaignRepository {
       orderBy: { startTime: 'desc' },
       skip: (filters.page - 1) * filters.limit,
       take: filters.limit
-    }) as unknown as Promise<CampaignWithProducts[]>
+    })
+    return raws.map(mapCampaignProducts)
   }
 
   async create(data: {

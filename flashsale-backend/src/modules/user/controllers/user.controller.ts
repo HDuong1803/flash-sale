@@ -5,18 +5,20 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  UploadedFile,
   UseGuards,
   UseInterceptors
 } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiResponse,
   ApiTags
 } from '@nestjs/swagger'
 import { UserService } from '../services/user.service'
-import { SafeUser } from '../repositories/user.repository'
 import { UpdateProfileDto } from '../dto/update-profile.dto'
 import { UserResponseDto } from '../dto/user-response.dto'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
@@ -46,14 +48,43 @@ export class UserController {
     status: HttpStatus.NOT_FOUND,
     description: 'Người dùng không tồn tại'
   })
-  async getMe(@CurrentUser() user: { userId: string }): Promise<SafeUser> {
-    return this.userService.getMe(user.userId)
+  async getMe(
+    @CurrentUser() user: { userId: string }
+  ): Promise<UserResponseDto> {
+    return this.userService.getMe(user.userId) as unknown as UserResponseDto
   }
 
   @Patch('profile')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cập nhật thông tin cá nhân' })
-  @ApiBody({ type: UpdateProfileDto })
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Cập nhật thông tin cá nhân (có thể kèm ảnh đại diện)'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        fullName: {
+          type: 'string',
+          example: 'Nguyễn Văn An'
+        },
+        phone: {
+          type: 'string',
+          example: '0912345678'
+        },
+        defaultAddress: {
+          type: 'string',
+          example: '123 Đường Lê Lợi, Quận 1, TP.HCM'
+        },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh đại diện (tùy chọn)'
+        }
+      }
+    }
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Cập nhật thành công',
@@ -66,8 +97,13 @@ export class UserController {
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async updateProfile(
     @CurrentUser() user: { userId: string },
-    @Body() dto: UpdateProfileDto
-  ): Promise<SafeUser> {
-    return this.userService.updateProfile(user.userId, dto)
+    @Body() dto: UpdateProfileDto,
+    @UploadedFile() file?: Express.Multer.File
+  ): Promise<UserResponseDto> {
+    return this.userService.updateProfile(
+      user.userId,
+      dto,
+      file
+    ) as unknown as UserResponseDto
   }
 }

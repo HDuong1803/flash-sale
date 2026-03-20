@@ -1,24 +1,34 @@
 import { Injectable } from '@nestjs/common'
-import { Product, ProductStatus } from '@prisma/client'
+import { Prisma, ProductStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
+
+const productInclude = {
+  inventory: true,
+  photo: { select: { url: true } }
+} satisfies Prisma.ProductInclude
+
+export type ProductWithPhoto = Prisma.ProductGetPayload<{
+  include: typeof productInclude
+}>
 
 @Injectable()
 export class ProductRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findById(id: string): Promise<Product | null> {
+  async findById(id: string): Promise<ProductWithPhoto | null> {
     return this.prisma.product.findFirst({
       where: { id, deletedAt: null },
-      include: { inventory: true }
+      include: productInclude
     })
   }
 
   async findByIdAndMerchant(
     id: string,
     merchantId: string
-  ): Promise<Product | null> {
+  ): Promise<ProductWithPhoto | null> {
     return this.prisma.product.findFirst({
-      where: { id, merchantId, deletedAt: null }
+      where: { id, merchantId, deletedAt: null },
+      include: productInclude
     })
   }
 
@@ -30,7 +40,7 @@ export class ProductRepository {
       page: number
       limit: number
     }
-  ) {
+  ): Promise<ProductWithPhoto[]> {
     return this.prisma.product.findMany({
       where: {
         merchantId,
@@ -40,7 +50,7 @@ export class ProductRepository {
           ? { name: { contains: filters.search, mode: 'insensitive' as const } }
           : {})
       },
-      include: { inventory: true },
+      include: productInclude,
       orderBy: { createdAt: 'desc' },
       skip: (filters.page - 1) * filters.limit,
       take: filters.limit
@@ -53,13 +63,17 @@ export class ProductRepository {
     description?: string
     category?: string
     originalPrice: number
-    imageUrl?: string
+    photoId?: string
     inventory: number
-  }): Promise<Product> {
-    const { inventory, ...productData } = data
+  }): Promise<ProductWithPhoto> {
+    const { inventory, photoId, ...productData } = data
     return this.prisma.product.create({
-      data: { ...productData, inventory: { create: { quantity: inventory } } },
-      include: { inventory: true }
+      data: {
+        ...productData,
+        ...(photoId ? { productImageId: photoId } : {}),
+        inventory: { create: { quantity: inventory } }
+      },
+      include: productInclude
     })
   }
 
@@ -70,21 +84,33 @@ export class ProductRepository {
       description: string
       category: string
       originalPrice: number
-      imageUrl: string
+      photoId: string
     }>
-  ): Promise<Product> {
-    return this.prisma.product.update({ where: { id }, data })
+  ): Promise<ProductWithPhoto> {
+    const { photoId, ...rest } = data
+    return this.prisma.product.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(photoId !== undefined ? { productImageId: photoId } : {})
+      },
+      include: productInclude
+    })
   }
 
   async toggleStatus(
     id: string,
     currentStatus: ProductStatus
-  ): Promise<Product> {
+  ): Promise<ProductWithPhoto> {
     const next: ProductStatus =
       currentStatus === ProductStatus.ACTIVE
         ? ProductStatus.INACTIVE
         : ProductStatus.ACTIVE
-    return this.prisma.product.update({ where: { id }, data: { status: next } })
+    return this.prisma.product.update({
+      where: { id },
+      data: { status: next },
+      include: productInclude
+    })
   }
 
   async getInventory(productId: string) {

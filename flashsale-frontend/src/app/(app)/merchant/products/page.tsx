@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Image from 'next/image'
-import { Package, Plus, Pencil, AlertCircle, Loader2, X, ChevronDown } from 'lucide-react'
+import { Package, Plus, Pencil, AlertCircle, Loader2, X, Upload } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -21,7 +21,6 @@ const schema = z.object({
   description: z.string().max(1000).optional(),
   originalPrice: z.number().min(1000, 'Tối thiểu 1,000 ₫'),
   inventory: z.number().min(0, 'Không được âm'),
-  imageUrl: z.string().url('URL không hợp lệ').optional().or(z.literal('')),
 })
 
 type ProductForm = z.infer<typeof schema>
@@ -33,29 +32,45 @@ export default function MerchantProductsPage() {
   const { mutate: toggleStatus } = useToggleProductStatus()
   const [editProduct, setEditProduct] = useState<Product | null>(null)
   const [formOpen, setFormOpen] = useState(false)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<ProductForm>({
     resolver: zodResolver(schema),
   })
-  const imageUrl = watch('imageUrl', '')
   const priceValue = watch('originalPrice')
 
   const openCreate = () => {
     setEditProduct(null)
-    reset({ name: '', description: '', originalPrice: undefined, inventory: undefined, imageUrl: '' })
+    setPendingFile(null)
+    setPhotoPreview(null)
+    reset({ name: '', description: '', originalPrice: undefined, inventory: undefined })
     setFormOpen(true)
   }
 
   const openEdit = (p: Product) => {
     setEditProduct(p)
-    reset({ name: p.name, description: p.description, originalPrice: p.originalPrice, inventory: p.inventory, imageUrl: p.imageUrl })
+    setPendingFile(null)
+    setPhotoPreview(p.imageUrl ?? null)
+    reset({ name: p.name, description: p.description, originalPrice: p.originalPrice, inventory: p.inventory })
     setFormOpen(true)
   }
 
   const closeForm = () => {
     setFormOpen(false)
     setEditProduct(null)
+    setPendingFile(null)
+    setPhotoPreview(null)
     reset({})
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPendingFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const onSubmit = async (data: ProductForm) => {
@@ -67,9 +82,9 @@ export default function MerchantProductsPage() {
         inventory: data.inventory,
       }
       if (editProduct) {
-        await updateProduct(editProduct.id, payload)
+        await updateProduct(editProduct.id, payload, pendingFile ?? undefined)
       } else {
-        await createProduct(payload)
+        await createProduct(payload, pendingFile ?? undefined)
       }
       closeForm()
       refetch()
@@ -163,16 +178,25 @@ export default function MerchantProductsPage() {
                 </div>
 
                 <div>
-                  <label className="text-white/60 text-sm mb-1.5 block">URL hình ảnh</label>
+                  <label className="text-white/60 text-sm mb-1.5 block">Hình ảnh sản phẩm</label>
                   <input
-                    {...register('imageUrl')}
-                    className="input-glass w-full"
-                    placeholder="https://..."
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
                   />
-                  {errors.imageUrl && <p className="text-red-400 text-xs mt-1">{errors.imageUrl.message}</p>}
-                  {imageUrl && imageUrl.startsWith('http') && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="input-glass w-full flex items-center gap-2 justify-center text-white/50 hover:text-white/70 cursor-pointer"
+                  >
+                    <Upload size={14} />
+                    {pendingFile ? pendingFile.name : 'Chọn ảnh'}
+                  </button>
+                  {photoPreview && (
                     <div className="mt-2 w-20 h-20 rounded-lg overflow-hidden glass relative">
-                      <Image src={imageUrl} alt="preview" fill className="object-cover" sizes="80px" onError={() => {}} />
+                      <Image src={photoPreview} alt="preview" fill className="object-cover" sizes="80px" unoptimized />
                     </div>
                   )}
                 </div>
@@ -251,7 +275,7 @@ export default function MerchantProductsPage() {
                     <td className="px-4 py-3">
                       <div className="w-10 h-10 rounded-lg overflow-hidden glass relative">
                         {product.imageUrl ? (
-                          <Image src={product.imageUrl} alt={product.name} fill className="object-cover" sizes="40px" />
+                          <Image src={product.imageUrl} alt={product.name} fill className="object-cover" sizes="40px" unoptimized />
                         ) : (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <Package size={16} className="text-white/20" />

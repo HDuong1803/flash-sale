@@ -25,8 +25,8 @@ export class UserResponseDto {
   status: string
 
   @ApiProperty({
-    description: 'URL ảnh đại diện',
-    example: 'https://example.com/avatar.jpg',
+    description: 'URL ảnh đại diện (từ IPFS)',
+    example: 'https://gateway.pinata.cloud/ipfs/Qm...',
     required: false,
     nullable: true
   })

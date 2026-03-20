@@ -95,7 +95,6 @@ export class AuthService {
       (await this.userRepository.create({
         email: payload.email,
         fullName: payload.name ?? payload.email.split('@')[0],
-        avatarUrl: payload.picture,
         role: UserRole.CUSTOMER
       }))
 
@@ -140,7 +139,7 @@ export class AuthService {
     email: string
     fullName: string
     role: string
-    avatarUrl?: string | null
+    photo?: { url: string } | null
   }): Promise<AuthResult> {
     const accessToken = this.tokenService.generateAccessToken({
       sub: user.id,
@@ -158,7 +157,7 @@ export class AuthService {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
-        avatarUrl: user.avatarUrl ?? undefined
+        avatarUrl: user.photo?.url ?? undefined
       },
       accessToken,
       refreshToken

@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { productService, type CreateProductDto } from '@/services/product.service'
-import type { Product } from '@/types'
 
 export function useUpdateProduct() {
   const [loading, setLoading] = useState(false)
 
-  const updateProduct = async (id: string, data: Partial<CreateProductDto>) => {
+  const updateProduct = async (id: string, data: Partial<CreateProductDto>, file?: File) => {
     setLoading(true)
     try {
-      const result = await productService.update(id, data)
+      const result = await productService.update(id, data, file)
       toast.success('Cập nhật sản phẩm thành công!')
       return result
     } catch (err) {

@@ -8,10 +8,10 @@ export function useUpdateProfile() {
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAuthStore()
 
-  const update = async (dto: { fullName?: string; avatarUrl?: string }) => {
+  const update = async (dto: { fullName?: string }, file?: File) => {
     setLoading(true)
     try {
-      const updated = await authService.updateProfile(dto)
+      const updated = await authService.updateProfile(dto, file)
       setAuth(updated)
       toast.success('Cập nhật thông tin thành công!')
       return updated

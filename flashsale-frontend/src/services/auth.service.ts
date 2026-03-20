@@ -28,7 +28,15 @@ class AuthService {
     return apiClient.get('/user/me')
   }
 
-  updateProfile(dto: { fullName?: string; avatarUrl?: string }): Promise<User> {
+  updateProfile(dto: { fullName?: string }, file?: File): Promise<User> {
+    if (file) {
+      const form = new FormData()
+      if (dto.fullName) form.append('fullName', dto.fullName)
+      form.append('file', file)
+      return apiClient.patch('/user/profile', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+    }
     return apiClient.patch('/user/profile', dto)
   }
 

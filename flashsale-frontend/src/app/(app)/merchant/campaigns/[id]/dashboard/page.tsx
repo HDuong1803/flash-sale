@@ -111,7 +111,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
         <div className="glass rounded-2xl p-5 space-y-3">
           <p className="text-white/50 text-sm">Đơn / giây</p>
           <p className="text-3xl font-bold text-indigo-300 animate-number-pop">
-            {metrics?.ordersPerSecond.toFixed(1) ?? '—'}
+            {metrics?.ordersPerSecond != null ? metrics.ordersPerSecond.toFixed(1) : '—'}
           </p>
           <div className="flex items-end gap-0.5 h-8">
             {opsHistory.map((v, i) => (
@@ -124,7 +124,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
         <div className="glass rounded-2xl p-5 space-y-3">
           <p className="text-white/50 text-sm">Tỷ lệ chuyển đổi</p>
           <p className="text-3xl font-bold text-purple-300 animate-number-pop">
-            {metrics ? `${metrics.conversionRate.toFixed(1)}%` : '—'}
+            {metrics?.conversionRate != null ? `${metrics.conversionRate.toFixed(1)}%` : '—'}
           </p>
           <p className="text-white/30 text-xs">{metrics?.queueDepth ?? 0} yêu cầu đang chờ</p>
           {metrics && (

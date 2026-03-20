@@ -6,7 +6,7 @@ import { useMerchantOrders } from '@/hooks/queries/useMerchantOrders'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency, formatDate, maskString } from '@/lib/utils'
 import type { Order, OrderStatus } from '@/types'
 
@@ -108,14 +108,14 @@ export default function MerchantOrdersPage() {
         </div>
       )}
 
-      {/* Order detail sheet */}
-      <Sheet open={!!selectedOrder} onOpenChange={(open) => { if (!open) setSelectedOrder(null) }}>
-        <SheetContent className="glass-strong border-white/15 bg-transparent w-96">
-          <SheetHeader>
-            <SheetTitle className="text-white">Đơn #{selectedOrder?.id.slice(0, 8)}</SheetTitle>
-          </SheetHeader>
+      {/* Order detail modal */}
+      <Dialog open={!!selectedOrder} onOpenChange={(open) => { if (!open) setSelectedOrder(null) }}>
+        <DialogContent className="glass-strong border border-white/15 bg-[rgba(15,10,42,0.85)] backdrop-blur-2xl max-w-md w-full">
+          <DialogHeader>
+            <DialogTitle className="text-white">Đơn #{selectedOrder?.id.slice(0, 8)}</DialogTitle>
+          </DialogHeader>
           {selectedOrder && (
-            <div className="mt-4 space-y-4 px-4 pb-6">
+            <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <span className="text-white/50 text-sm">Trạng thái</span>
                 <StatusBadge status={selectedOrder.status} />
@@ -153,8 +153,8 @@ export default function MerchantOrdersPage() {
               )}
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -16,16 +16,38 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { formatCurrency, calculateDiscount } from '@/lib/utils'
 import type { Product } from '@/types'
 
+// Vietnam timezone helpers (GMT+7)
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000
+
+/** UTC ISO string → "YYYY-MM-DDTHH:mm" in Vietnam time (for datetime-local input) */
+function toVNInput(isoString: string): string {
+  const vnMs = new Date(isoString).getTime() + VN_OFFSET_MS
+  return new Date(vnMs).toISOString().slice(0, 16)
+}
+
+/** "YYYY-MM-DDTHH:mm" Vietnam time input → UTC ISO string (for backend) */
+function fromVNInput(localStr: string): string {
+  // Append Z so Date parses it as UTC, then subtract 7h to get real UTC
+  const pseudoUtcMs = new Date(localStr + ':00Z').getTime()
+  return new Date(pseudoUtcMs - VN_OFFSET_MS).toISOString()
+}
+
+/** Current time + N hours, formatted as "YYYY-MM-DDTHH:mm" in Vietnam time */
+function vnInputMin(plusHours = 0): string {
+  const vnMs = Date.now() + VN_OFFSET_MS + plusHours * 3600000
+  return new Date(vnMs).toISOString().slice(0, 16)
+}
+
 const step1Schema = z.object({
   name: z.string().min(5, 'Tối thiểu 5 ký tự').max(100),
   description: z.string().max(500).optional(),
   startTime: z.string().refine(
-    (v) => new Date(v) > new Date(Date.now() + 3600000),
-    'Phải sau hiện tại ít nhất 1 giờ'
+    (v) => new Date(fromVNInput(v)).getTime() > Date.now() + 3600000,
+    'Phải sau hiện tại ít nhất 1 giờ (giờ Việt Nam)'
   ),
   endTime: z.string(),
 }).refine(
-  (d) => new Date(d.endTime) > new Date(new Date(d.startTime).getTime() + 1800000),
+  (d) => new Date(fromVNInput(d.endTime)).getTime() > new Date(fromVNInput(d.startTime)).getTime() + 1800000,
   { message: 'Phải sau thời gian bắt đầu ít nhất 30 phút', path: ['endTime'] }
 )
 
@@ -92,17 +114,19 @@ function CreateCampaignPage() {
   const { data: editCampaign } = useCampaign(editId)
   const [submitting, setSubmitting] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<Step1Form>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<Step1Form>({
     resolver: zodResolver(step1Schema),
   })
+
+  const watchedStartTime = watch('startTime')
 
   useEffect(() => {
     if (editCampaign && editId) {
       reset({
         name: editCampaign.name,
         description: editCampaign.description ?? '',
-        startTime: editCampaign.startTime.slice(0, 16),
-        endTime: editCampaign.endTime.slice(0, 16),
+        startTime: toVNInput(editCampaign.startTime),
+        endTime: toVNInput(editCampaign.endTime),
       })
     }
   }, [editCampaign, editId, reset])
@@ -111,12 +135,18 @@ function CreateCampaignPage() {
     if (!state.step1Data || state.products.length === 0) return
     setSubmitting(true)
     try {
+      const payload = {
+        ...state.step1Data,
+        startTime: fromVNInput(state.step1Data.startTime),
+        endTime: fromVNInput(state.step1Data.endTime),
+        description: state.step1Data.description ?? '',
+      }
       let campaignId: string
       if (editId) {
-        await updateCampaign(editId, { ...state.step1Data, description: state.step1Data.description ?? '' })
+        await updateCampaign(editId, payload)
         campaignId = editId
       } else {
-        const campaign = await createCampaign({ ...state.step1Data, description: state.step1Data.description ?? '' })
+        const campaign = await createCampaign(payload)
         campaignId = campaign.id
         await Promise.all(state.products.map((p) =>
           addCampaignProduct(campaignId, {
@@ -177,13 +207,31 @@ function CreateCampaignPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-white/60 text-sm mb-1 block">Thời gian bắt đầu *</label>
-              <input {...register('startTime')} type="datetime-local" className="input-glass" />
+              <label className="text-white/60 text-sm mb-1 block">
+                Thời gian bắt đầu * <span className="text-white/30">(GMT+7)</span>
+              </label>
+              <input
+                {...register('startTime')}
+                type="datetime-local"
+                className="input-glass"
+                min={vnInputMin(1)}
+              />
               {errors.startTime && <p className="text-red-400 text-xs mt-1">{errors.startTime.message}</p>}
             </div>
             <div>
-              <label className="text-white/60 text-sm mb-1 block">Thời gian kết thúc *</label>
-              <input {...register('endTime')} type="datetime-local" className="input-glass" />
+              <label className="text-white/60 text-sm mb-1 block">
+                Thời gian kết thúc * <span className="text-white/30">(GMT+7)</span>
+              </label>
+              <input
+                {...register('endTime')}
+                type="datetime-local"
+                className="input-glass"
+                min={watchedStartTime ? (() => {
+                  const startMs = new Date(fromVNInput(watchedStartTime)).getTime()
+                  const minMs = startMs + 1800000 + VN_OFFSET_MS
+                  return new Date(minMs).toISOString().slice(0, 16)
+                })() : vnInputMin(1)}
+              />
               {errors.endTime && <p className="text-red-400 text-xs mt-1">{errors.endTime.message}</p>}
             </div>
           </div>

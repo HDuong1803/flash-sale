@@ -9,12 +9,15 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
   UseInterceptors
 } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -46,7 +49,25 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @ApiOperation({ summary: 'Tạo sản phẩm mới' })
-  @ApiBody({ type: CreateProductDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', example: 'iPhone 15 Pro Max' },
+        description: { type: 'string' },
+        category: { type: 'string', example: 'Điện thoại' },
+        originalPrice: { type: 'number', example: 34990000 },
+        inventory: { type: 'number', example: 100 },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh sản phẩm (tùy chọn)'
+        }
+      },
+      required: ['name', 'originalPrice', 'inventory']
+    }
+  })
   @ApiResponse({ status: HttpStatus.CREATED, type: ProductResponseDto })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -57,11 +78,13 @@ export class ProductController {
     description: 'Merchant chưa được duyệt'
   })
   @Post()
+  @UseInterceptors(FileInterceptor('file'))
   async create(
     @CurrentUser() user: { userId: string },
-    @Body() dto: CreateProductDto
+    @Body() dto: CreateProductDto,
+    @UploadedFile() file?: Express.Multer.File
   ): Promise<ProductResponseDto> {
-    return this.productService.create(user.userId, dto) as any
+    return this.productService.create(user.userId, dto, file) as any
   }
 
   @ApiOperation({ summary: 'Danh sách sản phẩm của merchant' })
@@ -77,7 +100,23 @@ export class ProductController {
 
   @ApiOperation({ summary: 'Cập nhật thông tin sản phẩm' })
   @ApiParam({ name: 'id', description: 'Product ID' })
-  @ApiBody({ type: UpdateProductDto })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        description: { type: 'string' },
+        category: { type: 'string' },
+        originalPrice: { type: 'number' },
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Ảnh sản phẩm mới (tùy chọn)'
+        }
+      }
+    }
+  })
   @ApiResponse({ status: HttpStatus.OK, type: ProductResponseDto })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -89,12 +128,14 @@ export class ProductController {
   })
   @Put(':id')
   @HttpCode(HttpStatus.OK)
+  @UseInterceptors(FileInterceptor('file'))
   async update(
     @CurrentUser() user: { userId: string },
     @Param('id') id: string,
-    @Body() dto: UpdateProductDto
+    @Body() dto: UpdateProductDto,
+    @UploadedFile() file?: Express.Multer.File
   ): Promise<ProductResponseDto> {
-    return this.productService.update(user.userId, id, dto) as any
+    return this.productService.update(user.userId, id, dto, file) as any
   }
 
   @ApiOperation({ summary: 'Bật/tắt trạng thái sản phẩm (ACTIVE ↔ INACTIVE)' })

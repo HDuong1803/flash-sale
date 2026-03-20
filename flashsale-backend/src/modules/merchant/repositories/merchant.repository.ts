@@ -19,13 +19,17 @@ export class MerchantRepository {
   }
 
   async findMyCampaigns(userId: string) {
-    return this.prisma.campaign.findMany({
+    const raws = await this.prisma.campaign.findMany({
       where: { merchant: { userId } },
       include: {
         campaignProducts: {
           include: {
             product: {
-              select: { name: true, imageUrl: true, originalPrice: true }
+              select: {
+                name: true,
+                photo: { select: { url: true } },
+                originalPrice: true
+              }
             }
           }
         },
@@ -33,6 +37,17 @@ export class MerchantRepository {
       },
       orderBy: { createdAt: 'desc' }
     })
+    return raws.map(c => ({
+      ...c,
+      campaignProducts: c.campaignProducts.map(cp => ({
+        ...cp,
+        product: {
+          name: cp.product.name,
+          originalPrice: cp.product.originalPrice,
+          imageUrl: cp.product.photo?.url ?? null
+        }
+      }))
+    }))
   }
 
   async findById(id: string): Promise<MerchantProfile | null> {
@@ -120,14 +135,18 @@ export class MerchantRepository {
     merchantId: string,
     filters: { status?: OrderStatus; page: number; limit: number }
   ) {
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: {
         merchantId,
         ...(filters.status ? { status: filters.status } : {})
       },
       include: {
         items: {
-          include: { product: { select: { name: true, imageUrl: true } } }
+          include: {
+            product: {
+              select: { name: true, photo: { select: { url: true } } }
+            }
+          }
         },
         payment: { select: { status: true, method: true, paidAt: true } },
         customer: { select: { fullName: true } }
@@ -136,5 +155,14 @@ export class MerchantRepository {
       skip: (filters.page - 1) * filters.limit,
       take: filters.limit
     })
+    return orders.map(o => ({
+      ...o,
+      items: o.items.map(item => ({
+        ...item,
+        productName: item.product.name,
+        imageUrl: item.product.photo?.url ?? null,
+        product: undefined
+      }))
+    }))
   }
 }
