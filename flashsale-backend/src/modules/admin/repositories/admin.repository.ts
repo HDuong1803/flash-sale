@@ -3,6 +3,8 @@ import {
   CampaignStatus,
   KycStatus,
   OrderStatus,
+  PaymentStatus,
+  ProductStatus,
   UserRole,
   UserStatus
 } from '@prisma/client'
@@ -242,5 +244,97 @@ export class AdminRepository {
 
   async deleteDeadLetterJob(id: string): Promise<void> {
     await this.prisma.deadLetterJob.delete({ where: { id } })
+  }
+
+  // ─── Orders ─────────────────────────────────────────────────────────
+
+  async findOrders(status?: OrderStatus) {
+    return this.prisma.order.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        customer: { select: { fullName: true, email: true } },
+        merchant: { select: { businessName: true } },
+        items: { select: { productId: true, quantity: true, unitPrice: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  }
+
+  // ─── Payments ────────────────────────────────────────────────────────
+
+  async findPayments(status?: PaymentStatus) {
+    return this.prisma.payment.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        reservation: { select: { customerId: true, campaignProductId: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  }
+
+  // ─── Products ────────────────────────────────────────────────────────
+
+  async findProducts(status?: ProductStatus) {
+    return this.prisma.product.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        merchant: { select: { businessName: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  }
+
+  // ─── Customer Profiles ───────────────────────────────────────────────
+
+  async findCustomerProfiles() {
+    return this.prisma.customerProfile.findMany({
+      include: {
+        user: { select: { email: true, fullName: true, status: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  }
+
+  // ─── Notifications ───────────────────────────────────────────────────
+
+  async findNotifications() {
+    return this.prisma.notification.findMany({
+      include: {
+        user: { select: { fullName: true, email: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  }
+
+  // ─── Stock Audit Logs ────────────────────────────────────────────────
+
+  async findStockAuditLogs() {
+    return this.prisma.stockAuditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  }
+
+  // ─── User Action Logs ────────────────────────────────────────────────
+
+  async findUserActionLogs() {
+    return this.prisma.userActionLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
+  }
+
+  // ─── Outbox Events ───────────────────────────────────────────────────
+
+  async findOutboxEvents() {
+    return this.prisma.outboxEvent.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    })
   }
 }

@@ -6,6 +6,7 @@ import {
   Zap, ShoppingBag, Store, LayoutDashboard, Package,
   ClipboardList, Users, AlertTriangle, Server,
   Sparkles, ChevronLeft,
+  CreditCard, Building2, UserCheck, BellRing, BarChart2, ScrollText, Radio, LayoutGrid,
 } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUiStore } from '@/stores/ui.store'
@@ -25,23 +26,33 @@ type NavItem = {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  // ── Flash Sale (everyone) ──────────────────────────────
-  { label: 'Flash Sale',  href: '/campaigns',               icon: Zap,            permission: 'browse_campaigns' },
-  { label: 'Đơn hàng',    href: '/orders',                  icon: ShoppingBag,    permission: 'view_own_orders' },
+  // ── Customer section ──────────────────────────────────────
+  { label: 'Flash Sale',      href: '/campaigns',                  icon: Zap,             permission: 'browse_campaigns',       section: 'Customer' },
+  { label: 'Đơn hàng',        href: '/orders',                     icon: ShoppingBag,     permission: 'view_own_orders',        section: 'Customer' },
+  { label: 'Dashboard',       href: '/customer/dashboard',         icon: LayoutGrid,      permission: 'view_customer_dashboard', section: 'Customer' },
 
-  // ── Merchant section ───────────────────────────────────
-  { label: 'Dashboard',   href: '/merchant/dashboard',      icon: LayoutDashboard, permission: 'view_merchant_dashboard', section: 'Merchant' },
-  { label: 'Chiến dịch',  href: '/merchant/campaigns',     icon: Zap,            permission: 'create_campaign' },
-  { label: 'Sản phẩm',    href: '/merchant/products',      icon: Package,        permission: 'manage_products' },
-  { label: 'Đơn nhận',    href: '/merchant/orders',        icon: ClipboardList,  permission: 'view_merchant_orders' },
+  // ── Merchant section ───────────────────────────────────────
+  { label: 'Dashboard',       href: '/merchant/dashboard',         icon: LayoutDashboard, permission: 'view_merchant_dashboard', section: 'Merchant' },
+  { label: 'Chiến dịch',      href: '/merchant/campaigns',        icon: Zap,             permission: 'create_campaign',        section: 'Merchant' },
+  { label: 'Sản phẩm',        href: '/merchant/products',         icon: Package,         permission: 'manage_products',        section: 'Merchant' },
+  { label: 'Đơn nhận',        href: '/merchant/orders',           icon: ClipboardList,   permission: 'view_merchant_orders',   section: 'Merchant' },
 
-  // ── Admin section ──────────────────────────────────────
-  { label: 'Tổng quan',   href: '/admin/overview',          icon: LayoutDashboard, permission: 'admin_approve',  section: 'Admin' },
-  { label: 'Merchants',   href: '/admin/merchants',         icon: Store,          permission: 'admin_approve' },
-  { label: 'Chiến dịch',  href: '/admin/campaigns',        icon: Zap,            permission: 'admin_approve' },
-  { label: 'Người dùng',  href: '/admin/users',            icon: Users,          permission: 'admin_users' },
-  { label: 'Dead Letter', href: '/admin/dead-letter-queue', icon: AlertTriangle,  permission: 'admin_system' },
-  { label: 'Hệ thống',    href: '/admin/system',           icon: Server,         permission: 'admin_system' },
+  // ── Admin section ──────────────────────────────────────────
+  { label: 'Tổng quan',       href: '/admin/overview',             icon: LayoutDashboard, permission: 'admin_approve',           section: 'Admin' },
+  { label: 'Merchants',       href: '/admin/merchants',            icon: Store,           permission: 'admin_approve',           section: 'Admin' },
+  { label: 'Chiến dịch',      href: '/admin/campaigns',           icon: Zap,             permission: 'admin_approve',           section: 'Admin' },
+  { label: 'Đơn hàng',        href: '/admin/orders',              icon: ShoppingBag,     permission: 'admin_orders',            section: 'Admin' },
+  { label: 'Thanh toán',      href: '/admin/payments',            icon: CreditCard,      permission: 'admin_payments',          section: 'Admin' },
+  { label: 'Sản phẩm',        href: '/admin/products',            icon: Package,         permission: 'admin_products',          section: 'Admin' },
+  { label: 'Người dùng',      href: '/admin/users',               icon: Users,           permission: 'admin_users',             section: 'Admin' },
+  { label: 'Hồ sơ Merchant',  href: '/admin/merchant-profiles',   icon: Building2,       permission: 'admin_profiles',          section: 'Admin' },
+  { label: 'Hồ sơ Customer',  href: '/admin/customer-profiles',   icon: UserCheck,       permission: 'admin_profiles',          section: 'Admin' },
+  { label: 'Thông báo',       href: '/admin/notifications',       icon: BellRing,        permission: 'admin_notifications',     section: 'Admin' },
+  { label: 'Stock Audit',     href: '/admin/stock-audit-logs',    icon: BarChart2,       permission: 'admin_stock_audit',       section: 'Admin' },
+  { label: 'Dead Letter',     href: '/admin/dead-letter-queue',   icon: AlertTriangle,   permission: 'admin_system',            section: 'Admin' },
+  { label: 'Action Logs',     href: '/admin/user-action-logs',    icon: ScrollText,      permission: 'admin_action_logs',       section: 'Admin' },
+  { label: 'Outbox Events',   href: '/admin/outbox-events',       icon: Radio,           permission: 'admin_outbox',            section: 'Admin' },
+  { label: 'Hệ thống',        href: '/admin/system',              icon: Server,          permission: 'admin_system',            section: 'Admin' },
 ]
 
 function NavItemRow({ item, pathname, collapsed }: {

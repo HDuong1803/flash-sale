@@ -73,7 +73,8 @@ export class OrderWorker implements OnModuleInit {
         id: reservationId,
         customerId: userId,
         campaignProductId,
-        quantity
+        quantity,
+        idempotencyKey
       })
 
       const expiredAt = new Date(Date.now() + 10 * 60 * 1000)

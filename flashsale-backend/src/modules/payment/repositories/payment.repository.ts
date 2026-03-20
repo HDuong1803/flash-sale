@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { OrderStatus, Payment, PaymentStatus } from '@prisma/client'
+import { OrderStatus, Payment, PaymentStatus, Prisma } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -50,6 +50,7 @@ export class PaymentRepository {
     unitPrice: number
     originalPrice: number
     paymentId: string
+    idempotencyKey: string
   }) {
     return this.prisma.$transaction(async tx => {
       // Create order
@@ -58,6 +59,7 @@ export class PaymentRepository {
           customerId: data.customerId,
           merchantId: data.merchantId,
           reservationId: data.reservationId,
+          idempotencyKey: data.idempotencyKey,
           status: OrderStatus.CONFIRMED,
           totalAmount: data.totalAmount,
           shippingAddress: data.shippingAddress,
@@ -71,7 +73,7 @@ export class PaymentRepository {
               }
             ]
           }
-        }
+        } satisfies Prisma.OrderUncheckedCreateInput
       })
 
       // Link payment to the new order

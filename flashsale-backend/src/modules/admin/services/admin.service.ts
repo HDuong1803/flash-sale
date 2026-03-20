@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { CampaignStatus, KycStatus, UserRole, UserStatus } from '@prisma/client'
+import { CampaignStatus, KycStatus, OrderStatus, PaymentStatus, ProductStatus, UserRole, UserStatus } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { AdminRepository } from '../repositories/admin.repository'
@@ -171,5 +171,53 @@ export class AdminService {
   async getSystemLogs() {
     const logs = await this.redis.client.lrange('system:logs', 0, 49)
     return logs.map(l => JSON.parse(l) as object)
+  }
+
+  // ─── Orders ─────────────────────────────────────────────────────────
+
+  async getAdminOrders(status?: OrderStatus) {
+    return this.adminRepository.findOrders(status)
+  }
+
+  // ─── Payments ────────────────────────────────────────────────────────
+
+  async getAdminPayments(status?: PaymentStatus) {
+    return this.adminRepository.findPayments(status)
+  }
+
+  // ─── Products ────────────────────────────────────────────────────────
+
+  async getAdminProducts(status?: ProductStatus) {
+    return this.adminRepository.findProducts(status)
+  }
+
+  // ─── Customer Profiles ───────────────────────────────────────────────
+
+  async getCustomerProfiles() {
+    return this.adminRepository.findCustomerProfiles()
+  }
+
+  // ─── Notifications ───────────────────────────────────────────────────
+
+  async getAdminNotifications() {
+    return this.adminRepository.findNotifications()
+  }
+
+  // ─── Stock Audit Logs ────────────────────────────────────────────────
+
+  async getStockAuditLogs() {
+    return this.adminRepository.findStockAuditLogs()
+  }
+
+  // ─── User Action Logs ────────────────────────────────────────────────
+
+  async getUserActionLogs() {
+    return this.adminRepository.findUserActionLogs()
+  }
+
+  // ─── Outbox Events ───────────────────────────────────────────────────
+
+  async getOutboxEvents() {
+    return this.adminRepository.findOutboxEvents()
   }
 }

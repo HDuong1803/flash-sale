@@ -71,7 +71,8 @@ export class SagaCoordinatorService {
         quantity: resv.quantity,
         unitPrice: Number(resv.campaignProduct.salePrice),
         originalPrice: Number(resv.campaignProduct.product.originalPrice),
-        paymentId
+        paymentId,
+        idempotencyKey: paymentId
       })
 
       // Step 3: Clear reservation from Redis

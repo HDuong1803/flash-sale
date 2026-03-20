@@ -20,6 +20,7 @@ import {
   ApiResponse,
   ApiTags
 } from '@nestjs/swagger'
+import { KycStatus, OrderStatus, PaymentStatus, ProductStatus } from '@prisma/client'
 import { ResponseInterceptor } from '@common/interceptors'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { AdminGuard } from '@common/guards/admin.guard'
@@ -274,5 +275,95 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getSystemLogs(): Promise<object[]> {
     return this.adminService.getSystemLogs()
+  }
+
+  // ─── Orders (admin) ─────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách orders' })
+  @Get('orders')
+  @HttpCode(HttpStatus.OK)
+  async getAdminOrders(@Query('status') status?: string): Promise<unknown[]> {
+    return this.adminService.getAdminOrders(status as OrderStatus | undefined)
+  }
+
+  // ─── Payments (admin) ────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách thanh toán (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách payments' })
+  @Get('payments')
+  @HttpCode(HttpStatus.OK)
+  async getAdminPayments(@Query('status') status?: string): Promise<unknown[]> {
+    return this.adminService.getAdminPayments(status as PaymentStatus | undefined)
+  }
+
+  // ─── Products (admin) ────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách sản phẩm (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách products' })
+  @Get('products')
+  @HttpCode(HttpStatus.OK)
+  async getAdminProducts(@Query('status') status?: string): Promise<unknown[]> {
+    return this.adminService.getAdminProducts(status as ProductStatus | undefined)
+  }
+
+  // ─── Customer Profiles (admin) ───────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách hồ sơ customer (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách customer profiles' })
+  @Get('customer-profiles')
+  @HttpCode(HttpStatus.OK)
+  async getCustomerProfiles(): Promise<unknown[]> {
+    return this.adminService.getCustomerProfiles()
+  }
+
+  // ─── Merchant Profiles (admin) ───────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách hồ sơ merchant đầy đủ (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách merchant profiles' })
+  @Get('merchant-profiles')
+  @HttpCode(HttpStatus.OK)
+  async getMerchantProfiles(@Query('status') status?: string): Promise<unknown[]> {
+    return this.adminService.getMerchants(status as KycStatus | undefined)
+  }
+
+  // ─── Notifications (admin) ───────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách thông báo (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách notifications' })
+  @Get('notifications')
+  @HttpCode(HttpStatus.OK)
+  async getAdminNotifications(): Promise<unknown[]> {
+    return this.adminService.getAdminNotifications()
+  }
+
+  // ─── Stock Audit Logs (admin) ────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách stock audit log (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Stock audit logs' })
+  @Get('stock-audit-logs')
+  @HttpCode(HttpStatus.OK)
+  async getStockAuditLogs(): Promise<unknown[]> {
+    return this.adminService.getStockAuditLogs()
+  }
+
+  // ─── User Action Logs (admin) ────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách user action log (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'User action logs' })
+  @Get('user-action-logs')
+  @HttpCode(HttpStatus.OK)
+  async getUserActionLogs(): Promise<unknown[]> {
+    return this.adminService.getUserActionLogs()
+  }
+
+  // ─── Outbox Events (admin) ───────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách outbox events (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Outbox events' })
+  @Get('outbox-events')
+  @HttpCode(HttpStatus.OK)
+  async getOutboxEvents(): Promise<unknown[]> {
+    return this.adminService.getOutboxEvents()
   }
 }

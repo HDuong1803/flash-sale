@@ -17,6 +17,7 @@ export class ReservationService {
     customerId: string
     campaignProductId: string
     quantity: number
+    idempotencyKey: string
   }): Promise<void> {
     const TTL = 600 // 10 minutes
     const expiredAt = new Date(Date.now() + TTL * 1000)
@@ -43,7 +44,8 @@ export class ReservationService {
       customerId: data.customerId,
       campaignProductId: data.campaignProductId,
       quantity: data.quantity,
-      expiredAt
+      expiredAt,
+      idempotencyKey: data.idempotencyKey
     })
   }
 

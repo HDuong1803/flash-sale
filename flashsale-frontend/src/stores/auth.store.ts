@@ -9,6 +9,7 @@ const CUSTOMER_PERMISSIONS: Permission[] = [
   'view_own_orders',
   'pre_register',
   'apply_merchant',
+  'view_customer_dashboard',
 ]
 
 const MERCHANT_PERMISSIONS: Permission[] = [
@@ -24,6 +25,14 @@ const ADMIN_PERMISSIONS: Permission[] = [
   'admin_approve',
   'admin_users',
   'admin_system',
+  'admin_orders',
+  'admin_payments',
+  'admin_products',
+  'admin_profiles',
+  'admin_notifications',
+  'admin_stock_audit',
+  'admin_action_logs',
+  'admin_outbox',
 ]
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {

@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Reservation, ReservationStatus } from '@prisma/client'
+import { Prisma, Reservation, ReservationStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -14,6 +14,7 @@ export class ReservationRepository {
     campaignProductId: string
     quantity: number
     expiredAt: Date
+    idempotencyKey: string
   }): Promise<Reservation> {
     return this.prisma.reservation.create({
       data: {
@@ -22,8 +23,9 @@ export class ReservationRepository {
         campaignProductId: data.campaignProductId,
         quantity: data.quantity,
         status: ReservationStatus.HOLDING,
-        expiredAt: data.expiredAt
-      }
+        expiredAt: data.expiredAt,
+        idempotencyKey: data.idempotencyKey
+      } satisfies Prisma.ReservationUncheckedCreateInput
     })
   }
 

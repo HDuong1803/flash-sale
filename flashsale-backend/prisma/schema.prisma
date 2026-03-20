@@ -16,14 +16,14 @@ datasource db {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id            String     @id @default(cuid()) @map("id") @db.VarChar(16)
+  id            String     @id @default(cuid()) @map("id") @db.VarChar(36)
   email         String     @unique @map("email") @db.VarChar(255)
   emailVerified Boolean?   @default(false) @map("email_verified")
   passwordHash  String?    @map("password_hash") @db.VarChar(255)
   role          UserRole   @default(CUSTOMER) @map("role")
   status        UserStatus @default(ACTIVE) @map("status")
   fullName      String     @map("full_name") @db.VarChar(255)
-  avatarId      String?    @unique @map("avatar_id") @db.VarChar(16)
+  avatarId      String?    @unique @map("avatar_id") @db.VarChar(36)
   lastLoginAt   DateTime?  @map("last_login_at") @db.Timestamp(6)
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -40,9 +40,9 @@ model User {
 }
 
 model Photo {
-  id           String   @id @unique @map("id") @db.VarChar(16)
+  id           String   @id @unique @map("id") @db.VarChar(36)
   url          String   @map("url") @db.Text
-  fileEntityId String   @unique @map("file_entity_id") @db.VarChar(16)
+  fileEntityId String   @unique @map("file_entity_id") @db.VarChar(36)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
 
@@ -54,8 +54,8 @@ model Photo {
 }
 
 model FileEntity {
-  id           String   @id @unique @map("id") @db.VarChar(16)
-  userUploadId String?  @map("user_upload_id") @db.VarChar(16)
+  id           String   @id @unique @map("id") @db.VarChar(36)
+  userUploadId String?  @map("user_upload_id") @db.VarChar(36)
   fileName     String   @map("file_name") @db.VarChar(255)
   path         String?  @map("path") @db.VarChar(255)
   key          String?  @map("key") @db.VarChar(255)
@@ -73,8 +73,8 @@ model FileEntity {
 }
 
 model MerchantProfile {
-  id              String    @id @default(cuid()) @map("id") @db.VarChar(16)
-  userId          String    @unique @map("user_id") @db.VarChar(16)
+  id              String    @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId          String    @unique @map("user_id") @db.VarChar(36)
   businessName    String    @map("business_name") @db.VarChar(255)
   taxCode         String    @unique @map("tax_code") @db.VarChar(255)
   description     String?   @map("description") @db.Text
@@ -83,7 +83,7 @@ model MerchantProfile {
   kycStatus       KycStatus @default(PENDING) @map("kyc_status")
   rejectionReason String?   @map("rejection_reason") @db.Text // Admin ghi lý do từ chối, merchant xem được
   approvedAt      DateTime? @map("approved_at") @db.Timestamp(6) // Thời điểm được admin duyệt
-  approvedBy      String?   @map("approved_by") @db.VarChar(16) // ID của admin đã duyệt (audit trail)
+  approvedBy      String?   @map("approved_by") @db.VarChar(36) // ID của admin đã duyệt (audit trail)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
 
@@ -97,8 +97,8 @@ model MerchantProfile {
 }
 
 model CustomerProfile {
-  id             String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  userId         String   @unique @map("user_id") @db.VarChar(16)
+  id             String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId         String   @unique @map("user_id") @db.VarChar(36)
   phone          String?  @map("phone") @db.VarChar(20)
   defaultAddress String?  @map("default_address") @db.Text
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
@@ -110,13 +110,13 @@ model CustomerProfile {
 }
 
 model Product {
-  id            String        @id @default(cuid()) @map("id") @db.VarChar(16)
-  merchantId    String        @map("merchant_id") @db.VarChar(16)
+  id            String        @id @default(cuid()) @map("id") @db.VarChar(36)
+  merchantId    String        @map("merchant_id") @db.VarChar(36)
   name          String        @map("name") @db.VarChar(255)
   description   String?       @map("description") @db.Text
   category      String?       @map("category") @db.VarChar(255) // Phân loại sản phẩm (optional, chưa normalize)
   originalPrice Decimal       @map("original_price") @db.Decimal(12, 2)
-  productImageId String?       @unique @map("product_image_id") @db.VarChar(16)
+  productImageId String?       @unique @map("product_image_id") @db.VarChar(36)
   status        ProductStatus @default(ACTIVE) @map("status")
   deletedAt     DateTime?     @map("deleted_at") @db.Timestamp(6) // Soft delete — merchant deactivate hoặc xóa
   createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
@@ -135,9 +135,9 @@ model Product {
 }
 
 model Inventory {
-  id          String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  productId   String   @map("product_id") @db.VarChar(16)
-  warehouseId String   @default("default") @map("warehouse_id") @db.VarChar(16)
+  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  productId   String   @map("product_id") @db.VarChar(36)
+  warehouseId String   @default("default") @map("warehouse_id") @db.VarChar(36)
   quantity    Int      @default(0) @map("quantity")
   reserved    Int      @default(0) @map("reserved") // Số lượng đang được giữ chỗ bởi các reservation HOLDING
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
@@ -151,8 +151,8 @@ model Inventory {
 }
 
 model Campaign {
-  id              String         @id @default(cuid()) @map("id") @db.VarChar(16)
-  merchantId      String         @map("merchant_id") @db.VarChar(16)
+  id              String         @id @default(cuid()) @map("id") @db.VarChar(36)
+  merchantId      String         @map("merchant_id") @db.VarChar(36)
   name            String         @map("name") @db.VarChar(255)
   description     String?        @map("description") @db.Text
   startTime       DateTime       @map("start_time") @db.Timestamp(6)
@@ -160,7 +160,7 @@ model Campaign {
   status          CampaignStatus @default(DRAFT) @map("status")
   rejectionReason String?        @map("rejection_reason") @db.Text // Admin ghi lý do từ chối, merchant xem được
   approvedAt      DateTime?      @map("approved_at") @db.Timestamp(6) // Thời điểm được admin duyệt
-  approvedBy      String?        @map("approved_by") @db.VarChar(16) // ID của admin đã duyệt (audit trail)
+  approvedBy      String?        @map("approved_by") @db.VarChar(36) // ID của admin đã duyệt (audit trail)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamp(6) // Soft delete — admin xóa campaign vi phạm
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -177,9 +177,9 @@ model Campaign {
 }
 
 model CampaignProduct {
-  id                String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  campaignId        String   @map("campaign_id") @db.VarChar(16)
-  productId         String   @map("product_id") @db.VarChar(16)
+  id                String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  campaignId        String   @map("campaign_id") @db.VarChar(36)
+  productId         String   @map("product_id") @db.VarChar(36)
   salePrice         Decimal  @map("sale_price") @db.Decimal(12, 2)
   saleQuantity      Int      @map("sale_quantity") // Tổng số lượng được bán trong campaign
   perUserLimit      Int      @default(1) @map("per_user_limit")
@@ -202,9 +202,9 @@ model CampaignProduct {
 }
 
 model PreRegistration {
-  id           String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  customerId   String   @map("customer_id") @db.VarChar(16)
-  campaignId   String   @map("campaign_id") @db.VarChar(16)
+  id           String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  customerId   String   @map("customer_id") @db.VarChar(36)
+  campaignId   String   @map("campaign_id") @db.VarChar(36)
   registeredAt DateTime @default(now()) @map("registered_at") @db.Timestamp(6)
   reminderSent Boolean  @default(false) @map("reminder_sent") // Đã gửi reminder email trước giờ mở bán chưa
 
@@ -217,9 +217,9 @@ model PreRegistration {
 }
 
 model Reservation {
-  id                String            @id @default(cuid()) @map("id") @db.VarChar(16)
-  customerId        String            @map("customer_id") @db.VarChar(16)
-  campaignProductId String            @map("campaign_product_id") @db.VarChar(16)
+  id                String            @id @default(cuid()) @map("id") @db.VarChar(36)
+  customerId        String            @map("customer_id") @db.VarChar(36)
+  campaignProductId String            @map("campaign_product_id") @db.VarChar(36)
   quantity          Int               @map("quantity")
   status            ReservationStatus @default(HOLDING) @map("status")
   statusReason      String?           @map("status_reason") @db.Text
@@ -244,10 +244,10 @@ model Reservation {
 }
 
 model Order {
-  id              String      @id @default(cuid()) @map("id") @db.VarChar(16)
-  customerId      String      @map("customer_id") @db.VarChar(16)
-  merchantId      String      @map("merchant_id") @db.VarChar(16)
-  reservationId   String      @unique @map("reservation_id") @db.VarChar(16)
+  id              String      @id @default(cuid()) @map("id") @db.VarChar(36)
+  customerId      String      @map("customer_id") @db.VarChar(36)
+  merchantId      String      @map("merchant_id") @db.VarChar(36)
+  reservationId   String      @unique @map("reservation_id") @db.VarChar(36)
   idempotencyKey  String      @unique @map("idempotency_key") @db.VarChar(255) // = requestId từ purchase flow — worker retry không tạo duplicate
   status          OrderStatus @default(PENDING) @map("status")
   totalAmount     Decimal     @map("total_amount") @db.Decimal(12, 2)
@@ -271,9 +271,9 @@ model Order {
 }
 
 model OrderItem {
-  id            String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  orderId       String   @map("order_id") @db.VarChar(16)
-  productId     String   @map("product_id") @db.VarChar(16)
+  id            String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  orderId       String   @map("order_id") @db.VarChar(36)
+  productId     String   @map("product_id") @db.VarChar(36)
   quantity      Int      @map("quantity")
   unitPrice     Decimal  @map("unit_price") @db.Decimal(12, 2) // Giá bán tại thời điểm mua (= salePrice)
   originalPrice Decimal  @map("original_price") @db.Decimal(12, 2) // Giá gốc tại thời điểm mua — dùng tính discount history
@@ -286,9 +286,9 @@ model OrderItem {
 }
 
 model Payment {
-  id             String        @id @default(cuid()) @map("id") @db.VarChar(16)
-  reservationId  String        @unique @map("reservation_id") @db.VarChar(16) // FK chính — Payment tạo ngay lúc Checkout, trước khi Order tồn tại
-  orderId        String?       @unique @map("order_id") @db.VarChar(16) // Nullable — được set sau khi Order được tạo bởi Worker
+  id             String        @id @default(cuid()) @map("id") @db.VarChar(36)
+  reservationId  String        @unique @map("reservation_id") @db.VarChar(36) // FK chính — Payment tạo ngay lúc Checkout, trước khi Order tồn tại
+  orderId        String?       @unique @map("order_id") @db.VarChar(36) // Nullable — được set sau khi Order được tạo bởi Worker
   amount         Decimal       @map("amount") @db.Decimal(12, 2)
   method         PaymentMethod @map("method")
   status         PaymentStatus @default(PENDING) @map("status")
@@ -312,13 +312,13 @@ model Payment {
 }
 
 model StockAuditLog {
-  id          String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  productId   String   @map("product_id") @db.VarChar(16)
+  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  productId   String   @map("product_id") @db.VarChar(36)
   delta       Int      @map("delta") // Số lượng thay đổi (âm = giảm, dương = tăng)
   stockBefore Int      @map("stock_before")
   stockAfter  Int      @map("stock_after")
   reason      String   @map("reason") @db.VarChar(255) // Mô tả lý do thay đổi (ví dụ: "reservation", "cancel", "restock")
-  referenceId String?  @map("reference_id") @db.VarChar(16) // ID tham chiếu (reservationId, orderId, ...)
+  referenceId String?  @map("reference_id") @db.VarChar(36) // ID tham chiếu (reservationId, orderId, ...)
   triggeredBy String?  @map("triggered_by") @db.VarChar(50) // userId hoặc "system"
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
@@ -331,8 +331,8 @@ model StockAuditLog {
 }
 
 model Notification {
-  id        String           @id @default(cuid()) @map("id") @db.VarChar(16)
-  userId    String           @map("user_id") @db.VarChar(16)
+  id        String           @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId    String           @map("user_id") @db.VarChar(36)
   type      NotificationType @map("type")
   title     String           @map("title") @db.VarChar(255)
   message   String           @map("message") @db.Text
@@ -347,7 +347,7 @@ model Notification {
 }
 
 model DeadLetterJob {
-  id            String    @id @default(cuid()) @map("id") @db.VarChar(16)
+  id            String    @id @default(cuid()) @map("id") @db.VarChar(36)
   type          String    @map("type") @db.VarChar(100) // Loại job (ví dụ: "order.process", "notification.send")
   originalQueue String    @map("original_queue") @db.VarChar(100) // Queue gốc mà job đến từ — dùng để retry đúng queue
   errorMessage  String    @map("error_message") @db.Text
@@ -364,9 +364,9 @@ model DeadLetterJob {
 // StockAllocation — event-sourcing lite cho flash sale stock
 // Mỗi reservation tạo 1 record → rebuild stock từ đây nếu Redis lệch state
 model StockAllocation {
-  id                String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  campaignProductId String   @map("campaign_product_id") @db.VarChar(16)
-  reservationId     String   @map("reservation_id") @db.VarChar(16)
+  id                String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  campaignProductId String   @map("campaign_product_id") @db.VarChar(36)
+  reservationId     String   @map("reservation_id") @db.VarChar(36)
   quantity          Int      @map("quantity")
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
@@ -380,8 +380,8 @@ model StockAllocation {
 
 // PaymentWebhookLog — bắt buộc cho production: dedup gateway retry, lưu raw payload
 model PaymentWebhookLog {
-  id            String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  paymentId     String?  @map("payment_id") @db.VarChar(16) // Nullable — có thể webhook đến trước Payment record
+  id            String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  paymentId     String?  @map("payment_id") @db.VarChar(36) // Nullable — có thể webhook đến trước Payment record
   provider      String   @map("provider") @db.VarChar(50) // "vnpay" | "momo" | "stripe"
   transactionId String?  @map("transaction_id") @db.VarChar(255)
   payload       Json     @map("payload") // Raw payload từ gateway — không bao giờ drop
@@ -399,11 +399,11 @@ model PaymentWebhookLog {
 
 // UserActionLog — anti-abuse: detect spam click, block IP, audit trail
 model UserActionLog {
-  id        String   @id @default(cuid()) @map("id") @db.VarChar(16)
-  userId    String?  @map("user_id") @db.VarChar(16) // Nullable — guest request
+  id        String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId    String?  @map("user_id") @db.VarChar(36) // Nullable — guest request
   ip        String?  @map("ip") @db.VarChar(45) // IPv6 max = 45 chars
   action    String   @map("action") @db.VarChar(50) // "reserve" | "checkout" | "purchase"
-  targetId  String?  @map("target_id") @db.VarChar(16) // campaignProductId hoặc campaignId
+  targetId  String?  @map("target_id") @db.VarChar(36) // campaignProductId hoặc campaignId
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
 
   @@index([ip, action, createdAt]) // Rate limit check theo IP + action trong time window
@@ -414,9 +414,9 @@ model UserActionLog {
 // OutboxEvent — transactional outbox pattern: đảm bảo event luôn được gửi sau DB write
 // Dùng cho: notification, analytics sync, external webhook
 model OutboxEvent {
-  id          String   @id @default(cuid()) @map("id") @db.VarChar(16)
+  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
   type        String   @map("type") @db.VarChar(100) // "order.created" | "payment.succeeded" | "reservation.expired"
-  aggregateId String   @map("aggregate_id") @db.VarChar(16) // ID của entity gốc (orderId, reservationId...)
+  aggregateId String   @map("aggregate_id") @db.VarChar(36) // ID của entity gốc (orderId, reservationId...)
   payload     Json     @map("payload")
   processed   Boolean  @default(false) @map("processed")
   processedAt DateTime? @map("processed_at") @db.Timestamp(6)

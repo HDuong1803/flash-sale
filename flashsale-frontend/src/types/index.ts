@@ -29,6 +29,15 @@ export type Permission =
   | 'admin_approve'
   | 'admin_users'
   | 'admin_system'
+  | 'view_customer_dashboard'
+  | 'admin_orders'
+  | 'admin_payments'
+  | 'admin_products'
+  | 'admin_profiles'
+  | 'admin_notifications'
+  | 'admin_stock_audit'
+  | 'admin_action_logs'
+  | 'admin_outbox'
 
 // ─── Domain interfaces ───────────────────────────────────────────────────────
 
