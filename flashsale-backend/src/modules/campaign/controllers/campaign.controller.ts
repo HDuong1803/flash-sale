@@ -170,6 +170,33 @@ export class CampaignController {
     ) as unknown as CampaignProductResponseDto
   }
 
+  @ApiOperation({ summary: 'Xóa chiến dịch (chỉ khi DRAFT)' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Xóa thành công' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Chiến dịch không ở trạng thái DRAFT'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Chiến dịch không tồn tại'
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('MERCHANT')
+  async delete(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string
+  ): Promise<{ deleted: boolean }> {
+    return this.campaignService.delete(user.userId, id)
+  }
+
   @ApiOperation({ summary: 'Xóa sản phẩm khỏi chiến dịch' })
   @ApiParam({ name: 'id', description: 'Campaign ID' })
   @ApiParam({ name: 'productId', description: 'Product ID' })

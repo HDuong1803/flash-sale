@@ -32,6 +32,7 @@ import {
   AdminUserQueryDto,
   DlqJobResponseDto,
   OrdersByHourItemDto,
+  OrdersByTimeQueryDto,
   QueueStatsResponseDto,
   RejectReasonDto,
   RevenueTrendItemDto,
@@ -181,12 +182,20 @@ export class AdminController {
     return this.adminService.getStats()
   }
 
-  @ApiOperation({ summary: 'Biểu đồ đơn hàng theo giờ trong ngày' })
+  @ApiOperation({
+    summary:
+      'Biểu đồ đơn hàng theo khoảng thời gian (nhóm theo giờ nếu ≤2 ngày, theo ngày nếu dài hơn)'
+  })
   @ApiResponse({ status: HttpStatus.OK, type: [OrdersByHourItemDto] })
-  @Get('stats/orders-by-hour')
+  @Get('stats/orders-by-time')
   @HttpCode(HttpStatus.OK)
-  async getOrdersByHour(): Promise<OrdersByHourItemDto[]> {
-    return this.adminService.getOrdersByHour()
+  async getOrdersByTime(
+    @Query() query: OrdersByTimeQueryDto
+  ): Promise<{ bucket: string; orders: number }[]> {
+    return this.adminService.getOrdersByTime(
+      new Date(query.start),
+      new Date(query.end)
+    )
   }
 
   @ApiOperation({ summary: 'Biểu đồ doanh thu 7 ngày gần nhất' })

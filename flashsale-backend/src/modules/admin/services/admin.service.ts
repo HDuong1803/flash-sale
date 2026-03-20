@@ -40,7 +40,7 @@ export class AdminService {
   async approveCampaign(campaignId: string) {
     return this.adminRepository.updateCampaignStatus(
       campaignId,
-      CampaignStatus.APPROVED
+      CampaignStatus.SCHEDULED
     )
   }
 
@@ -82,13 +82,9 @@ export class AdminService {
     return this.adminRepository.getStats()
   }
 
-  async getOrdersByHour() {
-    const result = await this.adminRepository.getOrdersByHour()
-    const hourMap = new Map(result.map(r => [r.hour, Number(r.count)]))
-    return Array.from({ length: 24 }, (_, h) => ({
-      hour: `${h}:00`,
-      orders: hourMap.get(h) ?? 0
-    }))
+  async getOrdersByTime(start: Date, end: Date) {
+    const rows = await this.adminRepository.getOrdersByTime(start, end)
+    return rows.map(r => ({ bucket: r.bucket, orders: Number(r.count) }))
   }
 
   async getRevenueTrend() {

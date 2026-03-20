@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common'
@@ -10,7 +11,13 @@ import { ApplyMerchantDto, MerchantOrderQueryDto } from '../dto/merchant.dto'
 export class MerchantService {
   constructor(private readonly merchantRepository: MerchantRepository) {}
 
-  async apply(userId: string, dto: ApplyMerchantDto) {
+  async apply(userId: string, userRole: string, dto: ApplyMerchantDto) {
+    if (userRole !== 'CUSTOMER') {
+      throw new ForbiddenException(
+        'Chỉ tài khoản CUSTOMER mới có thể đăng ký làm Merchant'
+      )
+    }
+
     const existing = await this.merchantRepository.findByUserId(userId)
     if (existing)
       throw new BadRequestException('Bạn đã gửi đơn đăng ký trước đó')
@@ -23,6 +30,10 @@ export class MerchantService {
 
   async getApplicationStatus(userId: string) {
     return this.merchantRepository.findByUserId(userId)
+  }
+
+  async getMyCampaigns(userId: string) {
+    return this.merchantRepository.findMyCampaigns(userId)
   }
 
   async getMyProfile(userId: string) {

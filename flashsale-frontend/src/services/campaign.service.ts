@@ -41,6 +41,12 @@ class CampaignService {
   removeProduct(campaignId: string, productId: string): Promise<void> {
     return apiClient.delete(`/campaigns/${campaignId}/products/${productId}`)
   }
+  getMyCampaigns(): Promise<Campaign[]> {
+    return apiClient.get('/merchants/me/campaigns')
+  }
+  delete(id: string): Promise<{ deleted: boolean }> {
+    return apiClient.delete(`/campaigns/${id}`)
+  }
   preRegister(campaignId: string): Promise<void> {
     return apiClient.post(`/campaigns/${campaignId}/register`)
   }

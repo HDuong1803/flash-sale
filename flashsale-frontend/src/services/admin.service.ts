@@ -48,8 +48,8 @@ class AdminService {
   getStats(): Promise<AdminStats> {
     return withRetry(() => apiClient.get('/admin/stats'))
   }
-  getOrdersByHour(): Promise<OrdersByHour[]> {
-    return withRetry(() => apiClient.get('/admin/stats/orders-by-hour'))
+  getOrdersByTime(start: Date, end: Date): Promise<OrdersByHour[]> {
+    return withRetry(() => apiClient.get(`/admin/stats/orders-by-time?start=${start.toISOString()}&end=${end.toISOString()}`))
   }
   getRevenueTrend(): Promise<RevenueTrend[]> {
     return withRetry(() => apiClient.get('/admin/stats/revenue-trend'))

@@ -85,13 +85,10 @@ export function AppSidebar() {
   const { hasPermission, user } = useAuthStore()
   const { sidebarCollapsed } = useUiStore()
 
-  // Pending badges — only meaningful for admin, but hooks must be called unconditionally
-  const { data: pendingMerchants } = useAdminMerchants(
-    user?.role === 'ADMIN' ? 'PENDING' : undefined
-  )
-  const { data: pendingCampaigns } = useAdminCampaigns(
-    user?.role === 'ADMIN' ? 'DRAFT' as CampaignStatus : undefined
-  )
+  // Pending badges — only fetch for ADMIN, hooks called unconditionally per React rules
+  const isAdmin = user?.role === 'ADMIN'
+  const { data: pendingMerchants } = useAdminMerchants('PENDING', isAdmin)
+  const { data: pendingCampaigns } = useAdminCampaigns('DRAFT' as CampaignStatus, isAdmin)
 
   // Application status — for the Merchant CTA
   const { data: application } = useApplicationStatus()

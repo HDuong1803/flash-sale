@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { adminService } from '@/services/admin.service'
 import type { Merchant, KycStatus } from '@/types'
 
-export function useAdminMerchants(status?: KycStatus) {
+export function useAdminMerchants(status?: KycStatus, enabled = true) {
   const [data, setData] = useState<Merchant[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetch = useCallback(async () => {
+    if (!enabled) return
     setLoading(true)
     setError(null)
     try {
@@ -19,7 +20,7 @@ export function useAdminMerchants(status?: KycStatus) {
     } finally {
       setLoading(false)
     }
-  }, [status])
+  }, [status, enabled])
 
   useEffect(() => { fetch() }, [fetch])
   return { data, loading, error, refetch: fetch }

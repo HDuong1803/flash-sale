@@ -4,12 +4,13 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Megaphone, Plus, Calendar, Package, AlertCircle } from 'lucide-react'
-import { useCampaigns } from '@/hooks/queries/useCampaigns'
+import { useMyCampaigns } from '@/hooks/queries/useMyCampaigns'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { CampaignCardSkeleton } from '@/components/shared/skeletons/CampaignCardSkeleton'
+import { useDeleteCampaign } from '@/hooks/mutations/useDeleteCampaign'
 import { formatDate } from '@/lib/utils'
 import type { CampaignStatus } from '@/types'
 
@@ -17,6 +18,7 @@ const TABS: { label: string; value: CampaignStatus | 'ALL' }[] = [
   { label: 'Tất cả', value: 'ALL' },
   { label: 'Nháp', value: 'DRAFT' },
   { label: 'Chờ duyệt', value: 'APPROVED' },
+  { label: 'Đã lên lịch', value: 'SCHEDULED' },
   { label: 'Đang chạy', value: 'ACTIVE' },
   { label: 'Đã kết thúc', value: 'ENDED' },
 ]
@@ -25,7 +27,8 @@ export default function MerchantCampaignsPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<CampaignStatus | 'ALL'>('ALL')
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const { data: campaigns, loading, error, refetch } = useCampaigns()
+  const { data: campaigns, loading, error, refetch } = useMyCampaigns()
+  const { mutate: deleteCampaign, loading: deleting } = useDeleteCampaign()
 
   const filtered = activeTab === 'ALL' ? campaigns : campaigns.filter((c) => c.status === activeTab)
 
@@ -101,7 +104,7 @@ export default function MerchantCampaignsPage() {
                     </>
                   )}
                   {campaign.status === 'APPROVED' && (
-                    <button disabled className="text-xs px-3 py-1.5 rounded-xl bg-yellow-500/15 text-yellow-300 border border-yellow-500/20 cursor-not-allowed">Đang chờ duyệt</button>
+                    <button disabled className="text-xs px-3 py-1.5 rounded-xl bg-yellow-500/15 text-yellow-300 border border-yellow-500/20 cursor-not-allowed">Chờ admin duyệt</button>
                   )}
                   {campaign.status === 'ACTIVE' && (
                     <>
@@ -129,8 +132,9 @@ export default function MerchantCampaignsPage() {
         confirmLabel="Xóa"
         cancelLabel="Hủy"
         variant="destructive"
-        onConfirm={() => { setDeleteId(null); refetch() }}
+        onConfirm={async () => { if (deleteId) { try { await deleteCampaign(deleteId) } finally { setDeleteId(null); refetch() } } }}
         onCancel={() => setDeleteId(null)}
+        loading={deleting}
       />
     </div>
   )

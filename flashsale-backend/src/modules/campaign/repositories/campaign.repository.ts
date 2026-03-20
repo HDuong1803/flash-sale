@@ -10,7 +10,9 @@ import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 export type CampaignWithProducts = Campaign & {
   campaignProducts: Array<
-    CampaignProduct & { product: { name: string; imageUrl: string | null; originalPrice: number } }
+    CampaignProduct & {
+      product: { name: string; imageUrl: string | null; originalPrice: number }
+    }
   >
   merchant: { businessName: string }
 }
@@ -28,11 +30,15 @@ export class CampaignRepository {
       where: { id },
       include: {
         campaignProducts: {
-          include: { product: { select: { name: true, imageUrl: true, originalPrice: true } } }
+          include: {
+            product: {
+              select: { name: true, imageUrl: true, originalPrice: true }
+            }
+          }
         },
         merchant: { select: { businessName: true } }
       }
-    }) as Promise<CampaignWithProducts | null>
+    }) as unknown as Promise<CampaignWithProducts | null>
   }
 
   async findByIdAndMerchant(
@@ -54,6 +60,7 @@ export class CampaignRepository {
 
   async findAll(filters: {
     status?: CampaignStatus
+    statuses?: CampaignStatus[]
     search?: string
     merchantId?: string
     page: number
@@ -61,7 +68,11 @@ export class CampaignRepository {
   }): Promise<CampaignWithProducts[]> {
     return this.prisma.campaign.findMany({
       where: {
-        ...(filters.status ? { status: filters.status } : {}),
+        ...(filters.statuses
+          ? { status: { in: filters.statuses } }
+          : filters.status
+          ? { status: filters.status }
+          : {}),
         ...(filters.merchantId ? { merchantId: filters.merchantId } : {}),
         ...(filters.search
           ? { name: { contains: filters.search, mode: 'insensitive' as const } }
@@ -69,14 +80,18 @@ export class CampaignRepository {
       },
       include: {
         campaignProducts: {
-          include: { product: { select: { name: true, imageUrl: true, originalPrice: true } } }
+          include: {
+            product: {
+              select: { name: true, imageUrl: true, originalPrice: true }
+            }
+          }
         },
         merchant: { select: { businessName: true } }
       },
       orderBy: { startTime: 'desc' },
       skip: (filters.page - 1) * filters.limit,
       take: filters.limit
-    }) as Promise<CampaignWithProducts[]>
+    }) as unknown as Promise<CampaignWithProducts[]>
   }
 
   async create(data: {
@@ -128,6 +143,10 @@ export class CampaignRepository {
     await this.prisma.campaignProduct.delete({
       where: { campaignId_productId: { campaignId, productId } }
     })
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.campaign.delete({ where: { id } })
   }
 
   async upsertPreRegistration(

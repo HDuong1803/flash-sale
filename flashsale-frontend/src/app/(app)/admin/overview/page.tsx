@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { Users, Store, Zap, ShoppingCart, DollarSign, AlertTriangle, X, Bell } from 'lucide-react'
+import { Users, Store, Zap, ShoppingCart, DollarSign, AlertTriangle, X, Bell, ChevronDown, Calendar } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { useAdminMerchants } from '@/hooks/queries/useAdminMerchants'
 import type { CampaignStatus } from '@/types'
@@ -10,12 +10,152 @@ import { useAdminCampaigns } from '@/hooks/queries/useAdminCampaigns'
 import { useSystemHealth } from '@/hooks/queries/useSystemHealth'
 import { useDeadLetterJobs } from '@/hooks/queries/useDeadLetterJobs'
 import { useAdminStats } from '@/hooks/queries/useAdminStats'
-import { useOrdersByHour } from '@/hooks/queries/useOrdersByHour'
+import { useOrdersByTime } from '@/hooks/queries/useOrdersByHour'
 import { useRevenueTrend } from '@/hooks/queries/useRevenueTrend'
 import { useActivity } from '@/hooks/queries/useActivity'
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { formatCurrency, formatTimeAgo } from '@/lib/utils'
+
+// ─── Time range helpers ────────────────────────────────────────────────────────
+
+type TimePreset = 'today' | 'week' | 'month' | 'quarter' | 'year' | 'custom'
+
+const PRESET_LABELS: Record<TimePreset, string> = {
+  today:   'Hôm nay',
+  week:    'Tuần này',
+  month:   'Tháng này',
+  quarter: 'Quý này',
+  year:    'Năm nay',
+  custom:  'Tùy chọn...',
+}
+
+function getPresetRange(preset: Exclude<TimePreset, 'custom'>): { start: Date; end: Date } {
+  const now = new Date()
+  const start = new Date(now)
+  const end = new Date(now)
+
+  switch (preset) {
+    case 'today':
+      start.setHours(0, 0, 0, 0)
+      end.setHours(23, 59, 59, 999)
+      break
+    case 'week': {
+      const day = start.getDay()
+      const diffToMon = (day === 0 ? -6 : 1 - day)
+      start.setDate(start.getDate() + diffToMon)
+      start.setHours(0, 0, 0, 0)
+      end.setDate(start.getDate() + 6)
+      end.setHours(23, 59, 59, 999)
+      break
+    }
+    case 'month':
+      start.setDate(1); start.setHours(0, 0, 0, 0)
+      end.setMonth(end.getMonth() + 1, 0); end.setHours(23, 59, 59, 999)
+      break
+    case 'quarter': {
+      const q = Math.floor(now.getMonth() / 3)
+      start.setMonth(q * 3, 1); start.setHours(0, 0, 0, 0)
+      end.setMonth(q * 3 + 3, 0); end.setHours(23, 59, 59, 999)
+      break
+    }
+    case 'year':
+      start.setMonth(0, 1); start.setHours(0, 0, 0, 0)
+      end.setMonth(11, 31); end.setHours(23, 59, 59, 999)
+      break
+  }
+  return { start, end }
+}
+
+// ─── TimeRangePicker component ─────────────────────────────────────────────────
+
+function TimeRangePicker({ onChange }: { onChange: (start: Date, end: Date) => void }) {
+  const [open, setOpen] = useState(false)
+  const [preset, setPreset] = useState<TimePreset>('today')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd]     = useState('')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  function selectPreset(p: TimePreset) {
+    setPreset(p)
+    if (p !== 'custom') {
+      const { start, end } = getPresetRange(p as Exclude<TimePreset, 'custom'>)
+      onChange(start, end)
+      setOpen(false)
+    }
+  }
+
+  function applyCustom() {
+    if (!customStart || !customEnd) return
+    const start = new Date(customStart + 'T00:00:00')
+    const end   = new Date(customEnd   + 'T23:59:59.999')
+    if (start > end) return
+    onChange(start, end)
+    setOpen(false)
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 text-sm text-white/60 hover:text-white/90 glass px-3 py-1.5 rounded-lg border border-white/10 transition-colors"
+      >
+        <Calendar size={13} />
+        {PRESET_LABELS[preset]}
+        <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-1 z-20 w-56 glass rounded-xl border border-white/10 overflow-hidden shadow-xl">
+          {(Object.entries(PRESET_LABELS) as [TimePreset, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => selectPreset(key)}
+              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                preset === key
+                  ? 'bg-indigo-600/40 text-white'
+                  : 'text-white/60 hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          {preset === 'custom' && (
+            <div className="px-4 py-3 space-y-2 border-t border-white/10">
+              <input
+                type="date"
+                value={customStart}
+                onChange={e => setCustomStart(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white [color-scheme:dark]"
+              />
+              <input
+                type="date"
+                value={customEnd}
+                onChange={e => setCustomEnd(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white [color-scheme:dark]"
+              />
+              <button
+                onClick={applyCustom}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm rounded-lg py-1.5 transition-colors"
+              >
+                Áp dụng
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 
 function StatCard({ icon: Icon, label, value, color, href }: {
   icon: typeof Users; label: string; value: string; color: string; href?: string
@@ -49,7 +189,10 @@ export default function AdminOverviewPage() {
   const { data: health } = useSystemHealth()
   const { data: jobs } = useDeadLetterJobs()
   const { data: stats, loading: statsLoading } = useAdminStats()
-  const { data: ordersByHour, loading: ordersLoading } = useOrdersByHour()
+  const [ordersRange, setOrdersRange] = useState<{ start: Date; end: Date }>(
+    () => getPresetRange('today')
+  )
+  const { data: ordersByHour, loading: ordersLoading } = useOrdersByTime(ordersRange.start, ordersRange.end)
   const { data: revenueTrend, loading: revenueLoading } = useRevenueTrend()
   const { data: activity, loading: activityLoading } = useActivity()
   const showAlert = !alertDismissed && (pendingMerchants.length > 0 || pendingCampaigns.length > 0)
@@ -96,9 +239,12 @@ export default function AdminOverviewPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Orders by hour */}
+        {/* Orders by time */}
         <div className="glass rounded-2xl p-6 space-y-4">
-          <h2 className="text-white font-semibold">Đơn hàng theo giờ (24h)</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-white font-semibold">Biểu đồ đơn hàng</h2>
+            <TimeRangePicker onChange={(start, end) => setOrdersRange({ start, end })} />
+          </div>
           {ordersLoading ? (
             <div className="h-48 animate-pulse bg-white/5 rounded-xl" />
           ) : ordersByHour.length === 0 ? (
@@ -106,7 +252,7 @@ export default function AdminOverviewPage() {
           ) : (
             <ResponsiveContainer width="100%" height={192}>
               <BarChart data={ordersByHour}>
-                <XAxis dataKey="hour" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="bucket" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
                 <Bar dataKey="orders" fill="#4f46e5" radius={[4, 4, 0, 0]} />

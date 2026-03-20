@@ -58,10 +58,10 @@ export class MerchantController {
   @UseGuards(RolesGuard)
   @Roles('CUSTOMER')
   async apply(
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { userId: string; role: string },
     @Body() dto: ApplyMerchantDto
   ): Promise<MerchantProfileResponseDto> {
-    return this.merchantService.apply(user.userId, dto) as any
+    return this.merchantService.apply(user.userId, user.role, dto) as any
   }
 
   @ApiOperation({ summary: 'Kiểm tra trạng thái đơn đăng ký Merchant' })
@@ -76,6 +76,25 @@ export class MerchantController {
     @CurrentUser() user: { userId: string }
   ): Promise<MerchantProfileResponseDto | null> {
     return this.merchantService.getApplicationStatus(user.userId) as any
+  }
+
+  @ApiOperation({ summary: 'Lấy danh sách chiến dịch của merchant hiện tại' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách chiến dịch (tất cả trạng thái)'
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @Get('me/campaigns')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('MERCHANT')
+  async getMyCampaigns(
+    @CurrentUser() user: { userId: string }
+  ): Promise<unknown[]> {
+    return this.merchantService.getMyCampaigns(user.userId)
   }
 
   @ApiOperation({ summary: 'Lấy thông tin Merchant profile' })

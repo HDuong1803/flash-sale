@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Zap, AlertCircle, Loader2 } from 'lucide-react'
+import { Zap, AlertCircle, Loader2, X, Calendar, Package } from 'lucide-react'
 import { useAdminCampaigns } from '@/hooks/queries/useAdminCampaigns'
 import { useApproveCampaign } from '@/hooks/mutations/useApproveCampaign'
 import { useRejectCampaign } from '@/hooks/mutations/useRejectCampaign'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { formatCurrency, formatDate, calculateDiscount } from '@/lib/utils'
 import type { Campaign, CampaignStatus } from '@/types'
 
@@ -16,7 +16,7 @@ const TABS: { label: string; value: CampaignStatus }[] = [
   { label: 'Chờ duyệt', value: 'APPROVED' },
   { label: 'Đã duyệt', value: 'SCHEDULED' },
   { label: 'Đang chạy', value: 'ACTIVE' },
-  { label: 'Bị từ chối', value: 'ENDED' },
+  { label: 'Đã kết thúc', value: 'ENDED' },
 ]
 
 export default function AdminCampaignsPage() {
@@ -30,12 +30,19 @@ export default function AdminCampaignsPage() {
   const { approve, loading: approving } = useApproveCampaign()
   const { reject, loading: rejecting } = useRejectCampaign()
 
-  const handleApprove = async (id: string) => {
-    try { await approve(id); refetch(); setSelectedCampaign(null); setConfirmApprove(null) } catch {}
+  const closeDetail = () => {
+    setSelectedCampaign(null)
+    setShowRejectForm(false)
+    setRejectReason('')
   }
+
+  const handleApprove = async (id: string) => {
+    try { await approve(id); refetch(); closeDetail(); setConfirmApprove(null) } catch {}
+  }
+
   const handleReject = async (id: string) => {
     if (!rejectReason.trim()) return
-    try { await reject(id, rejectReason); refetch(); setSelectedCampaign(null); setShowRejectForm(false); setRejectReason('') } catch {}
+    try { await reject(id, rejectReason); refetch(); closeDetail() } catch {}
   }
 
   return (
@@ -106,78 +113,131 @@ export default function AdminCampaignsPage() {
         </div>
       )}
 
-      {/* Detail Sheet */}
-      <Sheet open={!!selectedCampaign} onOpenChange={(open) => { if (!open) { setSelectedCampaign(null); setShowRejectForm(false); setRejectReason('') } }}>
-        <SheetContent className="glass-strong border-white/15 bg-transparent w-[600px]">
-          <SheetHeader>
-            <SheetTitle className="text-white">{selectedCampaign?.name}</SheetTitle>
-          </SheetHeader>
+      {/* Campaign detail modal */}
+      <Dialog open={!!selectedCampaign} onOpenChange={(open) => { if (!open) closeDetail() }}>
+        <DialogContent className="glass-strong border-white/15 bg-slate-900/95 max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl p-0">
           {selectedCampaign && (
-            <div className="mt-6 space-y-4 overflow-y-auto">
-              <div className="glass rounded-xl p-4 space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-white/50">Merchant</span><span className="text-white">{selectedCampaign.merchant?.businessName}</span></div>
-                <div className="flex justify-between"><span className="text-white/50">Bắt đầu</span><span className="text-white">{formatDate(selectedCampaign.startTime)}</span></div>
-                <div className="flex justify-between"><span className="text-white/50">Kết thúc</span><span className="text-white">{formatDate(selectedCampaign.endTime)}</span></div>
-                {selectedCampaign.description && (
-                  <div><span className="text-white/50">Mô tả</span><p className="text-white/70 mt-1 text-xs">{selectedCampaign.description}</p></div>
-                )}
+            <>
+              {/* Modal header */}
+              <div className="flex items-start justify-between p-6 border-b border-white/10">
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-white font-bold text-lg line-clamp-2">{selectedCampaign.name}</h2>
+                  <div className="mt-1">
+                    <StatusBadge status={selectedCampaign.status} />
+                  </div>
+                </div>
+                <button onClick={closeDetail} className="ml-4 p-2 text-white/40 hover:text-white hover:bg-white/8 rounded-lg transition-all shrink-0">
+                  <X size={16} />
+                </button>
               </div>
 
-              {(selectedCampaign.campaignProducts?.length ?? 0) > 0 && (
-                <div className="glass rounded-xl overflow-hidden">
-                  <p className="px-4 py-2 text-white/40 text-xs font-semibold uppercase border-b border-white/10">Sản phẩm</p>
-                  <table className="w-full text-xs">
-                    <thead><tr className="border-b border-white/5">
-                      {['Tên SP', 'Gốc', 'Sale', 'Giảm', 'SL', 'Limit'].map((h) => (
-                        <th key={h} className="px-3 py-2 text-left text-white/30">{h}</th>
-                      ))}
-                    </tr></thead>
-                    <tbody>
-                       {(selectedCampaign.campaignProducts ?? []).map((p) => (
-                        <tr key={p.id} className="border-b border-white/5">
-                           <td className="px-3 py-2 text-white/70 line-clamp-1 max-w-[100px]">{p.product?.name}</td>
-                           <td className="px-3 py-2 text-white/50 line-through">{formatCurrency(p.product?.originalPrice ?? 0)}</td>
-                          <td className="px-3 py-2 text-indigo-300 font-bold">{formatCurrency(p.salePrice)}</td>
-                           <td className="px-3 py-2"><span className="bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full">-{calculateDiscount(p.product?.originalPrice ?? 0, p.salePrice)}%</span></td>
-                          <td className="px-3 py-2 text-white/60">{p.saleQuantity}</td>
-                          <td className="px-3 py-2 text-white/60">{p.perUserLimit}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {selectedCampaign.status === 'APPROVED' && (
-                <div className="space-y-3 pt-2">
-                  {!showRejectForm ? (
-                    <>
-                      <button onClick={() => setConfirmApprove(selectedCampaign.id)} className="btn-primary w-full" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-                        Duyệt chiến dịch
-                      </button>
-                      <button onClick={() => setShowRejectForm(true)} className="btn-glass w-full text-red-300 border-red-500/20">Từ chối</button>
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className="input-glass resize-none" rows={3} placeholder="Lý do từ chối..." />
-                      <button onClick={() => handleReject(selectedCampaign.id)} disabled={!rejectReason.trim() || rejecting}
-                        className="w-full py-3 rounded-xl bg-red-500/80 hover:bg-red-500 text-white font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-                        {rejecting ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Đang xử lý...
-                          </>
-                        ) : 'Xác nhận từ chối'}
-                      </button>
-                      <button onClick={() => setShowRejectForm(false)} className="btn-glass w-full">Hủy</button>
+              {/* Modal body */}
+              <div className="p-6 space-y-4">
+                {/* Campaign info */}
+                <div className="glass rounded-xl p-4 space-y-2.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-white/50">Merchant</span>
+                    <span className="text-white font-medium">{selectedCampaign.merchant?.businessName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/50 flex items-center gap-1"><Calendar size={12} /> Bắt đầu</span>
+                    <span className="text-white">{formatDate(selectedCampaign.startTime)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/50 flex items-center gap-1"><Calendar size={12} /> Kết thúc</span>
+                    <span className="text-white">{formatDate(selectedCampaign.endTime)}</span>
+                  </div>
+                  {selectedCampaign.description && (
+                    <div className="pt-1 border-t border-white/8">
+                      <p className="text-white/50 text-xs mb-1">Mô tả</p>
+                      <p className="text-white/70 text-xs">{selectedCampaign.description}</p>
                     </div>
                   )}
                 </div>
-              )}
-            </div>
+
+                {/* Products table */}
+                {(selectedCampaign.campaignProducts?.length ?? 0) > 0 && (
+                  <div className="glass rounded-xl overflow-hidden">
+                    <p className="px-4 py-2.5 text-white/50 text-xs font-semibold uppercase tracking-wider border-b border-white/10 flex items-center gap-2">
+                      <Package size={12} /> Sản phẩm ({selectedCampaign.campaignProducts?.length})
+                    </p>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-white/5">
+                          {['Tên SP', 'Gốc', 'Sale', 'Giảm', 'SL'].map((h) => (
+                            <th key={h} className="px-3 py-2 text-left text-white/30">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(selectedCampaign.campaignProducts ?? []).map((p) => {
+                          const origPrice = p.product?.originalPrice ?? p.originalPrice ?? 0
+                          const discount = origPrice > 0 ? calculateDiscount(Number(origPrice), p.salePrice) : 0
+                          return (
+                            <tr key={p.id} className="border-b border-white/5">
+                              <td className="px-3 py-2 text-white/70 max-w-[120px]">
+                                <p className="line-clamp-1">{p.product?.name ?? p.productName}</p>
+                              </td>
+                              <td className="px-3 py-2 text-white/40 line-through">{origPrice > 0 ? formatCurrency(Number(origPrice)) : '—'}</td>
+                              <td className="px-3 py-2 text-indigo-300 font-bold">{formatCurrency(p.salePrice)}</td>
+                              <td className="px-3 py-2">
+                                {discount > 0 ? (
+                                  <span className="bg-orange-500/20 text-orange-300 px-1.5 py-0.5 rounded-full">-{discount}%</span>
+                                ) : <span className="text-white/30">—</span>}
+                              </td>
+                              <td className="px-3 py-2 text-white/60">{p.saleQuantity}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Actions */}
+                {selectedCampaign.status === 'APPROVED' && (
+                  <div className="space-y-3 pt-2">
+                    {!showRejectForm ? (
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setConfirmApprove(selectedCampaign.id)}
+                          className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
+                          style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                        >
+                          Duyệt chiến dịch
+                        </button>
+                        <button onClick={() => setShowRejectForm(true)} className="flex-1 btn-glass text-red-300 border-red-500/20 text-sm py-2.5">
+                          Từ chối
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <textarea
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          className="input-glass resize-none w-full"
+                          rows={3}
+                          placeholder="Lý do từ chối..."
+                        />
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => handleReject(selectedCampaign.id)}
+                            disabled={!rejectReason.trim() || rejecting}
+                            className="flex-1 py-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white text-sm font-medium transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {rejecting ? <><Loader2 className="w-4 h-4 animate-spin" />Đang xử lý...</> : 'Xác nhận từ chối'}
+                          </button>
+                          <button onClick={() => setShowRejectForm(false)} className="flex-1 btn-glass text-sm py-2.5">Hủy</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={!!confirmApprove}

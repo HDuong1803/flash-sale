@@ -2,6 +2,12 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { ROLES_KEY } from '../decorators/roles.decorator'
 
+const ROLE_RANK: Record<string, number> = {
+  CUSTOMER: 1,
+  MERCHANT: 2,
+  ADMIN: 3
+}
+
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
@@ -11,8 +17,15 @@ export class RolesGuard implements CanActivate {
       ROLES_KEY,
       [context.getHandler(), context.getClass()]
     )
+
     if (!requiredRoles || requiredRoles.length === 0) return true
+
     const { user } = context.switchToHttp().getRequest()
-    return requiredRoles.includes(user?.role)
+    const userRank = ROLE_RANK[user?.role] ?? 0
+    const minRequiredRank = Math.min(
+      ...requiredRoles.map(r => ROLE_RANK[r] ?? Infinity)
+    )
+
+    return userRank >= minRequiredRank
   }
 }

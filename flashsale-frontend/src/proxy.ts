@@ -3,19 +3,20 @@ import { NextRequest, NextResponse } from 'next/server'
 const PUBLIC = ['/', '/campaigns', '/register', '/payment/return']
 
 const ROLE_ROUTES: Record<string, string[]> = {
-  '/merchant': ['MERCHANT', 'ADMIN'],
-  '/admin':    ['ADMIN'],
+  '/merchant/dashboard':  ['MERCHANT', 'ADMIN'],
+  '/merchant/campaigns':  ['MERCHANT', 'ADMIN'],
+  '/merchant/products':   ['MERCHANT', 'ADMIN'],
+  '/merchant/orders':     ['MERCHANT', 'ADMIN'],
+  '/admin':               ['ADMIN'],
 }
 
-const AUTH_ROUTES = ['/checkout', '/orders', '/purchase', '/profile', '/notifications']
+const AUTH_ROUTES = ['/checkout', '/orders', '/purchase', '/profile', '/notifications', '/merchant/apply']
 
-export function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // access_token is HttpOnly but Next.js middleware runs server-side — it CAN read it.
-  // Cookies set by the backend at localhost:3000 are domain-scoped to 'localhost',
-  // so they arrive on all requests to localhost regardless of port.
   const token = request.cookies.get('access_token')?.value
+
   const userRole = request.cookies.get('user-role')?.value
 
   const isPublic = PUBLIC.some((p) => pathname === p || pathname.startsWith(p + '/'))
@@ -24,7 +25,9 @@ export function proxy(request: NextRequest) {
   const needsAuth = AUTH_ROUTES.some((r) => pathname.startsWith(r))
   const roleEntry = Object.entries(ROLE_ROUTES).find(([r]) => pathname.startsWith(r))
 
-  if ((needsAuth || roleEntry) && !token) {
+  const hasSession = !!token || !!userRole
+
+  if ((needsAuth || roleEntry) && !hasSession) {
     const response = NextResponse.redirect(new URL('/', request.url))
     response.cookies.set('auth-redirect', pathname, { maxAge: 300 })
     return response

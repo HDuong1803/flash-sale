@@ -31,8 +31,9 @@ import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
 
-const ACCESS_TOKEN_TTL = 15 * 60 * 1000 // 15 minutes (ms)
-const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days (ms)
+const ACCESS_TOKEN_TTL = Number(process.env.JWT_EXPIRE_TIME ?? 900) * 1000
+const REFRESH_TOKEN_TTL =
+  Number(process.env.JWT_EXPIRE_REFRESH_TIME ?? 604800) * 1000
 
 @ApiTags('auth')
 @Controller('auth')

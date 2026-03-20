@@ -337,7 +337,7 @@ function Step2({ state, dispatch }: { state: WizardState; dispatch: React.Dispat
                         <input
                           type="number"
                           value={row.salePrice}
-                          onChange={(e) => dispatch({ type: 'UPDATE_PRODUCT', productId: row.product.id, field: 'salePrice', value: Number(e.target.value) })}
+                          onChange={(e) => { const v = e.target.valueAsNumber; if (!isNaN(v)) dispatch({ type: 'UPDATE_PRODUCT', productId: row.product.id, field: 'salePrice', value: v }) }}
                           className="input-glass text-xs py-1 mt-0.5"
                           min={1000}
                           max={row.product.originalPrice - 1}
@@ -348,7 +348,7 @@ function Step2({ state, dispatch }: { state: WizardState; dispatch: React.Dispat
                         <input
                           type="number"
                           value={row.saleQuantity}
-                          onChange={(e) => dispatch({ type: 'UPDATE_PRODUCT', productId: row.product.id, field: 'saleQuantity', value: Number(e.target.value) })}
+                          onChange={(e) => { const v = e.target.valueAsNumber; if (!isNaN(v)) dispatch({ type: 'UPDATE_PRODUCT', productId: row.product.id, field: 'saleQuantity', value: v }) }}
                           className="input-glass text-xs py-1 mt-0.5"
                           min={1}
                           max={row.product.inventory}
@@ -359,7 +359,7 @@ function Step2({ state, dispatch }: { state: WizardState; dispatch: React.Dispat
                         <input
                           type="number"
                           value={row.perUserLimit}
-                          onChange={(e) => dispatch({ type: 'UPDATE_PRODUCT', productId: row.product.id, field: 'perUserLimit', value: Number(e.target.value) })}
+                          onChange={(e) => { const v = e.target.valueAsNumber; if (!isNaN(v)) dispatch({ type: 'UPDATE_PRODUCT', productId: row.product.id, field: 'perUserLimit', value: v }) }}
                           className="input-glass text-xs py-1 mt-0.5"
                           min={1}
                         />

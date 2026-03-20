@@ -209,7 +209,7 @@ export interface AdminStats {
 export interface QueueStats { high: number; normal: number }
 export interface SystemLog { level: string; message: string; timestamp: string }
 export interface ActivityLog { type: string; message: string; createdAt: string }
-export interface OrdersByHour { hour: string; orders: number }
+export interface OrdersByHour { bucket: string; orders: number }
 export interface RevenueTrend { date: string; revenue: number }
 
 export interface CampaignReport {

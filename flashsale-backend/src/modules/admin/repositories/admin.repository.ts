@@ -55,7 +55,9 @@ export class AdminRepository {
       where: status ? { status } : undefined,
       include: {
         merchant: { select: { businessName: true } },
-        campaignProducts: { include: { product: { select: { name: true } } } },
+        campaignProducts: {
+          include: { product: { select: { name: true, originalPrice: true } } }
+        },
         _count: { select: { campaignProducts: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -151,15 +153,32 @@ export class AdminRepository {
     }
   }
 
-  async getOrdersByHour(): Promise<Array<{ hour: number; count: bigint }>> {
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    return this.prisma.$queryRaw<Array<{ hour: number; count: bigint }>>`
-      SELECT EXTRACT(HOUR FROM "createdAt") as hour, COUNT(*) as count
-      FROM "Order"
-      WHERE "createdAt" >= ${todayStart}
-      GROUP BY hour ORDER BY hour
-    `
+  async getOrdersByTime(
+    start: Date,
+    end: Date
+  ): Promise<Array<{ bucket: string; count: bigint }>> {
+    const diffDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)
+    const groupByHour = diffDays <= 2
+
+    const orders = await this.prisma.order.findMany({
+      where: { createdAt: { gte: start, lt: end } },
+      select: { createdAt: true },
+      orderBy: { createdAt: 'asc' }
+    })
+
+    const counts = new Map<string, number>()
+    for (const { createdAt } of orders) {
+      const bucket = groupByHour
+        ? `${String(createdAt.getHours()).padStart(2, '0')}:00`
+        : `${String(createdAt.getDate()).padStart(2, '0')}/${String(
+            createdAt.getMonth() + 1
+          ).padStart(2, '0')}`
+      counts.set(bucket, (counts.get(bucket) ?? 0) + 1)
+    }
+
+    return Array.from(counts.entries())
+      .map(([bucket, count]) => ({ bucket, count: BigInt(count) }))
+      .sort((a, b) => a.bucket.localeCompare(b.bucket))
   }
 
   async getRevenueTrend(): Promise<Array<{ dayStart: Date; revenue: number }>> {

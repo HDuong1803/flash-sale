@@ -75,8 +75,9 @@ export class UpdateCampaignDto {
 }
 
 export class AddCampaignProductDto {
-  @ApiProperty({ description: 'ID sản phẩm', example: 'uuid' })
-  @IsUUID()
+  @ApiProperty({ description: 'ID sản phẩm', example: 'cuid' })
+  @IsString()
+  @IsNotEmpty()
   productId: string
 
   @ApiProperty({ description: 'Giá sale (VND)', example: 24990000 })

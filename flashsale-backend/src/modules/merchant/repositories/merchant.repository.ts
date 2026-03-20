@@ -18,6 +18,23 @@ export class MerchantRepository {
     })
   }
 
+  async findMyCampaigns(userId: string) {
+    return this.prisma.campaign.findMany({
+      where: { merchant: { userId } },
+      include: {
+        campaignProducts: {
+          include: {
+            product: {
+              select: { name: true, imageUrl: true, originalPrice: true }
+            }
+          }
+        },
+        merchant: { select: { businessName: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+  }
+
   async findById(id: string): Promise<MerchantProfile | null> {
     return this.prisma.merchantProfile.findUnique({ where: { id } })
   }

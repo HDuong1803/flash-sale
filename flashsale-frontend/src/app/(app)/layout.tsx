@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUiStore } from '@/stores/ui.store'
 import { TopHeader } from '@/components/shared/TopHeader'
@@ -10,7 +11,14 @@ import { cn } from '@/lib/utils'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
-  const { sidebarCollapsed } = useUiStore()
+  const { sidebarCollapsed, openAuthModal } = useUiStore()
+
+  useEffect(() => {
+    if (sessionStorage.getItem('auth:session-expired')) {
+      sessionStorage.removeItem('auth:session-expired')
+      openAuthModal('login')
+    }
+  }, [openAuthModal])
 
   return (
     <div className="min-h-screen">

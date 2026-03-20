@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsOptional, IsString, IsInt, IsEnum } from 'class-validator'
+import { IsOptional, IsString, IsInt, IsEnum, IsISO8601 } from 'class-validator'
 import { Type } from 'class-transformer'
 import { CampaignStatus, KycStatus, UserRole } from '@common/enums/prisma-enums'
 
@@ -72,6 +72,22 @@ export class AdminStatsResponseDto {
 export class OrdersByHourItemDto {
   @ApiProperty({ example: '14:00' }) hour: string
   @ApiProperty({ example: 23 }) orders: number
+}
+
+export class OrdersByTimeQueryDto {
+  @ApiProperty({
+    description: 'Start datetime (ISO 8601)',
+    example: '2026-03-17T00:00:00.000Z'
+  })
+  @IsISO8601()
+  start: string
+
+  @ApiProperty({
+    description: 'End datetime (ISO 8601)',
+    example: '2026-03-17T23:59:59.999Z'
+  })
+  @IsISO8601()
+  end: string
 }
 
 export class RevenueTrendItemDto {

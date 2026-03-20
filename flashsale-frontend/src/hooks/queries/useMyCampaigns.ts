@@ -1,18 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
-import { adminService } from '@/services/admin.service'
-import type { Campaign, CampaignStatus } from '@/types'
+import { campaignService } from '@/services/campaign.service'
+import type { Campaign } from '@/types'
 
-export function useAdminCampaigns(status?: CampaignStatus, enabled = true) {
+export function useMyCampaigns() {
   const [data, setData] = useState<Campaign[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetch = useCallback(async () => {
-    if (!enabled) return
     setLoading(true)
     setError(null)
     try {
-      const result = await adminService.getCampaigns(status)
+      const result = await campaignService.getMyCampaigns()
       setData(result)
     } catch (err) {
       setData([])
@@ -20,7 +19,7 @@ export function useAdminCampaigns(status?: CampaignStatus, enabled = true) {
     } finally {
       setLoading(false)
     }
-  }, [status, enabled])
+  }, [])
 
   useEffect(() => { fetch() }, [fetch])
   return { data, loading, error, refetch: fetch }

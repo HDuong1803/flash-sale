@@ -18,14 +18,14 @@ export class TokenService {
   }): string {
     return this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_SECRET_KEY'),
-      expiresIn: this.configService.get('JWT_EXPIRE_TIME')
+      expiresIn: Number(this.configService.get('JWT_EXPIRE_TIME'))
     })
   }
 
   generateRefreshToken(payload: { sub: string }): string {
     return this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_REFRESH_PRIVATE_KEY'),
-      expiresIn: this.configService.get('JWT_EXPIRE_REFRESH_TIME')
+      expiresIn: Number(this.configService.get('JWT_EXPIRE_REFRESH_TIME'))
     })
   }
 

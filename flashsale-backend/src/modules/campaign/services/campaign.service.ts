@@ -53,8 +53,17 @@ export class CampaignService {
   }
 
   async findAll(query: CampaignQueryDto) {
+    const publicStatuses: CampaignStatus[] = [
+      CampaignStatus.SCHEDULED,
+      CampaignStatus.ACTIVE,
+      CampaignStatus.ENDED
+    ]
+    const requestedStatus =
+      query.status && publicStatuses.includes(query.status)
+        ? query.status
+        : undefined
     return this.campaignRepository.findAll({
-      status: query.status,
+      statuses: requestedStatus ? [requestedStatus] : publicStatuses,
       search: query.search,
       page: query.page ?? 1,
       limit: query.limit ?? 12
@@ -144,6 +153,21 @@ export class CampaignService {
 
     await this.campaignRepository.removeProduct(campaignId, productId)
     return { removed: true }
+  }
+
+  async delete(userId: string, id: string): Promise<{ deleted: boolean }> {
+    const merchant = await this.getApprovedMerchant(userId)
+    const campaign = await this.campaignRepository.findByIdAndMerchant(
+      id,
+      merchant.id
+    )
+    if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
+    if (campaign.status !== CampaignStatus.DRAFT)
+      throw new BadRequestException(
+        'Chỉ có thể xóa chiến dịch ở trạng thái DRAFT'
+      )
+    await this.campaignRepository.delete(id)
+    return { deleted: true }
   }
 
   async submit(userId: string, id: string) {
