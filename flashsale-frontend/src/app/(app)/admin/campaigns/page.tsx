@@ -171,12 +171,12 @@ export default function AdminCampaignsPage() {
                       </thead>
                       <tbody>
                         {(selectedCampaign.campaignProducts ?? []).map((p) => {
-                          const origPrice = p.product?.originalPrice ?? p.originalPrice ?? 0
+                          const origPrice = p.product?.originalPrice ?? 0
                           const discount = origPrice > 0 ? calculateDiscount(Number(origPrice), p.salePrice) : 0
                           return (
                             <tr key={p.id} className="border-b border-white/5">
                               <td className="px-3 py-2 text-white/70 max-w-[120px]">
-                                <p className="line-clamp-1">{p.product?.name ?? p.productName}</p>
+                                <p className="line-clamp-1">{p.product?.name ?? '—'}</p>
                               </td>
                               <td className="px-3 py-2 text-white/40 line-through">{origPrice > 0 ? formatCurrency(Number(origPrice)) : '—'}</td>
                               <td className="px-3 py-2 text-indigo-300 font-bold">{formatCurrency(p.salePrice)}</td>

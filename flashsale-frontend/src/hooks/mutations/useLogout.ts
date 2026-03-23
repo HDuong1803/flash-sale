@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { authService } from '@/services/auth.service'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 
 export function useLogout() {
   const [loading, setLoading] = useState(false)
-  const logout = useAuthStore((s) => s.logout)
+  const { logout } = useAuthContext()
 
   const handleLogout = async () => {
     setLoading(true)
@@ -13,7 +13,6 @@ export function useLogout() {
     } finally {
       logout()
       setLoading(false)
-      window.location.href = '/'
     }
   }
 

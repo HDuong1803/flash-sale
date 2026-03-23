@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { Store, Clock, XCircle, Zap, BarChart3, Users, Loader2 } from 'lucide-react'
 import { useApplyMerchant } from '@/hooks/mutations/useApplyMerchant'
 import { useApplicationStatus } from '@/hooks/queries/useApplicationStatus'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 
 const schema = z.object({
   businessName: z.string().min(2, 'Tối thiểu 2 ký tự'),
@@ -28,7 +28,7 @@ const BENEFITS = [
 
 export default function MerchantApplyPage() {
   const router = useRouter()
-  const { user, merchantApplicationStatus, setMerchantApplicationStatus } = useAuthStore()
+  const { user, merchantApplicationStatus, setMerchantApplicationStatus } = useAuthContext()
   const { mutate: apply, loading } = useApplyMerchant()
   const { data: appStatus, loading: statusLoading } = useApplicationStatus()
   const [submitted, setSubmitted] = useState(false)
@@ -135,7 +135,7 @@ export default function MerchantApplyPage() {
         <h1 className="text-white text-xl font-bold">Đăng ký Merchant</h1>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="glass rounded-2xl p-6 space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="glass rounded-2xl p-6 space-y-4" noValidate>
         <div>
           <label className="text-white/60 text-sm mb-1 block">Tên doanh nghiệp *</label>
           <input {...register('businessName')} className="input-glass" placeholder="Công ty TNHH ABC" />
@@ -150,7 +150,8 @@ export default function MerchantApplyPage() {
           <label className="text-white/60 text-sm mb-1 block">
             Mô tả ngắn <span className="text-white/30">({(description ?? '').length}/300)</span>
           </label>
-          <textarea {...register('description')} className="input-glass resize-none" rows={3} placeholder="Mô tả về doanh nghiệp của bạn..." maxLength={300} />
+          <textarea {...register('description')} className="input-glass resize-y min-h-[80px] max-h-[150px]" rows={3} placeholder="Mô tả về doanh nghiệp của bạn..." maxLength={300} />
+          {errors.description && <p className="text-red-400 text-xs mt-1">{errors.description.message}</p>}
         </div>
         <div>
           <label className="text-white/60 text-sm mb-1 block">Số điện thoại *</label>

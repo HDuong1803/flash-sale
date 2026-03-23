@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { authService } from '@/services/auth.service'
-import { useAuthStore } from '@/stores/auth.store'
-import { useUiStore } from '@/stores/ui.store'
+import { useAuthContext } from '@/contexts/auth-context'
+import { useUiContext } from '@/contexts/ui-context'
 import { ApiError } from '@/lib/api-client'
 
 export function useGoogleLogin() {
   const [loading, setLoading] = useState(false)
-  const setAuth = useAuthStore((s) => s.setAuth)
-  const closeAuthModal = useUiStore((s) => s.closeAuthModal)
+  const { setAuth } = useAuthContext()
+  const { closeAuthModal } = useUiContext()
 
   const loginWithGoogle = async (googleToken: string) => {
     setLoading(true)
@@ -17,6 +17,10 @@ export function useGoogleLogin() {
       setAuth(user)
       closeAuthModal()
       toast.success(`Chào mừng, ${user.fullName}!`)
+      // Sync user-role cookie for middleware route protection
+      if (typeof document !== 'undefined') {
+        document.cookie = `user-role=${user.role}; path=/; max-age=${7 * 24 * 3600}; SameSite=Lax`
+      }
       return user
     } catch (err) {
       toast.error(

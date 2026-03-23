@@ -1,26 +1,35 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query-keys'
 import { merchantService } from '@/services/merchant.service'
+import { useAuthContext } from '@/contexts/auth-context'
 import type { MerchantApplication } from '@/types'
 
 export function useApplicationStatus() {
-  const [data, setData] = useState<MerchantApplication | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { isAuthenticated, setMerchantApplicationStatus } = useAuthContext()
 
-  const fetch = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
+  const query = useQuery<MerchantApplication | null>({
+    queryKey: queryKeys.merchants.applicationStatus(),
+    queryFn: async () => {
       const result = await merchantService.getApplicationStatus()
-      setData(result)
-    } catch (err) {
-      setData(null)
-      setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      // Sync KYC status into auth context so sidebar banner & hasPermission stay accurate
+      if (result?.status) {
+        setMerchantApplicationStatus(result.status)
+      }
+      return result
+    },
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 5,
+  })
 
-  useEffect(() => { fetch() }, [fetch])
-  return { data, loading, error, refetch: fetch }
+  return {
+    data: query.data ?? null,
+    loading: query.isLoading,
+    isLoading: query.isLoading,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Không thể tải dữ liệu'
+      : null,
+    refetch: () => { void query.refetch() },
+  }
 }

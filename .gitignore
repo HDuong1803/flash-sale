@@ -22,3 +22,5 @@ CLAUDE.md
 flashsale-backend/dist
 flashsale-backend/node_modules
 repomix-output.xml
+test-reports/
+.playwright-mcp/

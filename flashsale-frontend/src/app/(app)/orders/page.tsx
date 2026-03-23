@@ -31,7 +31,7 @@ export default function OrdersPage() {
       <h1 className="text-white text-2xl font-bold">Đơn hàng của tôi</h1>
 
       {/* Status tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}

@@ -1,20 +1,62 @@
 'use client'
 
-import { useState } from 'react'
-import { Zap, Search, Menu } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Zap, Search, Menu, X } from 'lucide-react'
 import Link from 'next/link'
-import { useAuthStore } from '@/stores/auth.store'
-import { useUiStore } from '@/stores/ui.store'
-import { useNotificationStore } from '@/stores/notification.store'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useAuthContext } from '@/contexts/auth-context'
+import { useUiContext } from '@/contexts/ui-context'
+import { useNotifications } from '@/hooks/queries/useNotifications'
+import { useMarkReadNotification } from '@/hooks/mutations/useMarkReadNotification'
+import { useMarkAllReadNotifications } from '@/hooks/mutations/useMarkAllReadNotifications'
 import { useLogout } from '@/hooks/mutations/useLogout'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query-keys'
 import { NotificationDropdown } from './NotificationDropdown'
-import { cn } from '@/lib/utils'
 
 export function TopHeader() {
-  const { isAuthenticated, user } = useAuthStore()
-  const { openAuthModal, toggleSidebar } = useUiStore()
-  const { notifications, markRead, markAllRead } = useNotificationStore()
+  const { isAuthenticated, user } = useAuthContext()
+  const { openAuthModal, toggleSidebar } = useUiContext()
+  const { data: notifications } = useNotifications()
+  const { markRead } = useMarkReadNotification()
+  const { markAllRead } = useMarkAllReadNotifications()
   const { logout } = useLogout()
+  const queryClient = useQueryClient()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [searchValue, setSearchValue] = useState(searchParams.get('search') ?? '')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Sync search input with URL param when navigating
+  useEffect(() => {
+    setSearchValue(searchParams.get('search') ?? '')
+  }, [searchParams])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchValue.trim()
+    const params = new URLSearchParams()
+    if (trimmed) params.set('search', trimmed)
+    // Always navigate to campaigns page for search
+    router.push(`/campaigns${trimmed ? `?${params.toString()}` : ''}`)
+  }
+
+  const handleClearSearch = () => {
+    setSearchValue('')
+    if (pathname === '/campaigns') router.push('/campaigns')
+    inputRef.current?.focus()
+  }
+
+  const handleMarkRead = async (id: string) => {
+    await markRead(id)
+    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() })
+  }
+
+  const handleMarkAllRead = async () => {
+    await markAllRead()
+    void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() })
+  }
 
   const initials = user?.fullName
     ? user.fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
@@ -43,14 +85,26 @@ export function TopHeader() {
         </div>
 
         {/* Center: search (desktop) */}
-        <div className="hidden md:flex flex-1 max-w-sm relative">
+        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-sm relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
           <input
+            ref={inputRef}
             type="text"
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
             placeholder="Tìm kiếm flash sale..."
-            className="input-glass pl-9 text-sm h-9 py-0"
+            className="input-glass pl-9 pr-8 text-sm h-9 py-0"
           />
-        </div>
+          {searchValue && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </form>
 
         {/* Right */}
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -65,8 +119,8 @@ export function TopHeader() {
             <>
               <NotificationDropdown
                 notifications={notifications}
-                onMarkRead={markRead}
-                onMarkAllRead={markAllRead}
+                onMarkRead={handleMarkRead}
+                onMarkAllRead={handleMarkAllRead}
               />
               <UserAvatarMenu
                 initials={initials}
@@ -81,6 +135,12 @@ export function TopHeader() {
   )
 }
 
+const ROLE_LABELS_VI: Record<string, string> = {
+  CUSTOMER: 'Khách hàng',
+  MERCHANT: 'Người bán',
+  ADMIN: 'Quản trị viên',
+}
+
 interface UserAvatarMenuProps {
   initials: string
   user: { fullName: string; role: string } | null
@@ -89,6 +149,7 @@ interface UserAvatarMenuProps {
 
 function UserAvatarMenu({ initials, user, onLogout }: UserAvatarMenuProps) {
   const [open, setOpen] = useState(false)
+  const router = useRouter()
 
   return (
     <div className="relative">
@@ -105,7 +166,9 @@ function UserAvatarMenu({ initials, user, onLogout }: UserAvatarMenuProps) {
           <div className="absolute right-0 top-full mt-2 w-56 z-50 glass-strong rounded-2xl shadow-glass-lg animate-slide-up">
             <div className="px-4 py-3 border-b border-white/10">
               <p className="text-white font-semibold text-sm truncate">{user?.fullName}</p>
-              <p className="text-white/40 text-xs capitalize">{user?.role?.toLowerCase()}</p>
+              <p className="text-white/40 text-xs">
+                {user?.role ? (ROLE_LABELS_VI[user.role] ?? user.role) : ''}
+              </p>
             </div>
             <div className="p-2">
               <Link
@@ -115,7 +178,10 @@ function UserAvatarMenu({ initials, user, onLogout }: UserAvatarMenuProps) {
               >
                 Hồ sơ cá nhân
               </Link>
-              <button className="w-full flex items-center gap-2 px-3 py-2 text-white/70 hover:text-white hover:bg-white/8 rounded-xl text-sm transition-all text-left">
+              <button
+                onClick={() => { setOpen(false); router.push('/profile') }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-white/70 hover:text-white hover:bg-white/8 rounded-xl text-sm transition-all text-left"
+              >
                 Cài đặt
               </button>
               <div className="border-t border-white/10 my-1" />

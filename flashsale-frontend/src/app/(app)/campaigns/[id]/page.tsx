@@ -8,8 +8,8 @@ import { Store, AlertCircle, ArrowLeft, Minus, Plus, Info, Loader2 } from 'lucid
 import { useCampaign } from '@/hooks/queries/useCampaign'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
-import { useAuthStore } from '@/stores/auth.store'
-import { useUiStore } from '@/stores/ui.store'
+import { useAuthContext } from '@/contexts/auth-context'
+import { useUiContext } from '@/contexts/ui-context'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -22,8 +22,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const { data: campaign, loading, error } = useCampaign(id)
   const { purchase, loading: buyLoading } = usePurchase()
   const { preRegister, loading: regLoading } = usePreRegister()
-  const { isAuthenticated } = useAuthStore()
-  const { openAuthModal } = useUiStore()
+  const { isAuthenticated } = useAuthContext()
+  const { openAuthModal } = useUiContext()
   const [quantity, setQuantity] = useState(1)
   const [selectedProductIdx, setSelectedProductIdx] = useState(0)
   const [activeTab, setActiveTab] = useState<'desc' | 'seller'>('desc')

@@ -3,8 +3,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Store, Loader2 } from 'lucide-react'
-import { useAuthStore } from '@/stores/auth.store'
-import { useUiStore } from '@/stores/ui.store'
+import { useAuthContext } from '@/contexts/auth-context'
+import { useUiContext } from '@/contexts/ui-context'
 import { useCountdown } from '@/hooks/useCountdown'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
@@ -19,8 +19,8 @@ interface CampaignCardProps {
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
   const router = useRouter()
-  const { isAuthenticated } = useAuthStore()
-  const { openAuthModal } = useUiStore()
+  const { isAuthenticated } = useAuthContext()
+  const { openAuthModal } = useUiContext()
   const { purchase, loading: buyLoading } = usePurchase()
   const { preRegister, loading: regLoading } = usePreRegister()
 

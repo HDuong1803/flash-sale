@@ -1,0 +1,52 @@
+export const queryKeys = {
+  auth: {
+    me: () => ['auth', 'me'] as const,
+  },
+  campaigns: {
+    all: ['campaigns'] as const,
+    list: (params?: object) => ['campaigns', 'list', params] as const,
+    detail: (id: string) => ['campaigns', 'detail', id] as const,
+    my: () => ['campaigns', 'my'] as const,
+  },
+  merchants: {
+    all: ['merchants'] as const,
+    list: (params?: object) => ['merchants', 'list', params] as const,
+    pending: () => ['merchants', 'pending'] as const,
+    pendingCount: () => ['merchants', 'pending-count'] as const,
+    applicationStatus: () => ['merchants', 'application-status'] as const,
+    stats: () => ['merchants', 'stats'] as const,
+  },
+  orders: {
+    all: ['orders'] as const,
+    list: (params?: object) => ['orders', 'list', params] as const,
+    detail: (id: string) => ['orders', 'detail', id] as const,
+    merchant: (params?: object) => ['orders', 'merchant', params] as const,
+  },
+  products: {
+    all: ['products'] as const,
+    my: () => ['products', 'my'] as const,
+  },
+  users: {
+    all: ['users'] as const,
+    me: () => ['users', 'me'] as const,
+  },
+  notifications: {
+    all: ['notifications'] as const,
+    list: () => ['notifications', 'list'] as const,
+    unreadCount: () => ['notifications', 'unread-count'] as const,
+  },
+  admin: {
+    all: ['admin'] as const,
+    merchants: (params?: object) => ['admin', 'merchants', params] as const,
+    campaigns: (params?: object) => ['admin', 'campaigns', params] as const,
+    users: (params?: object) => ['admin', 'users', params] as const,
+    stats: () => ['admin', 'stats'] as const,
+    health: () => ['admin', 'health'] as const,
+    queueStats: () => ['admin', 'queue-stats'] as const,
+    logs: () => ['admin', 'logs'] as const,
+    deadLetterQueue: () => ['admin', 'dead-letter-queue'] as const,
+    activity: () => ['admin', 'activity'] as const,
+    revenueTrend: () => ['admin', 'revenue-trend'] as const,
+    ordersByTime: (start: string, end: string) => ['admin', 'orders-by-time', start, end] as const,
+  },
+} as const

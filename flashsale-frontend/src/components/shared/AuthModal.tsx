@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Mail, Lock, Eye, EyeOff, User, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { useUiStore } from '@/stores/ui.store'
+import { useUiContext } from '@/contexts/ui-context'
 import { useLogin } from '@/hooks/mutations/useLogin'
 import { useRegister } from '@/hooks/mutations/useRegister'
 import { useGoogleAuth } from '@/hooks/useGoogleAuth'
@@ -89,13 +89,21 @@ function LoginForm({ onSwitchTab }: { onSwitchTab: () => void }) {
   const { login, loading } = useLogin()
   const { signIn, loading: googleLoading } = useGoogleAuth()
   const [showPassword, setShowPassword] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+  const { register, handleSubmit, resetField, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   })
 
   const onSubmit = async (data: LoginForm) => {
-    try { await login(data.email, data.password) } catch { /* toast shown in hook */ }
+    setLoginError(null)
+    try {
+      await login(data.email, data.password)
+    } catch {
+      // Keep email, clear password, show inline error
+      resetField('password')
+      setLoginError('Email hoặc mật khẩu không đúng')
+    }
   }
 
   return (
@@ -112,7 +120,7 @@ function LoginForm({ onSwitchTab }: { onSwitchTab: () => void }) {
         <div className="flex-1 h-px bg-white/15" />
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
         <div>
           <div className="relative">
             <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
@@ -144,6 +152,9 @@ function LoginForm({ onSwitchTab }: { onSwitchTab: () => void }) {
             </button>
           </div>
           {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
+          {loginError && !errors.password && (
+            <p className="text-red-400 text-xs mt-1">{loginError}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -213,7 +224,7 @@ function RegisterForm({ onSwitchTab }: { onSwitchTab: () => void }) {
         <div className="flex-1 h-px bg-white/15" />
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
         <div>
           <div className="relative">
             <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
@@ -246,7 +257,7 @@ function RegisterForm({ onSwitchTab }: { onSwitchTab: () => void }) {
             <input
               {...register('password')}
               type={showPassword ? 'text' : 'password'}
-              placeholder="Mật khẩu (tối thiểu 8 ký tự)"
+              placeholder="Mật khẩu"
               className="input-glass pl-9 pr-10"
             />
             <button
@@ -257,7 +268,10 @@ function RegisterForm({ onSwitchTab }: { onSwitchTab: () => void }) {
               {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
-          {errors.password && <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>}
+          {errors.password
+            ? <p className="text-red-400 text-xs mt-1">{errors.password.message}</p>
+            : <p className="text-xs text-white/50 mt-1">Tối thiểu 8 ký tự</p>
+          }
           <PasswordStrength password={password} />
         </div>
 
@@ -310,7 +324,7 @@ function RegisterForm({ onSwitchTab }: { onSwitchTab: () => void }) {
 
 // ---- Main AuthModal ----
 export function AuthModal() {
-  const { authModalOpen, authModalTab, closeAuthModal, openAuthModal } = useUiStore()
+  const { authModalOpen, authModalTab, closeAuthModal, openAuthModal } = useUiContext()
 
   return (
     <Dialog open={authModalOpen} onOpenChange={(open) => !open && closeAuthModal()}>

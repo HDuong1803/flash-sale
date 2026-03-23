@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { authService } from '@/services/auth.service'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 import { ApiError } from '@/lib/api-client'
 
 export function useUpdateProfile() {
   const [loading, setLoading] = useState(false)
-  const { setAuth } = useAuthStore()
+  const { setAuth } = useAuthContext()
 
   const update = async (dto: { fullName?: string }, file?: File) => {
     setLoading(true)

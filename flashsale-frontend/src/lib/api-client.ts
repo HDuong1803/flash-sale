@@ -89,7 +89,11 @@ apiClient.interceptors.response.use(
 
     // On 401: attempt a silent token refresh via the refresh_token HttpOnly cookie.
     // The browser sends the cookie automatically — no token value is read or stored here.
-    if (error.response?.status === 401 && !original._retry) {
+    // Skip refresh for auth endpoints (login/register/refresh) — those 401s are intentional.
+    const isAuthEndpoint = original?.url?.includes('/auth/login') ||
+      original?.url?.includes('/auth/register') ||
+      original?.url?.includes('/auth/refresh')
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise<unknown>((resolve, reject) =>
           failQueue.push({

@@ -1,23 +1,27 @@
-import { useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { adminService } from '@/services/admin.service'
+import { queryKeys } from '@/lib/query-keys'
 
 export function useRejectMerchant() {
-  const [loading, setLoading] = useState(false)
+  const queryClient = useQueryClient()
 
-  const reject = async (id: string, reason: string) => {
-    setLoading(true)
-    try {
-      const result = await adminService.rejectMerchant(id, reason)
+  const mutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      adminService.rejectMerchant(id, reason ?? ''),
+    onSuccess: () => {
       toast.success('Đã từ chối merchant')
-      return result
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Có lỗi xảy ra')
-      throw err
-    } finally {
-      setLoading(false)
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.merchants.all })
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Có lỗi xảy ra'
+      toast.error(msg)
+    },
+  })
 
-  return { reject, loading }
+  return {
+    reject: (id: string, reason: string) => mutation.mutateAsync({ id, reason }),
+    loading: mutation.isPending,
+  }
 }

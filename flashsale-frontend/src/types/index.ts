@@ -17,25 +17,30 @@ export type NotificationType =
 export type ServiceStatus = 'UP' | 'DOWN'
 
 export type Permission =
+  // Customer (mua hàng)
   | 'browse_campaigns'
-  | 'purchase'
   | 'view_own_orders'
-  | 'pre_register'
-  | 'apply_merchant'
-  | 'create_campaign'
-  | 'manage_products'
-  | 'view_merchant_orders'
-  | 'view_merchant_dashboard'
-  | 'admin_approve'
-  | 'admin_users'
-  | 'admin_system'
+  | 'create_order'
+  | 'view_notifications'
   | 'view_customer_dashboard'
+  // Shop management (merchant đã approved)
+  | 'view_shop_dashboard'
+  | 'manage_campaigns'
+  | 'manage_products'
+  | 'view_shop_orders'
+  | 'view_shop_revenue'
+  // Admin
+  | 'admin_dashboard'
+  | 'admin_merchants'
+  | 'admin_campaigns'
   | 'admin_orders'
-  | 'admin_payments'
+  | 'admin_finance'
   | 'admin_products'
+  | 'admin_users'
   | 'admin_profiles'
   | 'admin_notifications'
   | 'admin_stock_audit'
+  | 'admin_system'
   | 'admin_action_logs'
   | 'admin_outbox'
 
@@ -229,23 +234,4 @@ export interface CampaignReport {
   conversionRate: number
 }
 
-// ─── Store interfaces ────────────────────────────────────────────────────────
 
-export interface AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  merchantApplicationStatus: 'NONE' | KycStatus
-  setAuth: (user: User) => void
-  setMerchantApplicationStatus: (s: 'NONE' | KycStatus) => void
-  logout: () => void
-  hasPermission: (permission: Permission) => boolean
-}
-
-export interface UiState {
-  authModalOpen: boolean
-  authModalTab: 'login' | 'register'
-  sidebarCollapsed: boolean
-  openAuthModal: (tab?: 'login' | 'register') => void
-  closeAuthModal: () => void
-  toggleSidebar: () => void
-}

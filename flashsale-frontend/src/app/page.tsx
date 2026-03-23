@@ -2,11 +2,11 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 
 export default function RootPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated } = useAuthContext()
 
   useEffect(() => {
     if (!isAuthenticated || !user) {

@@ -1,13 +1,13 @@
 'use client'
 
 import { useMyOrders } from '@/hooks/queries/useMyOrders'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 import { LayoutGrid, ShoppingBag, User, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { GlassCard } from '@/components/shared/GlassCard'
 
 export default function CustomerDashboardPage() {
-  const { user } = useAuthStore()
+  const { user } = useAuthContext()
   const { data: orders, loading, error } = useMyOrders()
 
   const totalOrders = orders?.length ?? 0

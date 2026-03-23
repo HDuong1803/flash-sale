@@ -13,7 +13,7 @@ export default function AdminCustomerProfilesPage() {
   useEffect(() => {
     setLoading(true)
     apiClient.get('/admin/customer-profiles')
-      .then((res) => setData(res as unknown[]))
+      .then((res) => setData(res as unknown as unknown[]))
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Không thể tải dữ liệu'))
       .finally(() => setLoading(false))
   }, [])

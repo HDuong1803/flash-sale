@@ -7,10 +7,19 @@ const ROLE_ROUTES: Record<string, string[]> = {
   '/merchant/campaigns':  ['MERCHANT', 'ADMIN'],
   '/merchant/products':   ['MERCHANT', 'ADMIN'],
   '/merchant/orders':     ['MERCHANT', 'ADMIN'],
+  '/merchant/revenue':    ['MERCHANT', 'ADMIN'],
+  '/customer/dashboard':  ['CUSTOMER', 'MERCHANT'],
   '/admin':               ['ADMIN'],
 }
 
-const AUTH_ROUTES = ['/checkout', '/orders', '/purchase', '/profile', '/notifications', '/merchant/apply']
+const AUTH_ROUTES = [
+  '/checkout',
+  '/orders',
+  '/purchase',
+  '/profile',
+  '/notifications',
+  '/merchant/apply',
+]
 
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl

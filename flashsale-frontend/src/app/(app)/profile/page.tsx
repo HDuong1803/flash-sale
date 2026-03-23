@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Lock, Shield, Upload } from 'lucide-react'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 import { useUpdateProfile } from '@/hooks/mutations/useUpdateProfile'
 import { useLogout } from '@/hooks/mutations/useLogout'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -31,8 +31,39 @@ const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: 'bg-red-500/15 text-red-300 border border-red-500/20',
 }
 
+function ProfileSkeleton() {
+  return (
+    <div className="max-w-2xl mx-auto space-y-6 animate-pulse">
+      {/* Avatar + name skeleton */}
+      <div className="glass rounded-2xl p-6 flex items-center gap-5">
+        <div className="w-16 h-16 rounded-full bg-white/10 flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-5 bg-white/10 rounded w-40" />
+          <div className="h-4 bg-white/8 rounded w-24" />
+          <div className="h-3 bg-white/6 rounded w-48" />
+        </div>
+      </div>
+      {/* Form skeleton */}
+      <div className="glass rounded-2xl p-6 space-y-4">
+        <div className="h-5 bg-white/10 rounded w-36" />
+        <div className="h-10 bg-white/8 rounded-xl w-full" />
+        <div className="flex justify-end">
+          <div className="h-10 bg-white/8 rounded-xl w-28" />
+        </div>
+      </div>
+      {/* Account info skeleton */}
+      <div className="glass rounded-2xl p-6 space-y-3">
+        <div className="h-5 bg-white/10 rounded w-40" />
+        <div className="h-8 bg-white/6 rounded w-full" />
+        <div className="h-8 bg-white/6 rounded w-full" />
+        <div className="h-8 bg-white/6 rounded w-full" />
+      </div>
+    </div>
+  )
+}
+
 export default function ProfilePage() {
-  const { user } = useAuthStore()
+  const { user } = useAuthContext()
   const { update, loading } = useUpdateProfile()
   const { logout, loading: logoutLoading } = useLogout()
   const [pendingFile, setPendingFile] = useState<File | null>(null)
@@ -61,7 +92,7 @@ export default function ProfilePage() {
 
   if (!user) return (
     <div className="max-w-2xl mx-auto glass rounded-2xl p-8 text-center text-white/40">
-      Đang tải...
+      Chưa đăng nhập
     </div>
   )
 
@@ -105,7 +136,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Section 2 — Edit form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="glass rounded-2xl p-6 space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className="glass rounded-2xl p-6 space-y-4" noValidate>
         <h2 className="text-white font-semibold">Chỉnh sửa thông tin</h2>
         <div>
           <label className="text-white/60 text-sm mb-1 block">Họ và tên *</label>
@@ -145,7 +176,11 @@ export default function ProfilePage() {
           <div className="w-4 h-4 flex-shrink-0" />
           <div className="flex-1">
             <p className="text-white/40 text-xs">Trạng thái</p>
-            <StatusBadge status="ACTIVE" />
+            {/* User account status — show "Đang hoạt động", not the campaign "Đang diễn ra" */}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-emerald-500/15 border-emerald-500/30 text-emerald-300">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Đang hoạt động
+            </span>
           </div>
         </div>
       </div>

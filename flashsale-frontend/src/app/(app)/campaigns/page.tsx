@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Zap, AlertCircle } from 'lucide-react'
 import { useCampaigns } from '@/hooks/queries/useCampaigns'
 import { CampaignCard } from '@/components/customer/CampaignCard'
@@ -18,11 +19,21 @@ const STATUS_TABS: { label: string; value: CampaignStatus | 'ALL' }[] = [
 
 export default function CampaignsPage() {
   const [activeTab, setActiveTab] = useState<CampaignStatus | 'ALL'>('ALL')
-  const { data: campaigns, loading, error, refetch } = useCampaigns()
+  const searchParams = useSearchParams()
+  const searchKeyword = searchParams.get('search') ?? undefined
 
-  const filtered = activeTab === 'ALL'
+  const { data: campaigns, loading, error, refetch } = useCampaigns(
+    searchKeyword
+      ? { search: searchKeyword }
+      : activeTab !== 'ALL' ? { status: activeTab } : undefined
+  )
+
+  // When searching, don't filter client-side — results come from API
+  const filtered = searchKeyword
     ? campaigns
-    : campaigns.filter((c) => c.status === activeTab)
+    : activeTab === 'ALL'
+      ? campaigns
+      : campaigns.filter((c) => c.status === activeTab)
 
   const activeCampaign = campaigns.find((c) => c.status === 'ACTIVE')
   const scheduledCampaign = campaigns.find((c) => c.status === 'SCHEDULED')
@@ -102,14 +113,18 @@ export default function CampaignsPage() {
       ) : error ? (
         <div className="glass rounded-2xl p-8 text-center">
           <AlertCircle className="mx-auto mb-3 text-red-400" size={32} />
-          <p className="text-white/60 text-sm mb-4">{error}</p>
+          <p className="text-white/60 text-sm mb-4">Không thể kết nối máy chủ. Vui lòng thử lại</p>
           <button onClick={refetch} className="btn-glass text-sm px-4 py-2">Thử lại</button>
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Zap}
-          title="Chưa có flash sale nào"
-          description="Dữ liệu sẽ hiển thị khi có kết nối đến máy chủ"
+          title={searchKeyword ? 'Không tìm thấy kết quả' : 'Chưa có flash sale nào đang diễn ra'}
+          description={
+            searchKeyword
+              ? `Không tìm thấy kết quả cho "${searchKeyword}"`
+              : 'Hãy quay lại sau để xem những flash sale mới nhất'
+          }
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

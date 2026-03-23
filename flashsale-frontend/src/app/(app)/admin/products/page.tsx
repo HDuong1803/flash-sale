@@ -13,7 +13,7 @@ export default function AdminProductsPage() {
   useEffect(() => {
     setLoading(true)
     apiClient.get('/admin/products')
-      .then((res) => setData(res as unknown[]))
+      .then((res) => setData(res as unknown as unknown[]))
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Không thể tải dữ liệu'))
       .finally(() => setLoading(false))
   }, [])

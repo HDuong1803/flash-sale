@@ -5,7 +5,7 @@ import { DollarSign, Zap, ShoppingCart, TrendingUp, AlertCircle, Plus } from 'lu
 import { useMerchantStats } from '@/hooks/queries/useMerchantStats'
 import { useCampaigns } from '@/hooks/queries/useCampaigns'
 import { useMerchantOrders } from '@/hooks/queries/useMerchantOrders'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
@@ -33,7 +33,7 @@ function StatCard({
 }
 
 export default function MerchantDashboardPage() {
-  const { user } = useAuthStore()
+  const { user } = useAuthContext()
   const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useMerchantStats()
   const { data: campaigns, loading: campaignLoading } = useCampaigns()
   const { data: orders, loading: ordersLoading } = useMerchantOrders()

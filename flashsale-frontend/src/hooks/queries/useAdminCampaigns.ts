@@ -1,27 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query-keys'
 import { adminService } from '@/services/admin.service'
-import type { Campaign, CampaignStatus } from '@/types'
+import type { CampaignStatus } from '@/types'
 
 export function useAdminCampaigns(status?: CampaignStatus, enabled = true) {
-  const [data, setData] = useState<Campaign[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const params = status ? { status } : undefined
+  const query = useQuery({
+    queryKey: queryKeys.admin.campaigns(params),
+    queryFn: () => adminService.getCampaigns(status),
+    enabled,
+  })
 
-  const fetch = useCallback(async () => {
-    if (!enabled) return
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await adminService.getCampaigns(status)
-      setData(result)
-    } catch (err) {
-      setData([])
-      setError(err instanceof Error ? err.message : 'Không thể tải dữ liệu')
-    } finally {
-      setLoading(false)
-    }
-  }, [status, enabled])
-
-  useEffect(() => { fetch() }, [fetch])
-  return { data, loading, error, refetch: fetch }
+  return {
+    data: query.data ?? [],
+    loading: query.isLoading,
+    isLoading: query.isLoading,
+    error: query.error ? (query.error instanceof Error ? query.error.message : 'Không thể tải dữ liệu') : null,
+    refetch: () => { void query.refetch() },
+  }
 }

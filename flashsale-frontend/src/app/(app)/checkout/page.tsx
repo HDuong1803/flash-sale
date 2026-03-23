@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CreditCard, Smartphone, Globe, Loader2 } from 'lucide-react'
 import { useCheckout } from '@/hooks/mutations/useCheckout'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthContext } from '@/contexts/auth-context'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { formatCurrency } from '@/lib/utils'
@@ -34,7 +34,7 @@ function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reservationId = searchParams.get('reservationId')
-  const { user } = useAuthStore()
+  const { user } = useAuthContext()
   const { checkout, loading } = useCheckout()
   const [selectedMethod, setSelectedMethod] = useState<'VNPAY' | 'MOMO' | 'STRIPE'>('VNPAY')
   const [expiredDialog, setExpiredDialog] = useState(false)

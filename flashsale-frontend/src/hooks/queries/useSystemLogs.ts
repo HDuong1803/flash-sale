@@ -1,20 +1,23 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query-keys'
 import { adminService } from '@/services/admin.service'
-import { ApiError } from '@/lib/api-client'
 import type { SystemLog } from '@/types'
 
 export function useSystemLogs() {
-  const [data, setData] = useState<SystemLog[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const query = useQuery<SystemLog[]>({
+    queryKey: queryKeys.admin.logs(),
+    queryFn: () => adminService.getSystemLogs(),
+  })
 
-  const fetch = useCallback(async () => {
-    setLoading(true); setError(null)
-    try { setData(await adminService.getSystemLogs()) }
-    catch (err) { setData([]); setError(err instanceof ApiError ? err.message : 'Không thể tải dữ liệu') }
-    finally { setLoading(false) }
-  }, [])
-
-  useEffect(() => { fetch() }, [fetch])
-  return { data, loading, error, refetch: fetch }
+  return {
+    data: query.data ?? [],
+    loading: query.isLoading,
+    isLoading: query.isLoading,
+    error: query.error
+      ? query.error instanceof Error
+        ? query.error.message
+        : 'Không thể tải dữ liệu'
+      : null,
+    refetch: () => { void query.refetch() },
+  }
 }
