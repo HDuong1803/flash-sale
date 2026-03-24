@@ -1,11 +1,22 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Product } from '@/types'
+import type { Product, ProductCampaignSummary } from '@/types'
+
+export type ProductDetail = Product & { campaigns: ProductCampaignSummary[] }
 
 export interface CreateProductDto {
   name: string
-  description: string
+  description?: string
   originalPrice: number
   inventory: number
+}
+
+function buildFormData(data: Partial<CreateProductDto>, files: File[]): FormData {
+  const form = new FormData()
+  Object.entries(data).forEach(([k, v]) => {
+    if (v != null) form.append(k, String(v))
+  })
+  files.forEach(f => form.append('files', f))
+  return form
 }
 
 class ProductService {
@@ -13,32 +24,32 @@ class ProductService {
     return withRetry(() => apiClient.get('/products'))
   }
 
-  create(data: CreateProductDto, file?: File): Promise<Product> {
-    if (file) {
-      const form = new FormData()
-      Object.entries(data).forEach(([k, v]) => {
-        if (v != null) form.append(k, String(v))
-      })
-      form.append('file', file)
-      return apiClient.post('/products', form, {
+  getById(id: string): Promise<ProductDetail> {
+    return withRetry(() => apiClient.get(`/products/${id}`))
+  }
+
+  delete(id: string): Promise<void> {
+    return apiClient.delete(`/products/${id}`)
+  }
+
+  create(data: CreateProductDto, files: File[] = []): Promise<Product> {
+    if (files.length > 0) {
+      return apiClient.post('/products', buildFormData(data, files), {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
     }
     return apiClient.post('/products', data)
   }
 
-  update(id: string, data: Partial<CreateProductDto>, file?: File): Promise<Product> {
-    if (file) {
-      const form = new FormData()
-      Object.entries(data).forEach(([k, v]) => {
-        if (v != null) form.append(k, String(v))
-      })
-      form.append('file', file)
-      return apiClient.put(`/products/${id}`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-    }
-    return apiClient.put(`/products/${id}`, data)
+  update(id: string, data: Partial<CreateProductDto>, files: File[] = []): Promise<Product> {
+    const form = buildFormData(data, files)
+    return apiClient.put(`/products/${id}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  }
+
+  deleteImage(productId: string, imageId: string): Promise<void> {
+    return apiClient.delete(`/products/${productId}/images/${imageId}`)
   }
 
   toggleStatus(id: string): Promise<Product> {

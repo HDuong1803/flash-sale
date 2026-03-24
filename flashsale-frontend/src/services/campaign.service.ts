@@ -47,8 +47,12 @@ class CampaignService {
   delete(id: string): Promise<{ deleted: boolean }> {
     return apiClient.delete(`/campaigns/${id}`)
   }
-  preRegister(campaignId: string): Promise<void> {
+  preRegister(campaignId: string): Promise<{ registered: boolean }> {
     return apiClient.post(`/campaigns/${campaignId}/register`)
+  }
+
+  cancelPreRegister(campaignId: string): Promise<{ registered: boolean }> {
+    return apiClient.delete(`/campaigns/${campaignId}/register`)
   }
   submit(id: string): Promise<Campaign> {
     return apiClient.post(`/campaigns/${id}/submit`)

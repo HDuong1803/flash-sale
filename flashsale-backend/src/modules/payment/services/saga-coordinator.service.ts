@@ -10,6 +10,27 @@ import { ReservationService } from '@modules/reservation/services/reservation.se
 import { NotificationService } from '@modules/notification/services/notification.service'
 import { PaymentRepository } from '../repositories/payment.repository'
 
+/**
+ * Exception đặc biệt: dữ liệu checkout đã hết hạn trong Redis.
+ *
+ * Khác với lỗi thông thường: khi gặp exception này, KHÔNG được rollback
+ * vì tiền đã được nhận. Payment sẽ ở trạng thái PROCESSING để recovery job xử lý sau.
+ *
+ * Recovery job cần: tìm payment.status=PROCESSING không có orderId → retry saga
+ * hoặc báo admin xử lý thủ công (liên hệ khách lấy địa chỉ giao hàng).
+ */
+export class CheckoutDataExpiredException extends Error {
+  constructor(
+    public readonly paymentId: string,
+    public readonly reservationId: string
+  ) {
+    super(
+      `Dữ liệu checkout đã hết hạn: paymentId=${paymentId}, reservationId=${reservationId}`
+    )
+    this.name = 'CheckoutDataExpiredException'
+  }
+}
+
 @Injectable()
 export class SagaCoordinatorService {
   private readonly logger = new Logger(SagaCoordinatorService.name)
@@ -38,12 +59,30 @@ export class SagaCoordinatorService {
     if (!reservationId)
       throw new BadRequestException('Payment không liên kết với reservation')
 
-    // Read checkout data stored during initiate()
+    // Đọc địa chỉ giao hàng từ Redis (được lưu khi user checkout)
     const checkoutRaw = await this.redis.client.get(
       `checkout:addr:${reservationId}`
     )
-    if (!checkoutRaw)
-      throw new BadRequestException('Dữ liệu checkout đã hết hạn')
+
+    if (!checkoutRaw) {
+      // ⚠️ QUAN TRỌNG: Không được rollback ở đây!
+      // Tiền đã được nhận bởi SePay webhook — rollback sẽ mất tiền của khách.
+      //
+      // Nguyên nhân: Redis key `checkout:addr:{reservationId}` có TTL 20 phút.
+      // Nếu khách chờ quá lâu rồi mới chuyển khoản, key đã hết hạn.
+      //
+      // Xử lý: throw CheckoutDataExpiredException để báo caller KHÔNG rollback.
+      // Payment ở trạng thái PROCESSING → recovery job sẽ xử lý sau.
+      this.logger.error({
+        event: 'saga_checkout_data_expired',
+        paymentId,
+        reservationId,
+        alert:
+          'CRITICAL — tiền đã nhận nhưng checkout data hết hạn, cần xử lý thủ công'
+      })
+      throw new CheckoutDataExpiredException(paymentId, reservationId)
+    }
+
     const { shippingAddress } = JSON.parse(checkoutRaw) as {
       shippingAddress: string
     }
@@ -54,13 +93,13 @@ export class SagaCoordinatorService {
     if (!resv) throw new NotFoundException('Reservation không tồn tại')
 
     try {
-      // Step 1: Mark payment SUCCESS
+      // Bước 1: Đánh dấu thanh toán thành công
       await this.paymentRepository.updatePaymentSuccess(
         paymentId,
         transactionId
       )
 
-      // Step 2: Create order + deduct inventory (in DB transaction)
+      // Bước 2: Tạo đơn hàng + trừ tồn kho (trong 1 DB transaction)
       const order = await this.paymentRepository.createOrderWithItems({
         customerId: resv.customerId,
         merchantId: resv.campaignProduct.product.merchantId,
@@ -75,17 +114,17 @@ export class SagaCoordinatorService {
         idempotencyKey: paymentId
       })
 
-      // Step 3: Clear reservation from Redis
+      // Bước 3: Giải phóng reservation trong Redis
       await this.reservationService.markAsPaid(reservationId)
 
-      // Step 4: Notify customer
+      // Bước 4: Thông báo cho khách hàng
       await this.notificationService.createNotification(resv.customerId, {
         type: NotificationType.ORDER_CONFIRMED,
         title: 'Đặt hàng thành công!',
         message: 'Đơn hàng của bạn đã được xác nhận và đang được xử lý.'
       })
 
-      // Step 5: Publish dashboard event
+      // Bước 5: Publish sự kiện lên dashboard real-time
       await this.redis.publishDashboardEvent(resv.campaignProduct.campaignId, {
         type: 'ORDER_CONFIRMED',
         orderId: order.id,
@@ -93,10 +132,16 @@ export class SagaCoordinatorService {
         timestamp: new Date().toISOString()
       })
 
-      this.logger.log(`Saga confirmed: orderId=${order.id}`)
+      this.logger.log({ event: 'saga_confirmed', orderId: order.id, paymentId })
     } catch (err: unknown) {
+      // CheckoutDataExpiredException: đã được throw trước try block → không bao giờ vào đây
+      // Các lỗi khác (DB, Redis, ...): rollback an toàn vì payment chưa được đánh dấu SUCCESS
       const message = err instanceof Error ? err.message : 'Unknown error'
-      this.logger.error(`Saga forward failed, rolling back: ${message}`)
+      this.logger.error({
+        event: 'saga_forward_failed',
+        paymentId,
+        error: message
+      })
       await this.rollbackPayment(paymentId, reservationId)
       throw err
     }

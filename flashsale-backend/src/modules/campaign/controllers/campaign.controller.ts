@@ -22,10 +22,15 @@ import {
 } from '@nestjs/swagger'
 import { ResponseInterceptor } from '@common/interceptors'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
+import { OptionalAccessTokenGuard } from '@common/guards/optional-access-token.guard'
 import { RolesGuard } from '@common/guards/roles.guard'
 import { Roles } from '@common/decorators/roles.decorator'
 import { Public } from '@common/decorators/public.decorator'
-import { CurrentUser } from '@common/decorators/current-user.decorator'
+import {
+  CurrentUser,
+  OptionalCurrentUser
+} from '@common/decorators/current-user.decorator'
+import { IUserFromRequest } from '@common/decorators/current-user.decorator'
 import { CampaignService } from '../services/campaign.service'
 import {
   AddCampaignProductDto,
@@ -91,7 +96,10 @@ export class CampaignController {
     ) as unknown as CampaignResponseDto[]
   }
 
-  @ApiOperation({ summary: 'Lấy chi tiết chiến dịch (public)' })
+  @ApiOperation({
+    summary:
+      'Lấy chi tiết chiến dịch (public, isPreRegistered nếu đã đăng nhập)'
+  })
   @ApiParam({ name: 'id', description: 'Campaign ID' })
   @ApiResponse({ status: HttpStatus.OK, type: CampaignResponseDto })
   @ApiResponse({
@@ -100,9 +108,15 @@ export class CampaignController {
   })
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  @Public()
-  async findOne(@Param('id') id: string): Promise<CampaignResponseDto> {
-    return this.campaignService.findOne(id) as unknown as CampaignResponseDto
+  @UseGuards(OptionalAccessTokenGuard)
+  async findOne(
+    @Param('id') id: string,
+    @OptionalCurrentUser() user: IUserFromRequest | null
+  ): Promise<CampaignResponseDto> {
+    return this.campaignService.findOne(
+      id,
+      user?.userId
+    ) as unknown as CampaignResponseDto
   }
 
   @ApiOperation({ summary: 'Cập nhật chiến dịch (chỉ khi DRAFT)' })
@@ -271,6 +285,31 @@ export class CampaignController {
     @Param('id') id: string
   ): Promise<{ registered: boolean }> {
     return this.campaignService.preRegister(user.userId, id)
+  }
+
+  @ApiOperation({
+    summary: 'Huỷ đăng ký nhận thông báo trước khi chiến dịch bắt đầu'
+  })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Huỷ đăng ký thành công' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Chưa đăng ký hoặc chiến dịch không hợp lệ'
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @Delete(':id/register')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('CUSTOMER', 'MERCHANT')
+  async cancelPreRegister(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string
+  ): Promise<{ registered: boolean }> {
+    return this.campaignService.cancelPreRegister(user.userId, id)
   }
 
   @ApiOperation({ summary: 'Xem báo cáo hiệu quả chiến dịch' })

@@ -46,9 +46,9 @@ model Photo {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
 
-  file FileEntity? @relation(fields: [fileEntityId], references: [id])
-  user User?       @relation("AvatarImage")
-  product Product?  @relation("ProductImage")
+  file          FileEntity?    @relation(fields: [fileEntityId], references: [id])
+  user          User?          @relation("AvatarImage")
+  productImages ProductImage[] @relation("ProductPhotoImages")
 
   @@map("photo")
 }
@@ -116,14 +116,13 @@ model Product {
   description   String?       @map("description") @db.Text
   category      String?       @map("category") @db.VarChar(255) // Phân loại sản phẩm (optional, chưa normalize)
   originalPrice Decimal       @map("original_price") @db.Decimal(12, 2)
-  productImageId String?       @unique @map("product_image_id") @db.VarChar(36)
   status        ProductStatus @default(ACTIVE) @map("status")
   deletedAt     DateTime?     @map("deleted_at") @db.Timestamp(6) // Soft delete — merchant deactivate hoặc xóa
   createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
 
   merchant         MerchantProfile   @relation(fields: [merchantId], references: [id], onDelete: Restrict)
-  photo     Photo?      @relation("ProductImage", fields: [productImageId], references: [id])
+  images           ProductImage[]
   inventory        Inventory[]
   campaignProducts CampaignProduct[]
   orderItems       OrderItem[]
@@ -132,6 +131,20 @@ model Product {
   @@index([merchantId])
   @@index([status, deletedAt]) // Query sản phẩm đang active, chưa bị xóa
   @@map("products")
+}
+
+model ProductImage {
+  id        String  @id @default(cuid()) @map("id") @db.VarChar(36)
+  productId String  @map("product_id") @db.VarChar(36)
+  photoId   String  @unique @map("photo_id") @db.VarChar(36)
+  sortOrder Int     @default(0) @map("sort_order")
+  isPrimary Boolean @default(false) @map("is_primary")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  photo   Photo   @relation("ProductPhotoImages", fields: [photoId], references: [id])
+
+  @@index([productId])
+  @@map("product_images")
 }
 
 model Inventory {
@@ -480,6 +493,7 @@ enum PaymentMethod {
   VNPAY
   MOMO
   STRIPE
+  SEPAY
 }
 
 enum PaymentStatus {

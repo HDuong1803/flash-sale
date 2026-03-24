@@ -9,6 +9,7 @@ import {
   UseGuards,
   UseInterceptors
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import {
   ApiBearerAuth,
   ApiBody,
@@ -31,15 +32,22 @@ import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
 
-const ACCESS_TOKEN_TTL = Number(process.env.JWT_EXPIRE_TIME ?? 900) * 1000
-const REFRESH_TOKEN_TTL =
-  Number(process.env.JWT_EXPIRE_REFRESH_TIME ?? 604800) * 1000
-
 @ApiTags('auth')
 @Controller('auth')
 @UseInterceptors(ResponseInterceptor)
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private readonly accessTokenTtl: number
+  private readonly refreshTokenTtl: number
+  private readonly isProd: boolean
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService
+  ) {
+    this.accessTokenTtl = this.configService.get<number>('secrets.JWT_EXPIRE_TIME', 900) * 1000
+    this.refreshTokenTtl = this.configService.get<number>('secrets.JWT_EXPIRE_REFRESH_TIME', 604800) * 1000
+    this.isProd = this.configService.get<boolean>('application.isProd', false)
+  }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -58,24 +66,23 @@ export class AuthController {
     refreshToken: string,
     role: string
   ): void {
-    const isProd = process.env.NODE_ENV === 'production'
-    const base = { httpOnly: true, sameSite: 'lax' as const, secure: isProd }
+    const base = { httpOnly: true, sameSite: 'lax' as const, secure: this.isProd }
 
     res.cookie('access_token', accessToken, {
       ...base,
-      maxAge: ACCESS_TOKEN_TTL,
+      maxAge: this.accessTokenTtl,
       path: '/'
     })
     res.cookie('refresh_token', refreshToken, {
       ...base,
-      maxAge: REFRESH_TOKEN_TTL,
+      maxAge: this.refreshTokenTtl,
       path: '/api/v1/auth'
     })
     // Not HttpOnly — Next.js middleware reads this for RBAC (role is not a secret)
     res.cookie('user-role', role, {
       sameSite: 'lax',
-      secure: isProd,
-      maxAge: REFRESH_TOKEN_TTL,
+      secure: this.isProd,
+      maxAge: this.refreshTokenTtl,
       path: '/'
     })
   }
@@ -194,8 +201,8 @@ export class AuthController {
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: ACCESS_TOKEN_TTL,
+      secure: this.isProd,
+      maxAge: this.accessTokenTtl,
       path: '/'
     })
   }

@@ -8,6 +8,7 @@ import { Store, AlertCircle, ArrowLeft, Minus, Plus, Info, Loader2 } from 'lucid
 import { useCampaign } from '@/hooks/queries/useCampaign'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
+import { useCancelPreRegister } from '@/hooks/mutations/useCancelPreRegister'
 import { useAuthContext } from '@/contexts/auth-context'
 import { useUiContext } from '@/contexts/ui-context'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
@@ -22,13 +23,20 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const { data: campaign, loading, error } = useCampaign(id)
   const { purchase, loading: buyLoading } = usePurchase()
   const { preRegister, loading: regLoading } = usePreRegister()
+  const { cancelPreRegister, loading: cancelRegLoading } = useCancelPreRegister()
   const { isAuthenticated } = useAuthContext()
   const { openAuthModal } = useUiContext()
   const [quantity, setQuantity] = useState(1)
   const [selectedProductIdx, setSelectedProductIdx] = useState(0)
   const [activeTab, setActiveTab] = useState<'desc' | 'seller'>('desc')
+  // null = chưa có override (dùng giá trị từ API), true/false = user vừa bấm nút
+  const [preRegisteredOverride, setPreRegisteredOverride] = useState<boolean | null>(null)
 
   const product = campaign?.campaignProducts?.[selectedProductIdx]
+  // Derived: ưu tiên override local, fallback về giá trị API
+  const isPreRegistered = preRegisteredOverride !== null
+    ? preRegisteredOverride
+    : (campaign?.isPreRegistered ?? null)
   const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
   const isSoldOut = product ? product.remainingQuantity === 0 : false
   const isActive = campaign?.status === 'ACTIVE'
@@ -46,7 +54,18 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const handlePreRegister = async () => {
     if (!isAuthenticated) { openAuthModal('login'); return }
     if (!campaign) return
-    try { await preRegister(campaign.id) } catch { /* toast shown */ }
+    try {
+      await preRegister(campaign.id)
+      setPreRegisteredOverride(true)
+    } catch { /* toast shown */ }
+  }
+
+  const handleCancelPreRegister = async () => {
+    if (!campaign) return
+    try {
+      await cancelPreRegister(campaign.id)
+      setPreRegisteredOverride(false)
+    } catch { /* toast shown */ }
   }
 
   if (loading) {
@@ -189,14 +208,32 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 ) : isAuthenticated ? 'Mua ngay' : 'Đăng nhập để mua'}
               </button>
             )}
-            {isScheduled && (
+            {isScheduled && isAuthenticated && isPreRegistered === true && (
+              <button
+                onClick={handleCancelPreRegister}
+                disabled={cancelRegLoading}
+                className="btn-glass w-full disabled:opacity-50 border-indigo-500/40 text-indigo-300"
+              >
+                {cancelRegLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang huỷ...
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-2">
+                    Huỷ đăng ký <Info size={14} className="text-indigo-300" />
+                  </span>
+                )}
+              </button>
+            )}
+            {isScheduled && (!isAuthenticated || isPreRegistered !== true) && (
               <button onClick={handlePreRegister} disabled={regLoading} className="btn-glass w-full disabled:opacity-50">
                 {regLoading ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Đang đăng ký...
                   </span>
-                ) : 'Đăng ký nhắc nhở'}
+                ) : isAuthenticated ? 'Đăng ký nhắc nhở' : 'Đăng nhập để nhận nhắc nhở'}
               </button>
             )}
             {(campaign.status === 'ENDED' || isSoldOut) && (

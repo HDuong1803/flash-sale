@@ -4,24 +4,75 @@ import {
   OnModuleDestroy,
   OnModuleInit
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import * as amqplib from 'amqplib'
+
+/** Max delay between reconnect attempts */
+const MAX_RECONNECT_DELAY_MS = 30_000
 
 @Injectable()
 export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RabbitMQService.name)
   private connection: amqplib.ChannelModel
   private channel: amqplib.Channel
+  private reconnectAttempts = 0
+  private isShuttingDown = false
+
+  constructor(private readonly configService: ConfigService) {}
 
   async onModuleInit(): Promise<void> {
-    const url = process.env.RABBITMQ_URL || 'amqp://localhost:5672'
+    await this.connect()
+  }
+
+  private async connect(): Promise<void> {
+    const url = this.configService.get<string>('rabbitmq.RABBITMQ_URL', 'amqp://localhost:5672')
     try {
       this.connection = await amqplib.connect(url)
       this.channel = await this.connection.createChannel()
       await this.setupQueues()
+      this.reconnectAttempts = 0
       this.logger.log('RabbitMQ connected')
+
+      // Re-register listeners every time we get a fresh connection/channel
+      this.connection.on('error', (err: Error) => {
+        this.logger.error(`RabbitMQ connection error: ${err.message}`)
+      })
+
+      this.connection.on('close', () => {
+        if (this.isShuttingDown) return
+        this.logger.warn('RabbitMQ connection closed — scheduling reconnect')
+        // this.scheduleReconnect // TODO: bật lại khi deploy
+      })
+
+      this.channel.on('error', (err: Error) => {
+        this.logger.error(`RabbitMQ channel error: ${err.message}`)
+      })
+
+      this.channel.on('close', () => {
+        if (this.isShuttingDown) return
+        this.logger.warn('RabbitMQ channel closed — scheduling reconnect')
+        // this.scheduleReconnect()
+      })
     } catch (err) {
-      this.logger.error('RabbitMQ connection failed', err)
+      const message = err instanceof Error ? err.message : String(err)
+      this.logger.error(`RabbitMQ connection failed: ${message}`)
+      // this.scheduleReconnect()
     }
+  }
+
+  private scheduleReconnect(): void {
+    if (this.isShuttingDown) return
+    this.reconnectAttempts++
+    const delay = Math.min(
+      1_000 * Math.pow(2, this.reconnectAttempts - 1),
+      MAX_RECONNECT_DELAY_MS
+    )
+    this.logger.warn(
+      `RabbitMQ: reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
+    )
+    setTimeout(() => {
+      void this.connect()
+    }, delay)
   }
 
   private async setupQueues(): Promise<void> {
@@ -93,8 +144,25 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     return this.channel ?? null
   }
 
+  /**
+   * Kiểm tra RabbitMQ có đang kết nối không.
+   * Dùng bởi HealthController để probe trạng thái broker.
+   */
+  isConnected(): boolean {
+    return !!this.channel && !!this.connection
+  }
+
   async onModuleDestroy(): Promise<void> {
-    await this.channel?.close()
-    await this.connection?.close()
+    this.isShuttingDown = true
+    try {
+      await this.channel?.close()
+    } catch {
+      // ignore errors during shutdown
+    }
+    try {
+      await this.connection?.close()
+    } catch {
+      // ignore errors during shutdown
+    }
   }
 }

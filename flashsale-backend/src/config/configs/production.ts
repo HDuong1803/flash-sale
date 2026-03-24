@@ -7,7 +7,8 @@ export const config = {
     isProd: true,
     CLIENT_URL: process.env.CLIENT_URL,
     SERVER_URL: process.env.SERVER_URL,
-    NODE_ENV: process.env.NODE_ENV
+    NODE_ENV: process.env.NODE_ENV,
+    CLIENT_API_HOST: process.env.CLIENT_API_HOST
   },
 
   database: {
@@ -28,10 +29,13 @@ export const config = {
     JWT_CLIENT_PRIVATE_KEY: process.env.JWT_CLIENT_PRIVATE_KEY,
     JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY,
     JWT_ALGORITHM: process.env.JWT_ALGORITHM,
-    JWT_EXPIRE_TIME: Number(process.env.JWT_EXPIRE_TIME),
-    JWT_EXPIRE_REFRESH_TIME: Number(process.env.JWT_EXPIRE_REFRESH_TIME),
+    JWT_EXPIRE_TIME: Number(process.env.JWT_EXPIRE_TIME) || 900,
+    JWT_EXPIRE_REFRESH_TIME:
+      Number(process.env.JWT_EXPIRE_REFRESH_TIME) || 604800,
     SESSION_SECRET: process.env.SESSION_SECRET,
-    JWT_SECRET_KEY: process.env.JWT_SECRET_KEY
+    JWT_SECRET_KEY: process.env.JWT_SECRET_KEY,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET
   },
 
   redis: {
@@ -46,7 +50,8 @@ export const config = {
   ipfs: {
     UPLOAD_SERVER_BASE_URL: process.env.UPLOAD_SERVER_BASE_URL,
     GET_UPLOAD_FILE_BASE_URL: process.env.GET_UPLOAD_FILE_BASE_URL,
-    LOCAL_SERVER_BASE_URL: process.env.LOCAL_SERVER_BASE_URL
+    LOCAL_SERVER_BASE_URL: process.env.LOCAL_SERVER_BASE_URL,
+    IPFS_WEB_GATEWAY: process.env.IPFS_WEB_GATEWAY
   },
 
   contract: {
@@ -100,6 +105,34 @@ export const config = {
     CLIENT_API_HOST: process.env.CLIENT_API_HOST
   },
 
+  rabbitmq: {
+    RABBITMQ_URL: process.env.RABBITMQ_URL
+  },
+
+  cloudinary: {
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET
+  },
+
+  sepay: {
+    SEPAY_API_KEY: process.env.SEPAY_API_KEY,
+    SEPAY_BANK_ACCOUNT: process.env.SEPAY_BANK_ACCOUNT,
+    SEPAY_BANK_CODE: process.env.SEPAY_BANK_CODE,
+    SEPAY_ACCOUNT_NAME: process.env.SEPAY_ACCOUNT_NAME,
+    SEPAY_SANDBOX: process.env.SEPAY_SANDBOX
+  },
+
+  timeouts: {
+    WEBHOOK_TIMEOUT_MS: Number(process.env.WEBHOOK_TIMEOUT_MS),
+    SLOW_REQUEST_THRESHOLD_MS: Number(process.env.SLOW_REQUEST_THRESHOLD_MS),
+    CHECKOUT_ADDRESS_TTL_SECONDS:
+      Number(process.env.CHECKOUT_ADDRESS_TTL_SECONDS),
+    LONG_RUNNING_REQUEST_TIMEOUT_MS:
+      Number(process.env.LONG_RUNNING_REQUEST_TIMEOUT_MS),
+    NORMAL_REQUEST_TIMEOUT_MS: Number(process.env.NORMAL_REQUEST_TIMEOUT_MS)
+  },
+
   sui: {
     SUI_RPC_URL: process.env.SUI_RPC_URL,
     WALRUS_PACKAGE_ID: process.env.WALRUS_PACKAGE_ID,
@@ -128,7 +161,7 @@ export const config = {
   },
 
   frontend: {
-    FRONTEND_URL: process.env.CLIENT_API_HOST
+    FRONTEND_URL: process.env.FRONTEND_URL
   },
 
   admin: {

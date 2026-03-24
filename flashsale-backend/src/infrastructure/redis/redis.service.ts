@@ -13,10 +13,7 @@ export class RedisService {
   private readonly logger = new Logger(RedisService.name)
 
   constructor(private readonly configService: ConfigService) {
-    this.redisHost = this.configService.get<string>(
-      'redis.REDIS_HOST',
-      process.env.REDIS_HOST || ''
-    )
+    this.redisHost = this.configService.get<string>('redis.REDIS_HOST', 'localhost')
     this.redisPort = this.configService.get<number>('redis.REDIS_PORT', 6379)
     this.redisUsername = this.configService.get<string>(
       'redis.REDIS_USERNAME',
@@ -31,7 +28,21 @@ export class RedisService {
       host: this.redisHost,
       port: this.redisPort,
       username: this.redisUsername,
-      password: this.redisPassword
+      password: this.redisPassword,
+      // Fail fast on individual commands instead of queueing indefinitely
+      maxRetriesPerRequest: 3,
+      // TCP connection timeout
+      connectTimeout: 5000,
+      // Retry connecting on disconnect with exponential backoff (max 30s)
+      retryStrategy: (times: number) => {
+        if (times > 10) {
+          this.logger.error('Redis: max reconnect attempts reached, giving up')
+          return null // stop retrying
+        }
+        const delay = Math.min(times * 200, 30_000)
+        this.logger.warn(`Redis: reconnecting in ${delay}ms (attempt ${times})`)
+        return delay
+      }
     })
 
     this._redisClient.on('ready', () => {
@@ -113,8 +124,15 @@ export class RedisService {
     )
   }
 
-  async getExpiredReservations(nowMs: number): Promise<string[]> {
-    return this._redisClient.zrangebyscore('reservations:expiry', '-inf', nowMs)
+  async getExpiredReservations(nowMs: number, limit = 500): Promise<string[]> {
+    return this._redisClient.zrangebyscore(
+      'reservations:expiry',
+      '-inf',
+      nowMs,
+      'LIMIT',
+      0,
+      limit
+    )
   }
 
   async removeReservationExpiry(reservationId: string): Promise<void> {
@@ -210,5 +228,83 @@ export class RedisService {
 
   async deleteRefreshToken(userId: string): Promise<void> {
     await this._redisClient.del(`refresh:${userId}`)
+  }
+
+  // ─── Distributed Lock (for scheduler cron jobs) ───────────────────────────
+
+  /**
+   * Try to acquire a distributed lock via SET NX PX.
+   * Returns true if the lock was acquired, false if another instance holds it.
+   *
+   * Dùng cho scheduler cron jobs: ngăn hai instance chạy cùng lúc khi deploy nhiều pod.
+   */
+  async acquireLock(key: string, ttlMs: number): Promise<boolean> {
+    const result = await this._redisClient.set(
+      `lock:${key}`,
+      '1',
+      'PX',
+      ttlMs,
+      'NX'
+    )
+    return result === 'OK'
+  }
+
+  async releaseLock(key: string): Promise<void> {
+    await this._redisClient.del(`lock:${key}`)
+  }
+
+  // ─── Per-user Purchase Limit (atomic check-and-increment) ────────────────
+
+  /**
+   * Atomically check and increment the per-user purchase counter.
+   * Returns the new count (>= 1) on success, or -1 if the limit is already reached.
+   *
+   * Dùng Lua script để đảm bảo check + increment là atomic — tránh race condition
+   * khi nhiều request của cùng một user đến đồng thời.
+   *
+   * @param campaignProductId - campaign product being purchased
+   * @param userId            - user making the purchase
+   * @param limit             - max purchases allowed per user
+   * @param ttlSeconds        - TTL for the counter key (usually campaign duration)
+   */
+  async incrementPurchaseCount(
+    campaignProductId: string,
+    userId: string,
+    limit: number,
+    ttlSeconds = 86400
+  ): Promise<number> {
+    const script = `
+      local new = redis.call('INCR', KEYS[1])
+      if new == 1 then
+        redis.call('EXPIRE', KEYS[1], ARGV[2])
+      end
+      if new > tonumber(ARGV[1]) then
+        redis.call('DECR', KEYS[1])
+        return -1
+      end
+      return new
+    `
+    const result = await this._redisClient.eval(
+      script,
+      1,
+      `purchase_limit:${campaignProductId}:${userId}`,
+      String(limit),
+      String(ttlSeconds)
+    )
+    return result as number
+  }
+
+  /**
+   * Decrement the per-user purchase counter — called on reservation release/failure.
+   */
+  async decrementPurchaseCount(
+    campaignProductId: string,
+    userId: string
+  ): Promise<void> {
+    const key = `purchase_limit:${campaignProductId}:${userId}`
+    const current = await this._redisClient.get(key)
+    if (current !== null && parseInt(current) > 0) {
+      await this._redisClient.decr(key)
+    }
   }
 }

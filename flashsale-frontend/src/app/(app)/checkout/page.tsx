@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CreditCard, Smartphone, Globe, Loader2 } from 'lucide-react'
+import { Building2, Loader2 } from 'lucide-react'
 import { useCheckout } from '@/hooks/mutations/useCheckout'
 import { useAuthContext } from '@/contexts/auth-context'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
@@ -25,9 +25,7 @@ const schema = z.object({
 type CheckoutForm = z.infer<typeof schema>
 
 const PAYMENT_METHODS = [
-  { id: 'VNPAY' as const, icon: CreditCard, title: 'Thanh toán VNPay', subtitle: 'ATM nội địa' },
-  { id: 'MOMO' as const, icon: Smartphone, title: 'Ví MoMo', subtitle: '' },
-  { id: 'STRIPE' as const, icon: Globe, title: 'Thẻ quốc tế', subtitle: 'Visa/Mastercard' },
+  { id: 'SEPAY' as const, icon: Building2, title: 'Chuyển khoản ngân hàng', subtitle: 'Quét mã QR — hỗ trợ mọi ngân hàng' },
 ]
 
 function CheckoutContent() {
@@ -36,7 +34,7 @@ function CheckoutContent() {
   const reservationId = searchParams.get('reservationId')
   const { user } = useAuthContext()
   const { checkout, loading } = useCheckout()
-  const [selectedMethod, setSelectedMethod] = useState<'VNPAY' | 'MOMO' | 'STRIPE'>('VNPAY')
+  const [selectedMethod, setSelectedMethod] = useState<'SEPAY'>('SEPAY')
   const [expiredDialog, setExpiredDialog] = useState(false)
   const [amount, setAmount] = useState(0)
   const [expiredAt, setExpiredAt] = useState<string | null>(null)

@@ -27,7 +27,11 @@ export class MerchantRepository {
             product: {
               select: {
                 name: true,
-                photo: { select: { url: true } },
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                },
                 originalPrice: true
               }
             }
@@ -44,7 +48,7 @@ export class MerchantRepository {
         product: {
           name: cp.product.name,
           originalPrice: cp.product.originalPrice,
-          imageUrl: cp.product.photo?.url ?? null
+          imageUrl: cp.product.images[0]?.photo.url ?? null
         }
       }))
     }))
@@ -131,6 +135,123 @@ export class MerchantRepository {
     }
   }
 
+  async getRevenue(
+    merchantId: string,
+    startDate: Date,
+    endDate: Date,
+    prevStartDate: Date
+  ) {
+    const dateRange = { gte: startDate, lte: endDate }
+    const [
+      currentRevResult,
+      prevRevResult,
+      totalRevResult,
+      successOrders,
+      cancelledOrders,
+      totalOrders,
+      dailyOrdersRaw,
+      ordersWithCampaignRaw,
+      orderItemsRaw
+    ] = await Promise.all([
+      // Revenue kỳ này
+      this.prisma.order.aggregate({
+        where: {
+          merchantId,
+          createdAt: dateRange,
+          status: { not: OrderStatus.CANCELLED }
+        },
+        _sum: { totalAmount: true }
+      }),
+      // Revenue kỳ trước (cùng độ dài)
+      this.prisma.order.aggregate({
+        where: {
+          merchantId,
+          createdAt: { gte: prevStartDate, lt: startDate },
+          status: { not: OrderStatus.CANCELLED }
+        },
+        _sum: { totalAmount: true }
+      }),
+      // Revenue toàn thời gian
+      this.prisma.order.aggregate({
+        where: { merchantId, status: { not: OrderStatus.CANCELLED } },
+        _sum: { totalAmount: true }
+      }),
+      // Đơn hoàn thành trong kỳ
+      this.prisma.order.count({
+        where: { merchantId, createdAt: dateRange, status: OrderStatus.DONE }
+      }),
+      // Đơn huỷ trong kỳ
+      this.prisma.order.count({
+        where: {
+          merchantId,
+          createdAt: dateRange,
+          status: OrderStatus.CANCELLED
+        }
+      }),
+      // Tổng đơn trong kỳ
+      this.prisma.order.count({
+        where: { merchantId, createdAt: dateRange }
+      }),
+      // Dữ liệu thô để vẽ chart theo ngày
+      this.prisma.order.findMany({
+        where: {
+          merchantId,
+          createdAt: dateRange,
+          status: { not: OrderStatus.CANCELLED }
+        },
+        select: { createdAt: true, totalAmount: true }
+      }),
+      // Dữ liệu để group theo chiến dịch
+      this.prisma.order.findMany({
+        where: {
+          merchantId,
+          createdAt: dateRange,
+          status: { not: OrderStatus.CANCELLED }
+        },
+        select: {
+          totalAmount: true,
+          reservation: {
+            select: {
+              campaignProduct: {
+                select: {
+                  campaign: { select: { id: true, name: true, status: true } }
+                }
+              }
+            }
+          }
+        }
+      }),
+      // Order items để tính top sản phẩm
+      this.prisma.orderItem.findMany({
+        where: {
+          order: {
+            merchantId,
+            createdAt: dateRange,
+            status: { not: OrderStatus.CANCELLED }
+          }
+        },
+        select: {
+          productId: true,
+          quantity: true,
+          unitPrice: true,
+          product: { select: { name: true } }
+        }
+      })
+    ])
+
+    return {
+      revenueCurrent: Number(currentRevResult._sum.totalAmount ?? 0),
+      revenuePrevious: Number(prevRevResult._sum.totalAmount ?? 0),
+      totalRevenue: Number(totalRevResult._sum.totalAmount ?? 0),
+      successOrders,
+      cancelledOrders,
+      totalOrders,
+      dailyOrders: dailyOrdersRaw,
+      ordersWithCampaign: ordersWithCampaignRaw,
+      orderItems: orderItemsRaw
+    }
+  }
+
   async getOrders(
     merchantId: string,
     filters: { status?: OrderStatus; page: number; limit: number }
@@ -144,7 +265,14 @@ export class MerchantRepository {
         items: {
           include: {
             product: {
-              select: { name: true, photo: { select: { url: true } } }
+              select: {
+                name: true,
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                }
+              }
             }
           }
         },
@@ -160,7 +288,7 @@ export class MerchantRepository {
       items: o.items.map(item => ({
         ...item,
         productName: item.product.name,
-        imageUrl: item.product.photo?.url ?? null,
+        imageUrl: item.product.images[0]?.photo.url ?? null,
         product: undefined
       }))
     }))

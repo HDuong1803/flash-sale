@@ -26,6 +26,8 @@ import {
   ApplyMerchantDto,
   MerchantOrderQueryDto,
   MerchantProfileResponseDto,
+  MerchantRevenuePeriodDto,
+  MerchantRevenueResponseDto,
   MerchantStatsResponseDto
 } from '../dto/merchant.dto'
 
@@ -127,6 +129,26 @@ export class MerchantController {
     @CurrentUser() user: { userId: string }
   ): Promise<MerchantStatsResponseDto> {
     return this.merchantService.getStats(user.userId)
+  }
+
+  @ApiOperation({ summary: 'Thống kê doanh thu theo kỳ' })
+  @ApiResponse({ status: HttpStatus.OK, type: MerchantRevenueResponseDto })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Không tìm thấy merchant'
+  })
+  @Get('revenue')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('MERCHANT')
+  async getRevenue(
+    @CurrentUser() user: { userId: string },
+    @Query() query: MerchantRevenuePeriodDto
+  ): Promise<MerchantRevenueResponseDto> {
+    return this.merchantService.getRevenue(
+      user.userId,
+      query
+    ) as unknown as MerchantRevenueResponseDto
   }
 
   @ApiOperation({ summary: 'Lấy danh sách đơn hàng nhận được' })

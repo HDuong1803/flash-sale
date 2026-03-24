@@ -1,5 +1,5 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { MerchantApplication, MerchantProfile, MerchantStats } from '@/types'
+import type { MerchantApplication, MerchantProfile, MerchantRevenue, MerchantStats, RevenueDateRange } from '@/types'
 
 export interface ApplyMerchantDto {
   businessName: string
@@ -21,6 +21,9 @@ class MerchantService {
   }
   getStats(): Promise<MerchantStats> {
     return withRetry(() => apiClient.get('/merchants/stats'))
+  }
+  getRevenue(range: RevenueDateRange): Promise<MerchantRevenue> {
+    return withRetry(() => apiClient.get('/merchants/revenue', { params: range }))
   }
 }
 

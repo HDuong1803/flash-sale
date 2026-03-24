@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import * as Sentry from '@sentry/nextjs'
 import type { KycStatus, Permission, User } from '@/types'
 import { ROLE_PERMISSIONS } from '@/lib/permissions'
 import { authService } from '@/services/auth.service'
@@ -46,11 +47,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setAuth = useCallback((u: User) => {
     setUser(u)
+    // Gắn user identity vào Sentry — mỗi error sau đó sẽ biết thuộc về user nào
+    // Giúp ops team filter: "tất cả lỗi của user X" trong Sentry dashboard
+    // KHÔNG gửi email/tên đầy đủ để tôn trọng privacy — chỉ id và role là đủ
+    Sentry.setUser({ id: u.id, username: u.role })
   }, [])
 
   const logout = useCallback(() => {
     setUser(null)
     setMerchantApplicationStatus('NONE')
+    // Xoá user identity khỏi Sentry khi logout — privacy protection
+    Sentry.setUser(null)
     // Clear user-role cookie so middleware reverts to unauthenticated state
     if (typeof document !== 'undefined') {
       document.cookie = 'user-role=; path=/; max-age=0; SameSite=Lax'
@@ -72,7 +79,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false
     authService.getMe()
       .then((me) => {
-        if (!cancelled) setUser(me)
+        if (!cancelled) {
+          setUser(me)
+          // Restore Sentry user context sau khi hydrate session từ cookie
+          Sentry.setUser({ id: me.id, username: me.role })
+        }
       })
       .catch(() => {
         // 401 = no valid session — stay logged out, nothing to do

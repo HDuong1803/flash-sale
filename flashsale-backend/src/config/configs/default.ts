@@ -6,27 +6,31 @@ export const config = {
     ENV: 'development',
     isProd: false,
     CLIENT_URL: '',
-    SERVER_URL: ''
+    SERVER_URL: '',
+    CLIENT_API_HOST: ''
   },
 
   database: {
     DB_CONNECTOR: 'postgres',
     DB_HOST: '',
-    DB_USER: process.env.DB_USER,
-    DB_PASSWORD: process.env.DB_PASSWORD,
+    DB_USER: '',
+    DB_PASSWORD: '',
     DB_DATABASE: '',
     DB_PORT: 5432,
     DATABASE_URL: ''
   },
 
   secrets: {
-    JWT_PRIVATE_KEY: process.env.JWT_PRIVATE_KEY || '',
-    JWT_REFRESH_PRIVATE_KEY: process.env.JWT_REFRESH_PRIVATE_KEY || '',
-    JWT_PUBLIC_KEY: process.env.JWT_PUBLIC_KEY || '',
+    JWT_PRIVATE_KEY: '',
+    JWT_REFRESH_PRIVATE_KEY: '',
+    JWT_PUBLIC_KEY: '',
     JWT_ALGORITHM: 'HS256',
-    JWT_EXPIRE_TIME: 86400,
-    JWT_EXPIRE_REFRESH_TIME: 86400 * 7,
-    SESSION_SECRET: process.env.SESSION_SECRET || ''
+    JWT_EXPIRE_TIME: 900,
+    JWT_EXPIRE_REFRESH_TIME: 604800,
+    SESSION_SECRET: '',
+    JWT_SECRET_KEY: '',
+    GOOGLE_CLIENT_ID: '',
+    GOOGLE_CLIENT_SECRET: ''
   },
 
   logger: {
@@ -34,16 +38,46 @@ export const config = {
   },
 
   frontend: {
-    FRONTEND_URL: process.env.FRONTEND_URL || ''
+    FRONTEND_URL: ''
   },
 
   redis: {
-    REDIS_HOST: '',
+    REDIS_HOST: 'localhost',
     REDIS_PORT: '6379',
     REDIS_USERNAME: '',
     REDIS_PASSWORD: '',
     REDIS_URL: '',
     REDIS_CACHE_EXPIRATION: '300'
+  },
+
+  rabbitmq: {
+    RABBITMQ_URL: 'amqp://localhost:5672'
+  },
+
+  ipfs: {
+    IPFS_WEB_GATEWAY: 'https://cloudflare-ipfs.com/ipfs/'
+  },
+
+  cloudinary: {
+    CLOUDINARY_CLOUD_NAME: '',
+    CLOUDINARY_API_KEY: '',
+    CLOUDINARY_API_SECRET: ''
+  },
+
+  sepay: {
+    SEPAY_API_KEY: '',
+    SEPAY_BANK_ACCOUNT: '',
+    SEPAY_BANK_CODE: '',
+    SEPAY_ACCOUNT_NAME: '',
+    SEPAY_SANDBOX: 'false'
+  },
+
+  timeouts: {
+    WEBHOOK_TIMEOUT_MS: 30_000,
+    SLOW_REQUEST_THRESHOLD_MS: 1000,
+    CHECKOUT_ADDRESS_TTL_SECONDS: 1200,
+    LONG_RUNNING_REQUEST_TIMEOUT_MS: 60_000,
+    NORMAL_REQUEST_TIMEOUT_MS: 30_000
   },
 
   postmark: {

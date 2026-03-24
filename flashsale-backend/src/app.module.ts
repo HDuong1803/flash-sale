@@ -24,6 +24,7 @@ import { HealthModule } from './health'
 import { PrismaModule } from './infrastructure/prisma'
 import { RedisModule } from './infrastructure/redis'
 import { RabbitMQModule } from './infrastructure/rabbitmq'
+import { CloudinaryModule } from './infrastructure/cloudinary/cloudinary.module'
 import { RequestMiddleware, LoggerMiddleware } from '@common/middleware'
 
 @Module({
@@ -36,6 +37,7 @@ import { RequestMiddleware, LoggerMiddleware } from '@common/middleware'
     PrismaModule,
     RedisModule,
     RabbitMQModule,
+    CloudinaryModule,
     CommonModule,
     HealthModule,
     AuthModule,

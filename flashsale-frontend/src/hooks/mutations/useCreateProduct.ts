@@ -5,10 +5,10 @@ import { productService, type CreateProductDto } from '@/services/product.servic
 export function useCreateProduct() {
   const [loading, setLoading] = useState(false)
 
-  const mutate = async (data: CreateProductDto, file?: File) => {
+  const mutate = async (data: CreateProductDto, files: File[] = []) => {
     setLoading(true)
     try {
-      const result = await productService.create(data, file)
+      const result = await productService.create(data, files)
       toast.success('Tạo sản phẩm thành công!')
       return result
     } catch (err) {

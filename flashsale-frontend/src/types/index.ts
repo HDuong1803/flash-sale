@@ -7,8 +7,15 @@ export type CampaignStatus = 'DRAFT' | 'APPROVED' | 'SCHEDULED' | 'ACTIVE' | 'EN
 export type ProductStatus = 'ACTIVE' | 'INACTIVE'
 export type ReservationStatus = 'HOLDING' | 'PAID' | 'EXPIRED'
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPING' | 'DONE' | 'CANCELLED'
-export type PaymentStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED'
-export type PaymentMethod = 'VNPAY' | 'MOMO' | 'STRIPE'
+// Phải khớp chính xác với enum PaymentStatus trong Prisma schema backend
+export type PaymentStatus =
+  | 'PENDING'     // Chờ user chuyển khoản
+  | 'PROCESSING'  // Đang xử lý (saga đang chạy)
+  | 'SUCCESS'     // Thanh toán thành công, đơn hàng đã tạo
+  | 'FAILED'      // Thanh toán thất bại
+  | 'REFUNDED'    // Đã hoàn tiền
+  | 'CANCELLED'   // User huỷ trong quá trình thanh toán
+export type PaymentMethod = 'VNPAY' | 'MOMO' | 'STRIPE' | 'SEPAY'
 export type NotificationType =
   | 'RESERVATION_EXPIRING'
   | 'ORDER_CONFIRMED'
@@ -70,6 +77,8 @@ export interface Campaign {
   campaignProducts: CampaignProduct[]
   createdAt: string
   updatedAt: string
+  /** Chỉ có khi user đã đăng nhập — GET /campaigns/:id */
+  isPreRegistered?: boolean
 }
 
 export interface CampaignProduct {
@@ -83,16 +92,37 @@ export interface CampaignProduct {
   perUserLimit: number
 }
 
+export interface ProductImage {
+  id: string
+  url: string
+  isPrimary: boolean
+  sortOrder: number
+}
+
 export interface Product {
   id: string
   merchantId: string
   name: string
   description: string
   originalPrice: number
-  imageUrl?: string
+  /** Primary image URL — first in images[], null if no images */
+  imageUrl: string | null
+  /** All images with IDs for individual deletion */
+  images: ProductImage[]
+  /** All image URLs (shorthand) */
+  imageUrls: string[]
   status: ProductStatus
   inventory: number
   createdAt: string
+}
+
+export interface ProductCampaignSummary {
+  id: string
+  name: string
+  status: CampaignStatus
+  startTime: string
+  endTime: string
+  salePrice: number
 }
 
 export interface OrderItem {
@@ -232,6 +262,51 @@ export interface CampaignReport {
   cancelledOrders: number
   totalRevenue: number
   conversionRate: number
+}
+
+export interface RevenueDateRange {
+  startDate: string  // 'YYYY-MM-DD'
+  endDate: string    // 'YYYY-MM-DD'
+}
+
+export interface MerchantRevenueSummary {
+  totalRevenue: number
+  revenueThisPeriod: number
+  revenuePreviousPeriod: number
+  growthRate: number
+  totalOrders: number
+  successOrders: number
+  cancelledOrders: number
+  avgOrderValue: number
+}
+
+export interface MerchantRevenueDaily {
+  date: string
+  revenue: number
+  orders: number
+}
+
+export interface MerchantRevenueByCampaign {
+  campaignId: string
+  campaignName: string
+  campaignStatus: string
+  revenue: number
+  orders: number
+}
+
+
+export interface MerchantRevenueTopProduct {
+  productId: string
+  productName: string
+  revenue: number
+  quantity: number
+}
+
+export interface MerchantRevenue {
+  summary: MerchantRevenueSummary
+  dailyRevenue: MerchantRevenueDaily[]
+  byCampaign: MerchantRevenueByCampaign[]
+  topProducts: MerchantRevenueTopProduct[]
 }
 
 

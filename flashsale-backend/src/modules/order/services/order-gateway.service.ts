@@ -35,12 +35,21 @@ export class OrderGatewayService {
     if (cp.campaign.status !== CampaignStatus.ACTIVE)
       throw new BadRequestException('Flash Sale chưa bắt đầu hoặc đã kết thúc')
 
-    // 3. Check per-user limit
-    const holdingCount = await this.orderRepository.countHoldingReservations(
+    // 3. Check per-user limit — atomic Redis INCR to prevent race condition
+    // Dùng Lua script: check + increment trong một lệnh Redis duy nhất,
+    // tránh trường hợp nhiều request song song vượt qua cùng lúc (TOCTOU).
+    // TTL = thời gian còn lại của campaign hoặc 24h nếu không tính được.
+    const campaignEndTime = cp.campaign.endTime
+    const ttlSeconds = campaignEndTime
+      ? Math.max(Math.ceil((campaignEndTime.getTime() - Date.now()) / 1000), 60)
+      : 86400
+    const newCount = await this.redis.incrementPurchaseCount(
+      dto.campaignProductId,
       userId,
-      dto.campaignProductId
+      cp.perUserLimit,
+      ttlSeconds
     )
-    if (holdingCount >= cp.perUserLimit) {
+    if (newCount === -1) {
       throw new BadRequestException(
         `Bạn chỉ được mua tối đa ${cp.perUserLimit} sản phẩm`
       )
@@ -52,7 +61,7 @@ export class OrderGatewayService {
 
     // 5. Generate requestId and enqueue
     const requestId = crypto.randomUUID()
-    await this.rabbitmq.publish(queue, {
+    const published = await this.rabbitmq.publish(queue, {
       requestId,
       userId,
       campaignProductId: dto.campaignProductId,
@@ -60,6 +69,14 @@ export class OrderGatewayService {
       idempotencyKey,
       timestamp: Date.now()
     })
+
+    if (!published) {
+      // Rollback the counter increment so user can retry
+      await this.redis.decrementPurchaseCount(dto.campaignProductId, userId)
+      throw new BadRequestException(
+        'Hệ thống đang quá tải, vui lòng thử lại sau'
+      )
+    }
 
     // 6. Cache requestId so duplicate requests return same requestId (5 min TTL)
     const result = { requestId }

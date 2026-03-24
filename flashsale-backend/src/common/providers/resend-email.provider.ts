@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Resend } from 'resend'
 import { IEmailProvider, SendEmailParams } from '../interfaces/email.interface'
 
@@ -10,8 +11,8 @@ export class ResendEmailProvider implements IEmailProvider {
   private readonly logger = new Logger(ResendEmailProvider.name)
   private readonly client: Resend
 
-  constructor() {
-    const apiKey = process.env.RESEND_API_KEY
+  constructor(private readonly configService: ConfigService) {
+    const apiKey = this.configService.get<string>('postmark.RESEND_API_KEY', '')
 
     if (!apiKey) {
       throw new Error('RESEND_API_KEY is not configured')

@@ -15,6 +15,7 @@ export type CampaignWithProducts = Campaign & {
     }
   >
   merchant: { businessName: string }
+  isPreRegistered?: boolean
 }
 
 function mapCampaignProducts(raw: unknown): CampaignWithProducts {
@@ -23,7 +24,7 @@ function mapCampaignProducts(raw: unknown): CampaignWithProducts {
       CampaignProduct & {
         product: {
           name: string
-          photo: { url: string } | null
+          images: Array<{ photo: { url: string } }>
           originalPrice: number
         }
       }
@@ -37,7 +38,7 @@ function mapCampaignProducts(raw: unknown): CampaignWithProducts {
       product: {
         name: cp.product.name,
         originalPrice: cp.product.originalPrice,
-        imageUrl: cp.product.photo?.url ?? null
+        imageUrl: cp.product.images[0]?.photo.url ?? null
       }
     }))
   }
@@ -51,7 +52,10 @@ export class CampaignRepository {
     return this.prisma.campaign.findUnique({ where: { id } })
   }
 
-  async findByIdWithProducts(id: string): Promise<CampaignWithProducts | null> {
+  async findByIdWithProducts(
+    id: string,
+    userId?: string
+  ): Promise<CampaignWithProducts | null> {
     const raw = await this.prisma.campaign.findUnique({
       where: { id },
       include: {
@@ -60,7 +64,11 @@ export class CampaignRepository {
             product: {
               select: {
                 name: true,
-                photo: { select: { url: true } },
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                },
                 originalPrice: true
               }
             }
@@ -69,7 +77,21 @@ export class CampaignRepository {
         merchant: { select: { businessName: true } }
       }
     })
-    return raw ? mapCampaignProducts(raw) : null
+    if (!raw) return null
+
+    const mapped = mapCampaignProducts(raw)
+
+    if (userId) {
+      const preReg = await this.prisma.preRegistration.findUnique({
+        where: {
+          customerId_campaignId: { customerId: userId, campaignId: id }
+        },
+        select: { id: true }
+      })
+      mapped.isPreRegistered = preReg !== null
+    }
+
+    return mapped
   }
 
   async findByIdAndMerchant(
@@ -115,7 +137,11 @@ export class CampaignRepository {
             product: {
               select: {
                 name: true,
-                photo: { select: { url: true } },
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                },
                 originalPrice: true
               }
             }
@@ -194,6 +220,20 @@ export class CampaignRepository {
       create: { customerId, campaignId },
       update: {}
     })
+  }
+
+  async deletePreRegistration(
+    customerId: string,
+    campaignId: string
+  ): Promise<boolean> {
+    const existing = await this.prisma.preRegistration.findUnique({
+      where: { customerId_campaignId: { customerId, campaignId } }
+    })
+    if (!existing) return false
+    await this.prisma.preRegistration.delete({
+      where: { customerId_campaignId: { customerId, campaignId } }
+    })
+    return true
   }
 
   async getReport(campaignId: string): Promise<{

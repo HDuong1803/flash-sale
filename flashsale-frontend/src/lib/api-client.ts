@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
+import * as Sentry from '@sentry/nextjs'
 
 export class ApiError extends Error {
   constructor(
@@ -76,6 +77,18 @@ function isBackendSuccess(raw: unknown): raw is BackendSuccess {
   )
 }
 
+apiClient.interceptors.request.use((config) => {
+  // Thêm breadcrumb mỗi khi gọi API — giúp Sentry tái hiện sequence of events
+  // trước khi lỗi xảy ra. Chỉ log method + URL, không log body/headers nhạy cảm.
+  Sentry.addBreadcrumb({
+    category: 'api.request',
+    message: `${config.method?.toUpperCase()} ${config.url}`,
+    level: 'info',
+    data: { method: config.method, url: config.url },
+  })
+  return config
+})
+
 apiClient.interceptors.response.use(
   (res) => {
     // Always unwrap { result, success, message, count } → result
@@ -86,14 +99,36 @@ apiClient.interceptors.response.use(
 
   async (error: AxiosError<BackendError>) => {
     const original = error.config as typeof error.config & { _retry?: boolean }
+    const status = error.response?.status ?? 0
+
+    // Breadcrumb cho lỗi API — giúp trace flow dẫn đến lỗi
+    Sentry.addBreadcrumb({
+      category: 'api.error',
+      message: `${original?.method?.toUpperCase()} ${original?.url} → ${status}`,
+      level: status >= 500 ? 'error' : 'warning',
+      data: { status, url: original?.url, method: original?.method },
+    })
+
+    // Capture lên Sentry với đầy đủ context: chỉ 5xx (lỗi server thực sự)
+    // 4xx là lỗi của client (validation, auth, not found) — không phải bug
+    if (status >= 500) {
+      Sentry.captureException(error, {
+        tags: {
+          'api.status': status,
+          'api.url': original?.url ?? 'unknown',
+          'api.method': original?.method?.toUpperCase() ?? 'unknown',
+        },
+        extra: {
+          responseData: error.response?.data,
+        },
+      })
+    }
 
     // On 401: attempt a silent token refresh via the refresh_token HttpOnly cookie.
-    // The browser sends the cookie automatically — no token value is read or stored here.
-    // Skip refresh for auth endpoints (login/register/refresh) — those 401s are intentional.
     const isAuthEndpoint = original?.url?.includes('/auth/login') ||
       original?.url?.includes('/auth/register') ||
       original?.url?.includes('/auth/refresh')
-    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
+    if (status === 401 && !original._retry && !isAuthEndpoint) {
       if (isRefreshing) {
         return new Promise<unknown>((resolve, reject) =>
           failQueue.push({
@@ -107,10 +142,7 @@ apiClient.interceptors.response.use(
       isRefreshing = true
 
       try {
-        // POST /auth/refresh — browser sends refresh_token cookie automatically.
-        // Backend validates it and sets a new access_token cookie via Set-Cookie.
         await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true })
-
         failQueue.forEach((q) => q.resolve())
         failQueue = []
         return apiClient(original)
@@ -127,9 +159,7 @@ apiClient.interceptors.response.use(
     }
 
     // All other errors — read the flat message field from the error shape
-    const status = error.response?.status ?? 0
-    const message =
-      error.response?.data?.message ?? 'Có lỗi xảy ra'
+    const message = error.response?.data?.message ?? 'Có lỗi xảy ra'
     throw new ApiError(status, statusToCode(status), message)
   },
 )

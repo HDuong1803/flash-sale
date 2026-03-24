@@ -39,4 +39,12 @@ export class FileService {
       fileEntityId: photo.fileEntityId
     }
   }
+
+  /**
+   * Delete an asset from Cloudinary by its publicId.
+   * Called when replacing a product image to avoid orphaned assets.
+   */
+  async deleteByPublicId(publicId: string): Promise<void> {
+    await this.fileUploadService.deleteFile(publicId)
+  }
 }

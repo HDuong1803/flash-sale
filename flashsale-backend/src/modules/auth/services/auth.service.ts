@@ -3,6 +3,7 @@ import {
   Injectable,
   UnauthorizedException
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import * as bcrypt from 'bcrypt'
 import { OAuth2Client } from 'google-auth-library'
 import { TokenService } from './token.service'
@@ -21,22 +22,24 @@ export interface AuthResult {
 @Injectable()
 export class AuthService {
   private googleClient: OAuth2Client
+  private readonly googleClientId: string
+  private readonly bcryptSalt: number
 
   constructor(
     private readonly userRepository: UserRepository,
-    private readonly tokenService: TokenService
+    private readonly tokenService: TokenService,
+    private readonly configService: ConfigService
   ) {
-    this.googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+    this.googleClientId = this.configService.get<string>('secrets.GOOGLE_CLIENT_ID', '')
+    this.bcryptSalt = this.configService.get<number>('application.BCRYPT_SALT', 10)
+    this.googleClient = new OAuth2Client(this.googleClientId)
   }
 
   async register(dto: RegisterDto): Promise<AuthResult> {
     const existing = await this.userRepository.findByEmail(dto.email)
     if (existing) throw new BadRequestException('Email đã được sử dụng')
 
-    const passwordHash = await bcrypt.hash(
-      dto.password,
-      parseInt(process.env.BCRYPT_SALT || '10')
-    )
+    const passwordHash = await bcrypt.hash(dto.password, this.bcryptSalt)
 
     const user = await this.userRepository.create({
       email: dto.email,
@@ -65,7 +68,7 @@ export class AuthService {
   }
 
   async loginWithGoogle(dto: GoogleAuthDto): Promise<AuthResult> {
-    if (!process.env.GOOGLE_CLIENT_ID) {
+    if (!this.googleClientId) {
       throw new BadRequestException('Google OAuth chưa được cấu hình')
     }
 
@@ -78,7 +81,7 @@ export class AuthService {
     try {
       const ticket = await this.googleClient.verifyIdToken({
         idToken: dto.token,
-        audience: process.env.GOOGLE_CLIENT_ID
+        audience: this.googleClientId
       })
       payload = ticket.getPayload() ?? {}
     } catch {

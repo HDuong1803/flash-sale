@@ -1,3 +1,7 @@
+// ⚠️ PHẢI import instrument.ts trước tất cả mọi thứ — Sentry cần patch modules sớm nhất
+// Xem: https://docs.sentry.io/platforms/javascript/guides/nestjs/#configure
+import './instrument'
+
 import {
   HttpException,
   HttpStatus,
@@ -32,7 +36,8 @@ BigInt.prototype.toJSON = function () {
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    bufferLogs: true
+    bufferLogs: true,
+    rawBody: true
   })
 
   const _logger = new Logger()
@@ -59,9 +64,9 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       const allowedOrigins = [
-        process.env.CLIENT_API_HOST || 'http://localhost:3000',
-        process.env.CLIENT_URL,
-        process.env.SERVER_URL
+        configService.get<string>('application.CLIENT_API_HOST', 'http://localhost:3000'),
+        configService.get<string>('application.CLIENT_URL'),
+        configService.get<string>('application.SERVER_URL')
       ].filter(Boolean)
 
       if (!origin) {
@@ -85,6 +90,42 @@ async function bootstrap() {
       'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Idempotency-Key',
     exposedHeaders: ['Authorization']
   })
+
+  // ─── Request Timeout ──────────────────────────────────────────────────────
+  //
+  // Ngăn một request bị stuck giữ connection mãi mãi.
+  // - Webhook/checkout cần tới 60s (saga + payment gateway)
+  // - Mọi request khác: 30s là đủ
+  //
+  // Khi timeout, Express sẽ gọi res.setTimeout callback.
+  // Nếu response chưa gửi, ta trả 503 để client biết thử lại.
+  app.use(
+    (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction
+    ) => {
+      const isLongRunning =
+        req.path.includes('/webhook') || req.path.includes('/checkout')
+      const timeoutMs = isLongRunning
+        ? configService.get<number>('timeouts.LONG_RUNNING_REQUEST_TIMEOUT_MS', 60_000)
+        : configService.get<number>('timeouts.NORMAL_REQUEST_TIMEOUT_MS', 30_000)
+
+      res.setTimeout(timeoutMs, () => {
+        if (!res.headersSent) {
+          res.status(503).json({
+            success: false,
+            error: {
+              code: 'REQUEST_TIMEOUT',
+              message: 'Yêu cầu mất quá nhiều thời gian, vui lòng thử lại'
+            }
+          })
+        }
+      })
+
+      next()
+    }
+  )
 
   app.use(passport.initialize())
 
@@ -168,9 +209,26 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap')
 
+  // ─── Graceful Shutdown ────────────────────────────────────────────────────
+  //
+  // Bật NestJS lifecycle hooks: khi nhận SIGTERM/SIGINT (từ Docker, K8s, PM2),
+  // NestJS sẽ gọi onModuleDestroy() trên tất cả providers theo đúng thứ tự.
+  //
+  // Điều này đảm bảo:
+  // - HTTP server ngừng nhận request mới
+  // - Redis/RabbitMQ connections được đóng sạch (không mất message)
+  // - Prisma transactions đang chạy được hoàn thành hoặc rollback
+  // - Không còn "connection reset by peer" khi rolling deploy
+  //
+  // Nếu KHÔNG có điều này: Docker SIGTERM → app exit ngay lập tức → in-flight
+  // requests bị drop, webhooks payment bị mất, DB connections leak.
+  app.enableShutdownHooks()
+
   await app.listen(port, () => {
     logger.log(`Application is running on port ${port}`)
   })
+
+  logger.log(`Swagger docs available at: ${await app.getUrl()}/api`)
 
   return app.getUrl()
 }

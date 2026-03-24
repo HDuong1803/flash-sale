@@ -4,10 +4,91 @@ import {
   IsNotEmpty,
   IsOptional,
   IsEnum,
+  IsDateString,
   MaxLength,
   Matches
 } from 'class-validator'
 import { OrderStatus } from '@prisma/client'
+
+// ─── Revenue DTOs ─────────────────────────────────────────────────────────────
+
+export class MerchantRevenuePeriodDto {
+  @ApiProperty({
+    required: false,
+    example: '2026-01-01',
+    description: 'Ngày bắt đầu (YYYY-MM-DD). Mặc định: 30 ngày trước'
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string
+
+  @ApiProperty({
+    required: false,
+    example: '2026-03-31',
+    description: 'Ngày kết thúc (YYYY-MM-DD). Mặc định: hôm nay'
+  })
+  @IsOptional()
+  @IsDateString()
+  endDate?: string
+}
+
+export class MerchantRevenueSummaryDto {
+  @ApiProperty({
+    example: 50000000,
+    description: 'Tổng doanh thu toàn thời gian'
+  })
+  totalRevenue: number
+  @ApiProperty({ example: 12000000, description: 'Doanh thu trong kỳ' })
+  revenueThisPeriod: number
+  @ApiProperty({ example: 9000000, description: 'Doanh thu kỳ trước' })
+  revenuePreviousPeriod: number
+  @ApiProperty({ example: 33.3, description: 'Tăng trưởng so kỳ trước (%)' })
+  growthRate: number
+  @ApiProperty({ example: 45, description: 'Tổng đơn hàng trong kỳ' })
+  totalOrders: number
+  @ApiProperty({ example: 38, description: 'Đơn hoàn thành' })
+  successOrders: number
+  @ApiProperty({ example: 7, description: 'Đơn đã huỷ' })
+  cancelledOrders: number
+  @ApiProperty({ example: 315789, description: 'Giá trị trung bình mỗi đơn' })
+  avgOrderValue: number
+}
+
+export class MerchantRevenueDailyDto {
+  @ApiProperty({ example: '2026-03-01' }) date: string
+  @ApiProperty({ example: 1500000 }) revenue: number
+  @ApiProperty({ example: 5 }) orders: number
+}
+
+export class MerchantRevenueByCampaignDto {
+  @ApiProperty({ example: 'uuid' }) campaignId: string
+  @ApiProperty({ example: 'Flash Sale Mỹ Phẩm T3' }) campaignName: string
+  @ApiProperty({
+    example: 'ENDED',
+    enum: ['DRAFT', 'APPROVED', 'SCHEDULED', 'ACTIVE', 'ENDED']
+  })
+  campaignStatus: string
+  @ApiProperty({ example: 8000000 }) revenue: number
+  @ApiProperty({ example: 25 }) orders: number
+}
+
+export class MerchantRevenueTopProductDto {
+  @ApiProperty({ example: 'uuid' }) productId: string
+  @ApiProperty({ example: 'Son môi Dior Rouge 999' }) productName: string
+  @ApiProperty({ example: 4500000 }) revenue: number
+  @ApiProperty({ example: 5 }) quantity: number
+}
+
+export class MerchantRevenueResponseDto {
+  @ApiProperty({ type: MerchantRevenueSummaryDto })
+  summary: MerchantRevenueSummaryDto
+  @ApiProperty({ type: [MerchantRevenueDailyDto] })
+  dailyRevenue: MerchantRevenueDailyDto[]
+  @ApiProperty({ type: [MerchantRevenueByCampaignDto] })
+  byCampaign: MerchantRevenueByCampaignDto[]
+  @ApiProperty({ type: [MerchantRevenueTopProductDto] })
+  topProducts: MerchantRevenueTopProductDto[]
+}
 
 export class ApplyMerchantDto {
   @ApiProperty({ description: 'Tên doanh nghiệp', example: 'Cửa hàng ABC' })

@@ -70,8 +70,11 @@ export class CampaignService {
     })
   }
 
-  async findOne(id: string) {
-    const campaign = await this.campaignRepository.findByIdWithProducts(id)
+  async findOne(id: string, userId?: string) {
+    const campaign = await this.campaignRepository.findByIdWithProducts(
+      id,
+      userId
+    )
     if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
     return campaign
   }
@@ -199,6 +202,27 @@ export class CampaignService {
 
     await this.campaignRepository.upsertPreRegistration(userId, campaignId)
     return { registered: true }
+  }
+
+  async cancelPreRegister(userId: string, campaignId: string) {
+    const campaign = await this.campaignRepository.findById(campaignId)
+    if (
+      !campaign ||
+      (campaign.status !== CampaignStatus.APPROVED &&
+        campaign.status !== CampaignStatus.SCHEDULED)
+    )
+      throw new BadRequestException('Chiến dịch không hợp lệ để huỷ đăng ký')
+
+    const deleted = await this.campaignRepository.deletePreRegistration(
+      userId,
+      campaignId
+    )
+    if (!deleted)
+      throw new BadRequestException(
+        'Bạn chưa đăng ký nhắc nhở cho chiến dịch này'
+      )
+
+    return { registered: false }
   }
 
   async getReport(userId: string, campaignId: string) {

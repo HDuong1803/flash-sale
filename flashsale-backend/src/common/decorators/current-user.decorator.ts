@@ -40,6 +40,13 @@ export const CurrentUser = createParamDecorator(
   }
 )
 
+export const OptionalCurrentUser = createParamDecorator(
+  (data, context: ExecutionContext) => {
+    const request = context.switchToHttp().getRequest()
+    return (request?.user as IUserFromRequest) ?? null
+  }
+)
+
 export const HttpUser = createParamDecorator(
   (data, context: ExecutionContext) => {
     const req = context.switchToHttp().getRequest()

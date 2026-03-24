@@ -4,15 +4,20 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { PaymentMethod } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { CheckoutRepository } from '../repositories/checkout.repository'
 import { CheckoutDto } from '../dto/checkout.dto'
+import { SepayService } from '@modules/payment/services/sepay.service'
 
 @Injectable()
 export class CheckoutService {
   constructor(
     private readonly checkoutRepository: CheckoutRepository,
-    private readonly redis: RedisService
+    private readonly redis: RedisService,
+    private readonly sepayService: SepayService,
+    private readonly configService: ConfigService
   ) {}
 
   async initiate(userId: string, dto: CheckoutDto) {
@@ -37,7 +42,11 @@ export class CheckoutService {
       await this.checkoutRepository.findPaymentByIdempotencyKey(idempotencyKey)
     if (existingPayment) {
       return {
-        paymentUrl: this.buildPaymentUrl(existingPayment.id, dto.paymentMethod),
+        paymentUrl: await this.buildPaymentUrl(
+          existingPayment.id,
+          dto.paymentMethod,
+          Number(existingPayment.amount)
+        ),
         paymentId: existingPayment.id
       }
     }
@@ -58,17 +67,39 @@ export class CheckoutService {
         paymentId: payment.id
       }),
       'EX',
-      1200 // 20 min TTL (longer than reservation TTL)
+      this.configService.get<number>('timeouts.CHECKOUT_ADDRESS_TTL_SECONDS', 1200)
     )
 
     return {
-      paymentUrl: this.buildPaymentUrl(payment.id, dto.paymentMethod),
+      paymentUrl: await this.buildPaymentUrl(
+        payment.id,
+        dto.paymentMethod,
+        amount
+      ),
       paymentId: payment.id
     }
   }
 
-  private buildPaymentUrl(paymentId: string, method: string): string {
-    const returnUrl = `${process.env.FRONTEND_URL}/payment/return`
+  private async buildPaymentUrl(
+    paymentId: string,
+    method: string,
+    amount: number
+  ): Promise<string> {
+    const frontendUrl = this.configService.get<string>('frontend.FRONTEND_URL', '')
+    const returnUrl = `${frontendUrl}/payment/return`
+    const cancelUrl = `${frontendUrl}/payment/cancel`
+
+    if (method === PaymentMethod.SEPAY) {
+      const result = await this.sepayService.createPaymentLink({
+        paymentId,
+        amount,
+        description: `FlashSale ${paymentId}`,
+        returnUrl,
+        cancelUrl
+      })
+      return result.paymentUrl
+    }
+
     return `${returnUrl}?paymentId=${paymentId}&method=${method}`
   }
 }

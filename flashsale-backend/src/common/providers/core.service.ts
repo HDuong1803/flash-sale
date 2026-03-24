@@ -1,9 +1,17 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 
 @Injectable()
 export class CoreService {
   private logger = new Logger(CoreService.name)
-  constructor() {}
+  private readonly ipfsGateway: string
+
+  constructor(private readonly configService: ConfigService) {
+    this.ipfsGateway = this.configService.get<string>(
+      'ipfs.IPFS_WEB_GATEWAY',
+      'https://cloudflare-ipfs.com/ipfs/'
+    )
+  }
 
   delay = (ms: number): Promise<any> =>
     new Promise(resolve => setTimeout(resolve, ms))
@@ -44,19 +52,16 @@ export class CoreService {
   }
 
   processIPFSURL = (image: string): string => {
-    let prefix
-    if (!process.env.IPFS_WEB_GATEWAY) {
-      prefix = 'https://cloudflare-ipfs.com/ipfs/'
+    const fallback = 'https://cloudflare-ipfs.com/ipfs/'
+    let prefix: string
+    const prefixes = this.ipfsGateway.split(',').filter(Boolean)
+    if (!prefixes.length) {
+      prefix = fallback
     } else {
-      const prefixes = process.env.IPFS_WEB_GATEWAY.split(',')
-      if (!prefixes.length) {
-        prefix = 'https://cloudflare-ipfs.com/ipfs/'
-      } else {
-        // we pick prefix randomly to avoid dependency on just one gateway
-        prefix = prefixes[Math.floor(Math.random() * prefixes.length)]
-        if (!prefix.startsWith('https://')) {
-          prefix = 'https://cloudflare-ipfs.com/ipfs/'
-        }
+      // we pick prefix randomly to avoid dependency on just one gateway
+      prefix = prefixes[Math.floor(Math.random() * prefixes.length)]
+      if (!prefix.startsWith('https://')) {
+        prefix = fallback
       }
     }
 

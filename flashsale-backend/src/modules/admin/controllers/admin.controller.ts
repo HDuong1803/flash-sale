@@ -20,7 +20,12 @@ import {
   ApiResponse,
   ApiTags
 } from '@nestjs/swagger'
-import { KycStatus, OrderStatus, PaymentStatus, ProductStatus } from '@prisma/client'
+import {
+  KycStatus,
+  OrderStatus,
+  PaymentStatus,
+  ProductStatus
+} from '@prisma/client'
 import { ResponseInterceptor } from '@common/interceptors'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { AdminGuard } from '@common/guards/admin.guard'
@@ -294,7 +299,9 @@ export class AdminController {
   @Get('payments')
   @HttpCode(HttpStatus.OK)
   async getAdminPayments(@Query('status') status?: string): Promise<unknown[]> {
-    return this.adminService.getAdminPayments(status as PaymentStatus | undefined)
+    return this.adminService.getAdminPayments(
+      status as PaymentStatus | undefined
+    )
   }
 
   // ─── Products (admin) ────────────────────────────────────────────────
@@ -304,13 +311,18 @@ export class AdminController {
   @Get('products')
   @HttpCode(HttpStatus.OK)
   async getAdminProducts(@Query('status') status?: string): Promise<unknown[]> {
-    return this.adminService.getAdminProducts(status as ProductStatus | undefined)
+    return this.adminService.getAdminProducts(
+      status as ProductStatus | undefined
+    )
   }
 
   // ─── Customer Profiles (admin) ───────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách hồ sơ customer (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách customer profiles' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách customer profiles'
+  })
   @Get('customer-profiles')
   @HttpCode(HttpStatus.OK)
   async getCustomerProfiles(): Promise<unknown[]> {
@@ -320,17 +332,25 @@ export class AdminController {
   // ─── Merchant Profiles (admin) ───────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách hồ sơ merchant đầy đủ (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách merchant profiles' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách merchant profiles'
+  })
   @Get('merchant-profiles')
   @HttpCode(HttpStatus.OK)
-  async getMerchantProfiles(@Query('status') status?: string): Promise<unknown[]> {
+  async getMerchantProfiles(
+    @Query('status') status?: string
+  ): Promise<unknown[]> {
     return this.adminService.getMerchants(status as KycStatus | undefined)
   }
 
   // ─── Notifications (admin) ───────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách thông báo (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách notifications' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách notifications'
+  })
   @Get('notifications')
   @HttpCode(HttpStatus.OK)
   async getAdminNotifications(): Promise<unknown[]> {

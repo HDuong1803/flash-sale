@@ -61,6 +61,11 @@ export class ReservationService {
         resv.campaignProductId,
         parseInt(resv.quantity)
       )
+      // Restore per-user purchase counter so user can retry
+      await this.redis.decrementPurchaseCount(
+        resv.campaignProductId,
+        resv.customerId
+      )
       await this.redis.deleteReservation(reservationId)
     }
 
