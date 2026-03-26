@@ -24,7 +24,11 @@ import {
   LoginDto,
   GoogleAuthDto,
   RefreshDto,
-  AuthResponseDto
+  AuthResponseDto,
+  VerifyOtpDto,
+  ResendOtpDto,
+  ForgotPasswordDto,
+  ResetPasswordDto
 } from '../dto'
 import { AuthUserDto } from '../dto/auth-response.dto'
 import { Public } from '@common/decorators/public.decorator'
@@ -44,8 +48,13 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService
   ) {
-    this.accessTokenTtl = this.configService.get<number>('secrets.JWT_EXPIRE_TIME', 900) * 1000
-    this.refreshTokenTtl = this.configService.get<number>('secrets.JWT_EXPIRE_REFRESH_TIME', 604800) * 1000
+    this.accessTokenTtl =
+      this.configService.get<number>('secrets.JWT_EXPIRE_TIME', 900) * 1000
+    this.refreshTokenTtl =
+      this.configService.get<number>(
+        'secrets.JWT_EXPIRE_REFRESH_TIME',
+        604800
+      ) * 1000
     this.isProd = this.configService.get<boolean>('application.isProd', false)
   }
 
@@ -66,7 +75,11 @@ export class AuthController {
     refreshToken: string,
     role: string
   ): void {
-    const base = { httpOnly: true, sameSite: 'lax' as const, secure: this.isProd }
+    const base = {
+      httpOnly: true,
+      sameSite: 'lax' as const,
+      secure: this.isProd
+    }
 
     res.cookie('access_token', accessToken, {
       ...base,
@@ -98,27 +111,21 @@ export class AuthController {
 
   @Post('register')
   @Public()
-  @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Đăng ký tài khoản — gửi OTP xác minh email' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({
-    status: HttpStatus.CREATED,
-    description: 'Đăng ký thành công — tokens delivered via HttpOnly cookies',
-    type: AuthResponseDto
+    status: HttpStatus.ACCEPTED,
+    description: 'OTP đã được gửi đến email — chờ xác minh'
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
     description: 'Email đã được sử dụng'
   })
   async register(
-    @Body() dto: RegisterDto,
-    @Res({ passthrough: true }) res: Response
-  ): Promise<{ user: AuthUserDto }> {
-    const { user, accessToken, refreshToken } = await this.authService.register(
-      dto
-    )
-    this.setAuthCookies(res, accessToken, refreshToken, user.role)
-    return { user }
+    @Body() dto: RegisterDto
+  ): Promise<{ status: string; email: string }> {
+    return this.authService.register(dto)
   }
 
   @Post('login')
@@ -134,6 +141,10 @@ export class AuthController {
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
     description: 'Email hoặc mật khẩu không đúng'
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Email chưa được xác minh — OTP đã được gửi'
   })
   async login(
     @Body() dto: LoginDto,
@@ -205,6 +216,86 @@ export class AuthController {
       maxAge: this.accessTokenTtl,
       path: '/'
     })
+  }
+
+  @Post('verify-otp')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Xác minh OTP đăng ký tài khoản' })
+  @ApiBody({ type: VerifyOtpDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Xác minh thành công — tokens set qua cookie',
+    type: AuthResponseDto
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'OTP không đúng hoặc đã hết hạn'
+  })
+  async verifyOtp(
+    @Body() dto: VerifyOtpDto,
+    @Res({ passthrough: true }) res: Response
+  ): Promise<{ user: AuthUserDto }> {
+    const { user, accessToken, refreshToken } =
+      await this.authService.verifyOtp(dto)
+    this.setAuthCookies(res, accessToken, refreshToken, user.role)
+    return { user }
+  }
+
+  @Post('resend-otp')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Gửi lại mã OTP xác minh email' })
+  @ApiBody({ type: ResendOtpDto })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Đã gửi OTP mới' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Đang trong thời gian chờ hoặc email không tồn tại'
+  })
+  async resendOtp(
+    @Body() dto: ResendOtpDto
+  ): Promise<{ cooldownSeconds: number }> {
+    return this.authService.resendOtp(dto)
+  }
+
+  @Post('forgot-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Gửi OTP đặt lại mật khẩu qua email' })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Đã gửi OTP (nếu email tồn tại)'
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Đang trong thời gian chờ hoặc đã vượt giới hạn'
+  })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto
+  ): Promise<{ cooldownSeconds: number }> {
+    return this.authService.forgotPassword(dto)
+  }
+
+  @Post('reset-password')
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Đặt lại mật khẩu bằng OTP' })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Đặt lại mật khẩu thành công'
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'OTP không đúng hoặc đã hết hạn'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Tài khoản không tồn tại'
+  })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    await this.authService.resetPassword(dto)
   }
 
   @Post('logout')

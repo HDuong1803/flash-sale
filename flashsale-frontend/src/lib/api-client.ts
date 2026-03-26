@@ -62,6 +62,7 @@ type BackendSuccess<T = unknown> = {
 }
 type BackendError = {
   success: false
+  code?: string
   message: string
   data: null
   timestamp: string
@@ -160,7 +161,11 @@ apiClient.interceptors.response.use(
 
     // All other errors — read the flat message field from the error shape
     const message = error.response?.data?.message ?? 'Có lỗi xảy ra'
-    throw new ApiError(status, statusToCode(status), message)
+    const backendCode =
+      error.response?.data?.code ??
+      (error.response?.data as unknown as { error?: { code?: string } })?.error
+        ?.code
+    throw new ApiError(status, backendCode ?? statusToCode(status), message)
   },
 )
 

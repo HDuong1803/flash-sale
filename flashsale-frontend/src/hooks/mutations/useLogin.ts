@@ -31,10 +31,11 @@ export function useLogin() {
       }
       return user
     } catch (err) {
-      // 401/403 = wrong credentials — handled inline in the form, no toast needed
-      const isCredentialError =
-        err instanceof ApiError &&
-        (err.statusCode === 401 || err.statusCode === 403)
+      if (err instanceof ApiError && err.code === 'EMAIL_NOT_VERIFIED') {
+        throw err  // let caller handle — no toast
+      }
+      // 401 = wrong credentials — handled inline in the form, no toast needed
+      const isCredentialError = err instanceof ApiError && err.statusCode === 401
       if (!isCredentialError) {
         toast.error(err instanceof ApiError ? err.message : 'Đăng nhập thất bại')
       }

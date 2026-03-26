@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common'
 import { OrderWorker } from './order.worker'
 import { ReservationModule } from '@modules/reservation/reservation.module'
+import { NotificationModule } from '@modules/notification/notification.module'
+import { NotificationWorker } from './notification.worker'
+import { EmailWorker } from './email.worker'
 
 @Module({
-  imports: [ReservationModule],
-  providers: [OrderWorker]
+  imports: [ReservationModule, NotificationModule],
+  providers: [OrderWorker, NotificationWorker, EmailWorker]
 })
 export class WorkersModule {}

@@ -70,6 +70,18 @@ export class UserRepository {
     })
   }
 
+  async updatePassword(email: string, passwordHash: string): Promise<SafeUser | null> {
+    try {
+      return await this.prisma.user.update({
+        where: { email },
+        data: { passwordHash, emailVerified: true },
+        select: safeUserSelect
+      })
+    } catch {
+      return null
+    }
+  }
+
   async updateUserFields(
     id: string,
     data: { fullName?: string; avatarId?: string }
@@ -91,5 +103,17 @@ export class UserRepository {
 
   async updateRole(id: string, role: UserRole): Promise<void> {
     await this.prisma.user.update({ where: { id }, data: { role } })
+  }
+
+  async markEmailVerified(email: string): Promise<SafeUser | null> {
+    try {
+      return await this.prisma.user.update({
+        where: { email },
+        data: { emailVerified: true },
+        select: safeUserSelect,
+      })
+    } catch {
+      return null
+    }
   }
 }

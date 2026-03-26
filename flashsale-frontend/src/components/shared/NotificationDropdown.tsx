@@ -14,10 +14,12 @@ interface NotificationDropdownProps {
 }
 
 const typeConfig = {
-  RESERVATION_EXPIRING: { border: 'border-l-orange-500', icon: Clock, iconColor: 'text-orange-400' },
-  ORDER_CONFIRMED:       { border: 'border-l-emerald-500', icon: CheckCircle, iconColor: 'text-emerald-400' },
-  PAYMENT_FAILED:        { border: 'border-l-red-500', icon: XCircle, iconColor: 'text-red-400' },
-  CAMPAIGN_STARTING:     { border: 'border-l-blue-500', icon: Bell, iconColor: 'text-blue-400' },
+  RESERVATION_EXPIRING:           { border: 'border-l-orange-500', icon: Clock, iconColor: 'text-orange-400' },
+  ORDER_CONFIRMED:                { border: 'border-l-emerald-500', icon: CheckCircle, iconColor: 'text-emerald-400' },
+  PAYMENT_FAILED:                 { border: 'border-l-red-500', icon: XCircle, iconColor: 'text-red-400' },
+  CAMPAIGN_STARTING:              { border: 'border-l-blue-500', icon: Bell, iconColor: 'text-blue-400' },
+  CAMPAIGN_RESCHEDULED:           { border: 'border-l-yellow-500', icon: Clock, iconColor: 'text-yellow-400' },
+  RESCHEDULE_CONFIRMATION_NEEDED: { border: 'border-l-violet-500', icon: Bell, iconColor: 'text-violet-400' },
 }
 
 export function NotificationDropdown({ notifications, onMarkRead, onMarkAllRead }: NotificationDropdownProps) {

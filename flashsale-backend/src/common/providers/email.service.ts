@@ -5,6 +5,87 @@ import * as path from 'path'
 import { ConfigService } from './config.service'
 import { ResendEmailProvider } from './resend-email.provider'
 import { EmailTemplate } from '../interfaces/email.interface'
+import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
+import {
+  FAILED_QUEUE_NAMES,
+  QUEUE_NAMES
+} from '@infrastructure/rabbitmq/rabbitmq.constants'
+
+type EmailJobType =
+  | 'VERIFY_OTP'
+  | 'RESET_PASSWORD_OTP'
+  | 'MERCHANT_APPLICATION_ADMIN'
+  | 'CAMPAIGN_SUBSCRIPTION'
+  | 'ORDER_CONFIRMED'
+  | 'ORDER_CANCELLED'
+  | 'CAMPAIGN_RESCHEDULE_REQUEST'
+  | 'CAMPAIGN_TIME_CHANGED'
+
+export type EmailJobPayload =
+  | {
+      type: 'VERIFY_OTP'
+      to: string
+      name: string
+      otp: string
+      expiresInMinutes: number
+    }
+  | {
+      type: 'RESET_PASSWORD_OTP'
+      to: string
+      name: string
+      otp: string
+      expiresInMinutes: number
+    }
+  | {
+      type: 'MERCHANT_APPLICATION_ADMIN'
+      adminEmail: string
+      merchantName: string
+      applicantEmail: string
+    }
+  | {
+      type: 'CAMPAIGN_SUBSCRIPTION'
+      to: string
+      name: string
+      campaignName: string
+      campaignStartTime: string
+    }
+  | {
+      type: 'ORDER_CONFIRMED'
+      to: string
+      name: string
+      orderId: string
+      productName: string
+      productImage?: string
+      quantity: number
+      unitPrice: number
+      totalPrice: number
+      campaignName: string
+    }
+  | {
+      type: 'ORDER_CANCELLED'
+      to: string
+      name: string
+      orderId: string
+      productName: string
+      reason?: string
+    }
+  | {
+      type: 'CAMPAIGN_RESCHEDULE_REQUEST'
+      to: string
+      merchantName: string
+      campaignName: string
+      newStartTime: string
+      expiresAt: string
+      dashboardUrl: string
+    }
+  | {
+      type: 'CAMPAIGN_TIME_CHANGED'
+      to: string
+      name: string
+      campaignName: string
+      oldStartTime: string
+      newStartTime: string
+    }
 
 @Injectable()
 export class EmailService {
@@ -28,7 +109,8 @@ export class EmailService {
 
   constructor(
     private readonly resendProvider: ResendEmailProvider,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly rabbitmq: RabbitMQService
   ) {
     // Dev:  __dirname = src/common/providers  → ../../utils/templates = src/utils/templates
     // Prod: __dirname = dist/src/common/providers → ../../utils/templates = dist/src/utils/templates
@@ -73,8 +155,108 @@ export class EmailService {
     }
   }
 
+  async processEmailJob(job: EmailJobPayload): Promise<void> {
+    switch (job.type) {
+      case 'VERIFY_OTP':
+        await this.deliverVerifyOtp(
+          job.to,
+          job.name,
+          job.otp,
+          job.expiresInMinutes
+        )
+        return
+      case 'RESET_PASSWORD_OTP':
+        await this.deliverResetPasswordOtp(
+          job.to,
+          job.name,
+          job.otp,
+          job.expiresInMinutes
+        )
+        return
+      case 'MERCHANT_APPLICATION_ADMIN':
+        await this.deliverMerchantApplicationNotification(
+          job.adminEmail,
+          job.merchantName,
+          job.applicantEmail
+        )
+        return
+      case 'CAMPAIGN_SUBSCRIPTION':
+        await this.deliverCampaignSubscriptionConfirmed(
+          job.to,
+          job.name,
+          job.campaignName,
+          job.campaignStartTime
+        )
+        return
+      case 'ORDER_CONFIRMED':
+        await this.deliverOrderConfirmed(job)
+        return
+      case 'ORDER_CANCELLED':
+        await this.deliverOrderCancelled(job)
+        return
+      case 'CAMPAIGN_RESCHEDULE_REQUEST':
+        await this.deliverCampaignRescheduleRequest(job)
+        return
+      case 'CAMPAIGN_TIME_CHANGED':
+        await this.deliverCampaignTimeChanged(job)
+        return
+      default:
+        throw new Error(
+          `Unsupported email job type: ${String(
+            (job as { type?: string }).type
+          )}`
+        )
+    }
+  }
+
+  async startEmailConsumer(): Promise<void> {
+    await this.rabbitmq.consume(
+      QUEUE_NAMES.EMAIL,
+      msg => this.processEmailMessage(msg.content.toString()),
+      {
+        prefetch: 5,
+        maxRetries: 5,
+        retryDelayMs: 2_000,
+        failedQueue: FAILED_QUEUE_NAMES.EMAILS
+      }
+    )
+  }
+
+  private async enqueueEmailJob(
+    type: EmailJobType,
+    payload: Omit<EmailJobPayload, 'type'>
+  ): Promise<void> {
+    const published = await this.rabbitmq.publish(QUEUE_NAMES.EMAIL, {
+      type,
+      ...payload
+    })
+
+    if (!published) {
+      this.logger.error(`Cannot enqueue email job type=${type}`)
+    }
+  }
+
+  private async processEmailMessage(raw: string): Promise<void> {
+    const job = JSON.parse(raw) as EmailJobPayload
+    await this.processEmailJob(job)
+  }
+
   /** OTP xác minh tài khoản khi đăng ký */
   async sendVerifyOtp(
+    to: string,
+    name: string,
+    otp: string,
+    expiresInMinutes = 10
+  ): Promise<void> {
+    await this.enqueueEmailJob('VERIFY_OTP', {
+      to,
+      name,
+      otp,
+      expiresInMinutes
+    })
+  }
+
+  private async deliverVerifyOtp(
     to: string,
     name: string,
     otp: string,
@@ -94,6 +276,20 @@ export class EmailService {
     otp: string,
     expiresInMinutes = 10
   ): Promise<void> {
+    await this.enqueueEmailJob('RESET_PASSWORD_OTP', {
+      to,
+      name,
+      otp,
+      expiresInMinutes
+    })
+  }
+
+  private async deliverResetPasswordOtp(
+    to: string,
+    name: string,
+    otp: string,
+    expiresInMinutes = 10
+  ): Promise<void> {
     await this.send(to, EmailTemplate.RESET_PASSWORD_OTP, {
       name,
       otp,
@@ -103,6 +299,18 @@ export class EmailService {
 
   /** Thông báo cho admin khi có đơn đăng ký merchant mới */
   async sendMerchantApplicationNotification(
+    adminEmail: string,
+    merchantName: string,
+    applicantEmail: string
+  ): Promise<void> {
+    await this.enqueueEmailJob('MERCHANT_APPLICATION_ADMIN', {
+      adminEmail,
+      merchantName,
+      applicantEmail
+    })
+  }
+
+  private async deliverMerchantApplicationNotification(
     adminEmail: string,
     merchantName: string,
     applicantEmail: string
@@ -122,6 +330,20 @@ export class EmailService {
     campaignName: string,
     campaignStartTime: string
   ): Promise<void> {
+    await this.enqueueEmailJob('CAMPAIGN_SUBSCRIPTION', {
+      name,
+      to,
+      campaignName,
+      campaignStartTime
+    })
+  }
+
+  private async deliverCampaignSubscriptionConfirmed(
+    to: string,
+    name: string,
+    campaignName: string,
+    campaignStartTime: string
+  ): Promise<void> {
     await this.send(to, EmailTemplate.CAMPAIGN_SUBSCRIPTION, {
       name,
       campaignName,
@@ -131,6 +353,20 @@ export class EmailService {
 
   /** Thông báo đặt hàng thành công */
   async sendOrderConfirmed(params: {
+    to: string
+    name: string
+    orderId: string
+    productName: string
+    productImage?: string
+    quantity: number
+    unitPrice: number
+    totalPrice: number
+    campaignName: string
+  }): Promise<void> {
+    await this.enqueueEmailJob('ORDER_CONFIRMED', params)
+  }
+
+  private async deliverOrderConfirmed(params: {
     to: string
     name: string
     orderId: string
@@ -163,6 +399,16 @@ export class EmailService {
     productName: string
     reason?: string
   }): Promise<void> {
+    await this.enqueueEmailJob('ORDER_CANCELLED', params)
+  }
+
+  private async deliverOrderCancelled(params: {
+    to: string
+    name: string
+    orderId: string
+    productName: string
+    reason?: string
+  }): Promise<void> {
     const frontendUrl = this.configService.get('frontend.FRONTEND_URL')
     await this.send(params.to, EmailTemplate.ORDER_CANCELLED, {
       name: params.name,
@@ -182,6 +428,17 @@ export class EmailService {
     expiresAt: string
     dashboardUrl: string
   }): Promise<void> {
+    await this.enqueueEmailJob('CAMPAIGN_RESCHEDULE_REQUEST', params)
+  }
+
+  private async deliverCampaignRescheduleRequest(params: {
+    to: string
+    merchantName: string
+    campaignName: string
+    newStartTime: string
+    expiresAt: string
+    dashboardUrl: string
+  }): Promise<void> {
     await this.send(params.to, EmailTemplate.CAMPAIGN_RESCHEDULE_REQUEST, {
       merchantName: params.merchantName,
       campaignName: params.campaignName,
@@ -193,6 +450,16 @@ export class EmailService {
 
   /** Gửi email cho subscribers khi thời gian bắt đầu campaign thay đổi */
   async sendCampaignTimeChanged(params: {
+    to: string
+    name: string
+    campaignName: string
+    oldStartTime: string
+    newStartTime: string
+  }): Promise<void> {
+    await this.enqueueEmailJob('CAMPAIGN_TIME_CHANGED', params)
+  }
+
+  private async deliverCampaignTimeChanged(params: {
     to: string
     name: string
     campaignName: string

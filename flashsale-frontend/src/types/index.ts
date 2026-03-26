@@ -21,6 +21,13 @@ export type NotificationType =
   | 'ORDER_CONFIRMED'
   | 'PAYMENT_FAILED'
   | 'CAMPAIGN_STARTING'
+  | 'CAMPAIGN_RESCHEDULED'
+  | 'RESCHEDULE_CONFIRMATION_NEEDED'
+
+export interface OtpRequiredResponse {
+  status: 'OTP_REQUIRED'
+  email: string
+}
 export type ServiceStatus = 'UP' | 'DOWN'
 
 export type Permission =
@@ -189,7 +196,7 @@ export interface MerchantProfile extends Merchant {
 
 export interface Notification {
   id: string
-  type: NotificationType
+  type: 'RESERVATION_EXPIRING' | 'ORDER_CONFIRMED' | 'PAYMENT_FAILED' | 'CAMPAIGN_STARTING' | 'CAMPAIGN_RESCHEDULED' | 'RESCHEDULE_CONFIRMATION_NEEDED'
   title: string
   message: string
   read: boolean

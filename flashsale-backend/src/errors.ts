@@ -44,6 +44,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR
     let message = 'Internal server error'
+    let code: string | undefined
 
     if (exception instanceof HttpException) {
       status = exception.getStatus()
@@ -56,10 +57,31 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         exceptionResponse !== null
       ) {
         const responseObj = exceptionResponse as Record<string, unknown>
+
+        if (typeof responseObj['code'] === 'string') {
+          code = responseObj['code']
+        }
+
+        if (
+          responseObj['error'] &&
+          typeof responseObj['error'] === 'object' &&
+          typeof (responseObj['error'] as Record<string, unknown>)['code'] ===
+            'string'
+        ) {
+          code = (responseObj['error'] as Record<string, string>)['code']
+        }
+
         if (Array.isArray(responseObj['message'])) {
           message = (responseObj['message'] as string[]).join(', ')
         } else if (typeof responseObj['message'] === 'string') {
           message = responseObj['message']
+        } else if (
+          responseObj['error'] &&
+          typeof responseObj['error'] === 'object' &&
+          typeof (responseObj['error'] as Record<string, unknown>)['message'] ===
+            'string'
+        ) {
+          message = (responseObj['error'] as Record<string, string>)['message']
         } else if (typeof responseObj['error'] === 'string') {
           message = responseObj['error']
         }
@@ -129,6 +151,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     response.status(status).json({
       success: false,
+      code,
       message,
       data: null,
       timestamp: new Date().toISOString(),
