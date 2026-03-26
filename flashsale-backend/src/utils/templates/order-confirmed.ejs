@@ -1,0 +1,135 @@
+<%- include('_header', { title: 'Đặt hàng thành công — Flash Sale', preheader: 'Đơn hàng #' + orderId + ' đã được xác nhận thành công!' }) %>
+
+<!-- Greeting -->
+<p style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">Xin chào, <%= name %>!</p>
+<p style="margin:0 0 24px 0;font-size:15px;color:#6B7280;line-height:1.6;">
+  Đơn hàng của bạn đã được đặt thành công trên <strong style="color:#DC2626;">Flash Sale</strong>. Cảm ơn bạn đã tin tưởng và mua sắm cùng chúng tôi!
+</p>
+
+<!-- Success banner -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;">
+  <tr>
+    <td style="background:linear-gradient(135deg,#059669 0%,#10B981 100%);border-radius:12px;padding:18px 24px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+          <td style="vertical-align:middle;width:48px;">
+            <span style="font-size:28px;">&#10003;</span>
+          </td>
+          <td style="vertical-align:middle;">
+            <p style="margin:0;font-size:16px;font-weight:700;color:#FFFFFF;">Đặt hàng thành công!</p>
+            <p style="margin:4px 0 0 0;font-size:13px;color:#D1FAE5;">Mã đơn hàng: <strong>#<%= orderId %></strong></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Divider -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;">
+  <tr><td style="border-top:1px solid #E5E7EB;"></td></tr>
+</table>
+
+<!-- Product image (if provided) -->
+<% if (productImage) { %>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:20px;">
+  <tr>
+    <td align="center">
+      <img src="<%= productImage %>" alt="<%= productName %>" width="200" style="max-width:200px;height:auto;border-radius:8px;border:1px solid #E5E7EB;display:block;" />
+    </td>
+  </tr>
+</table>
+<% } %>
+
+<!-- Order details table -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+  <tr>
+    <td style="background-color:#F9FAFB;padding:14px 20px;border-bottom:1px solid #E5E7EB;">
+      <p style="margin:0;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:1px;">Chi tiết đơn hàng</p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:0;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <!-- Product name -->
+        <tr>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;width:42%;vertical-align:top;">
+            <p style="margin:0;font-size:13px;color:#6B7280;font-weight:500;">Sản phẩm</p>
+          </td>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:14px;font-weight:600;color:#111827;"><%= productName %></p>
+          </td>
+        </tr>
+        <!-- Campaign -->
+        <tr>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:13px;color:#6B7280;font-weight:500;">Campaign</p>
+          </td>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:14px;color:#111827;"><%= campaignName %></p>
+          </td>
+        </tr>
+        <!-- Quantity -->
+        <tr>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:13px;color:#6B7280;font-weight:500;">Số lượng</p>
+          </td>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:14px;color:#111827;"><%= quantity %></p>
+          </td>
+        </tr>
+        <!-- Unit price -->
+        <tr>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:13px;color:#6B7280;font-weight:500;">Đơn giá</p>
+          </td>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:14px;color:#111827;"><%= formattedUnitPrice %></p>
+          </td>
+        </tr>
+        <!-- Total price -->
+        <tr>
+          <td style="padding:14px 20px;vertical-align:top;background-color:#FEF2F2;">
+            <p style="margin:0;font-size:13px;color:#991B1B;font-weight:700;">Tổng thanh toán</p>
+          </td>
+          <td style="padding:14px 20px;vertical-align:top;background-color:#FEF2F2;">
+            <p style="margin:0;font-size:18px;font-weight:800;color:#DC2626;"><%= formattedTotalPrice %></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- CTA Button -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td align="center" style="border-radius:8px;background-color:#DC2626;">
+            <a href="<%= orderUrl %>" style="display:inline-block;padding:14px 32px;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">Xem chi tiết đơn hàng &#8594;</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Divider -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:24px;">
+  <tr><td style="border-top:1px solid #E5E7EB;"></td></tr>
+</table>
+
+<!-- Note -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr>
+    <td style="background-color:#F9FAFB;border-radius:8px;padding:14px 20px;">
+      <p style="margin:0;font-size:13px;color:#6B7280;line-height:1.6;">
+        Nếu bạn có bất kỳ thắc mắc nào về đơn hàng, hãy liên hệ bộ phận hỗ trợ của chúng tôi. Chúng tôi luôn sẵn sàng giúp đỡ bạn!
+      </p>
+    </td>
+  </tr>
+</table>
+
+<%- include('_footer') %>

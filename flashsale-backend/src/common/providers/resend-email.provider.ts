@@ -1,48 +1,36 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { Resend } from 'resend'
+import { Resend, CreateEmailOptions } from 'resend'
 import { IEmailProvider, SendEmailParams } from '../interfaces/email.interface'
 
-/**
- * Resend email provider implementation
- */
 @Injectable()
 export class ResendEmailProvider implements IEmailProvider {
   private readonly logger = new Logger(ResendEmailProvider.name)
   private readonly client: Resend
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('postmark.RESEND_API_KEY', '')
-
+    const apiKey =
+      this.configService.get<string>('postmark.RESEND_API_KEY') ?? ''
     if (!apiKey) {
-      throw new Error('RESEND_API_KEY is not configured')
+      this.logger.warn(
+        'RESEND_API_KEY không được cấu hình. Sẽ không thể gửi email.'
+      )
     }
-
     this.client = new Resend(apiKey)
   }
 
   async sendEmail(params: SendEmailParams): Promise<void> {
-    try {
-      const emailParams: any = {
-        from: params.from,
-        to: params.to,
-        subject: params.subject,
-        html: params.html
-      }
-
-      if (params.cc) {
-        emailParams.cc = params.cc
-      }
-
-      await this.client.emails.send(emailParams)
-
-      this.logger.log(`Email sent via Resend to ${params.to}`)
-    } catch (error) {
-      this.logger.error(
-        `Failed to send email via Resend: ${error.message}`,
-        error.stack
-      )
-      throw new Error(`Resend send failed: ${error.message}`)
+    const emailParams: CreateEmailOptions = {
+      from: params.from,
+      to: [params.to],
+      subject: params.subject,
+      html: params.html
     }
+    const { error } = await this.client.emails.send(emailParams)
+    if (error) {
+      this.logger.error(`Lỗi khi gửi email đến ${params.to}: ${error.message}`)
+      throw new Error(`Lỗi khi gửi email: ${error.message}`)
+    }
+    this.logger.log(`Email đã gửi đến ${params.to}`)
   }
 }

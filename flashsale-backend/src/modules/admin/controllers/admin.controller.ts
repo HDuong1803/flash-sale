@@ -37,13 +37,16 @@ import {
   AdminStatsResponseDto,
   AdminUserQueryDto,
   DlqJobResponseDto,
+  ForceRescheduleDto,
   OrdersByHourItemDto,
   OrdersByTimeQueryDto,
   QueueStatsResponseDto,
   RejectReasonDto,
+  RescheduleRequestQueryDto,
   RevenueTrendItemDto,
-  SystemHealthResponseDto
+  SystemHealthResponseDto,
 } from '../dto/admin.dto'
+import { CurrentUser } from '@common/decorators/current-user.decorator'
 
 const moduleName = 'admin'
 
@@ -142,6 +145,69 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async rejectCampaign(@Param('id') id: string): Promise<unknown> {
     return this.adminService.rejectCampaign(id)
+  }
+
+  @ApiOperation({ summary: 'Xem danh sách tất cả yêu cầu thay đổi lịch campaign' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách yêu cầu' })
+  @Get('campaigns/reschedule-requests')
+  @HttpCode(HttpStatus.OK)
+  async getRescheduleRequests(
+    @Query() query: RescheduleRequestQueryDto,
+  ): Promise<unknown[]> {
+    return this.adminService.getRescheduleRequests(query)
+  }
+
+  @ApiOperation({ summary: 'Admin tạo yêu cầu force thay đổi lịch bắt đầu campaign' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiBody({ type: ForceRescheduleDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Yêu cầu đã được tạo, chờ merchant xác nhận',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Campaign không ở trạng thái SCHEDULED',
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Chiến dịch không tồn tại' })
+  @Post('campaigns/:id/force-reschedule')
+  @HttpCode(HttpStatus.CREATED)
+  async forceReschedule(
+    @CurrentUser() user: { userId: string },
+    @Param('id') campaignId: string,
+    @Body() dto: ForceRescheduleDto,
+  ): Promise<unknown> {
+    return this.adminService.forceReschedule(user.userId, campaignId, dto)
+  }
+
+  @ApiOperation({ summary: 'Admin duyệt yêu cầu thay đổi lịch từ merchant' })
+  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Đã duyệt, lịch campaign đã được cập nhật',
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Yêu cầu không tồn tại' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Yêu cầu không hợp lệ' })
+  @Patch('campaigns/reschedule-requests/:requestId/approve')
+  @HttpCode(HttpStatus.OK)
+  async approveRescheduleRequest(
+    @CurrentUser() user: { userId: string },
+    @Param('requestId') requestId: string,
+  ): Promise<{ approved: boolean }> {
+    return this.adminService.approveRescheduleRequest(user.userId, requestId)
+  }
+
+  @ApiOperation({ summary: 'Admin từ chối yêu cầu thay đổi lịch từ merchant' })
+  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Đã từ chối yêu cầu' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Yêu cầu không tồn tại' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Yêu cầu không hợp lệ' })
+  @Patch('campaigns/reschedule-requests/:requestId/reject')
+  @HttpCode(HttpStatus.OK)
+  async rejectRescheduleRequest(
+    @CurrentUser() user: { userId: string },
+    @Param('requestId') requestId: string,
+  ): Promise<{ rejected: boolean }> {
+    return this.adminService.rejectRescheduleRequest(user.userId, requestId)
   }
 
   // ─── Users ──────────────────────────────────────────────────────────

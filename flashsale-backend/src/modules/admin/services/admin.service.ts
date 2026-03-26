@@ -1,23 +1,37 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
 import {
   CampaignStatus,
   KycStatus,
+  NotificationType,
   OrderStatus,
   PaymentStatus,
   ProductStatus,
+  RescheduleRequestStatus,
+  RescheduleRequestType,
   UserRole,
-  UserStatus
+  UserStatus,
 } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
+import { CampaignRepository } from '@modules/campaign/repositories/campaign.repository'
+import { RescheduleRequestRepository } from '@modules/campaign/repositories/reschedule-request.repository'
+import { NotificationService } from '@modules/notification/services/notification.service'
+import { EmailService } from '@common/providers/email.service'
 import { AdminRepository } from '../repositories/admin.repository'
+import { ForceRescheduleDto, RescheduleRequestQueryDto } from '../dto/admin.dto'
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name)
+
   constructor(
     private readonly adminRepository: AdminRepository,
     private readonly redis: RedisService,
-    private readonly rabbitmq: RabbitMQService
+    private readonly rabbitmq: RabbitMQService,
+    private readonly campaignRepository: CampaignRepository,
+    private readonly rescheduleRequestRepository: RescheduleRequestRepository,
+    private readonly notificationService: NotificationService,
+    private readonly emailService: EmailService,
   ) {}
 
   // ─── Merchants ──────────────────────────────────────────────────────
@@ -227,5 +241,176 @@ export class AdminService {
 
   async getOutboxEvents() {
     return this.adminRepository.findOutboxEvents()
+  }
+
+  // ─── Campaign Reschedule ─────────────────────────────────────────────────────
+
+  /** Admin tạo yêu cầu force thay đổi lịch — merchant phải xác nhận */
+  async forceReschedule(
+    adminUserId: string,
+    campaignId: string,
+    dto: ForceRescheduleDto,
+  ): Promise<unknown> {
+    const campaign = await this.campaignRepository.findById(campaignId)
+    if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
+    if (campaign.status !== CampaignStatus.SCHEDULED)
+      throw new BadRequestException(
+        'Chỉ có thể force reschedule chiến dịch ở trạng thái SCHEDULED',
+      )
+
+    const hasPending = await this.rescheduleRequestRepository.hasPendingRequest(campaignId)
+    if (hasPending)
+      throw new BadRequestException('Chiến dịch đang có yêu cầu thay đổi lịch chờ xử lý')
+
+    const newStartTime = new Date(Date.now() + dto.offsetMinutes * 60_000)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60_000) // 24 giờ
+
+    const request = await this.rescheduleRequestRepository.create({
+      campaignId,
+      requestedBy: adminUserId,
+      requestType: RescheduleRequestType.ADMIN_FORCE,
+      newStartTime,
+      expiresAt,
+      note: dto.note,
+    })
+
+    const details = await this.rescheduleRequestRepository.findByIdWithDetails(request.id)
+    if (!details) return request
+
+    const { merchant } = details.campaign
+    const formattedNewStart = this.formatDateTime(newStartTime)
+    const formattedExpiry = this.formatDateTime(expiresAt)
+    const frontendUrl = process.env.FRONTEND_URL ?? ''
+
+    try {
+      await this.notificationService.createNotification(merchant.userId, {
+        type: NotificationType.RESCHEDULE_CONFIRMATION_NEEDED,
+        title: 'Yêu cầu thay đổi lịch bắt đầu campaign',
+        message: `Admin đã yêu cầu thay đổi lịch bắt đầu campaign "${details.campaign.name}". Vui lòng xác nhận hoặc từ chối.`,
+      })
+    } catch (err: unknown) {
+      this.logger.error(
+        `Không thể tạo notification cho merchant ${merchant.userId}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    try {
+      await this.emailService.sendCampaignRescheduleRequest({
+        to: merchant.user.email,
+        merchantName: merchant.user.fullName,
+        campaignName: details.campaign.name,
+        newStartTime: formattedNewStart,
+        expiresAt: formattedExpiry,
+        dashboardUrl: `${frontendUrl}/merchant/reschedule-requests`,
+      })
+    } catch (err: unknown) {
+      this.logger.error(
+        `Không thể gửi email cho merchant ${merchant.user.email}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+    }
+
+    return request
+  }
+
+  /** Admin duyệt yêu cầu thay đổi lịch từ merchant */
+  async approveRescheduleRequest(
+    adminUserId: string,
+    requestId: string,
+  ): Promise<{ approved: boolean }> {
+    const request = await this.rescheduleRequestRepository.findByIdWithDetails(requestId)
+    if (!request) throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
+    if (request.requestType !== RescheduleRequestType.MERCHANT_REQUEST)
+      throw new BadRequestException('Chỉ có thể duyệt yêu cầu từ merchant')
+    if (request.status !== RescheduleRequestStatus.PENDING_ADMIN)
+      throw new BadRequestException('Yêu cầu này không ở trạng thái chờ duyệt')
+    if (new Date() > request.expiresAt)
+      throw new BadRequestException('Yêu cầu đã hết hạn')
+
+    const oldStartTime = request.campaign.startTime
+
+    await this.campaignRepository.update(request.campaignId, {
+      startTime: request.newStartTime,
+    })
+
+    await this.rescheduleRequestRepository.update(requestId, {
+      status: RescheduleRequestStatus.APPLIED,
+      resolvedAt: new Date(),
+    })
+
+    const formattedOld = this.formatDateTime(oldStartTime)
+    const formattedNew = this.formatDateTime(request.newStartTime)
+    const subscribers = request.campaign.preRegistrations
+
+    await Promise.allSettled(
+      subscribers.map(async ({ customer }) => {
+        try {
+          await this.notificationService.createNotification(customer.id, {
+            type: NotificationType.CAMPAIGN_RESCHEDULED,
+            title: 'Thời gian bắt đầu campaign đã thay đổi',
+            message: `Campaign "${request.campaign.name}" sẽ bắt đầu lúc ${formattedNew} (thay vì ${formattedOld})`,
+          })
+        } catch (err: unknown) {
+          this.logger.error(
+            `Không thể tạo notification cho user ${customer.id}: ${err instanceof Error ? err.message : String(err)}`,
+          )
+        }
+
+        try {
+          await this.emailService.sendCampaignTimeChanged({
+            to: customer.email,
+            name: customer.fullName,
+            campaignName: request.campaign.name,
+            oldStartTime: formattedOld,
+            newStartTime: formattedNew,
+          })
+        } catch (err: unknown) {
+          this.logger.error(
+            `Không thể gửi email cho ${customer.email}: ${err instanceof Error ? err.message : String(err)}`,
+          )
+        }
+      }),
+    )
+
+    return { approved: true }
+  }
+
+  /** Admin từ chối yêu cầu thay đổi lịch từ merchant */
+  async rejectRescheduleRequest(
+    adminUserId: string,
+    requestId: string,
+  ): Promise<{ rejected: boolean }> {
+    const request = await this.rescheduleRequestRepository.findById(requestId)
+    if (!request) throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
+    if (request.requestType !== RescheduleRequestType.MERCHANT_REQUEST)
+      throw new BadRequestException('Chỉ có thể từ chối yêu cầu từ merchant')
+    if (request.status !== RescheduleRequestStatus.PENDING_ADMIN)
+      throw new BadRequestException('Yêu cầu này không thể từ chối hoặc đã được xử lý')
+
+    await this.rescheduleRequestRepository.update(requestId, {
+      status: RescheduleRequestStatus.REJECTED,
+      resolvedAt: new Date(),
+    })
+
+    return { rejected: true }
+  }
+
+  /** Lấy danh sách tất cả yêu cầu thay đổi lịch */
+  async getRescheduleRequests(query: RescheduleRequestQueryDto): Promise<unknown[]> {
+    return this.rescheduleRequestRepository.findAll({
+      status: query.status as RescheduleRequestStatus | undefined,
+      requestType: query.requestType as RescheduleRequestType | undefined,
+      campaignId: query.campaignId,
+    })
+  }
+
+  private formatDateTime(date: Date): string {
+    return date.toLocaleString('vi-VN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    })
   }
 }

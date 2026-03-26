@@ -14,9 +14,9 @@ import type { UserRole } from '@/types'
 
 const ROLES: { label: string; value: UserRole | '' }[] = [
   { label: 'Tất cả', value: '' },
-  { label: 'Customer', value: 'CUSTOMER' },
-  { label: 'Merchant', value: 'MERCHANT' },
-  { label: 'Admin', value: 'ADMIN' },
+  { label: 'Khách hàng', value: 'CUSTOMER' },
+  { label: 'Người bán', value: 'MERCHANT' },
+  { label: 'Quản trị viên', value: 'ADMIN' },
 ]
 
 const ROLE_COLORS: Record<UserRole, string> = {

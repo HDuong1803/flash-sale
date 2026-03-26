@@ -151,6 +151,53 @@ export class CampaignProductResponseDto {
   @ApiProperty() createdAt: Date
 }
 
+export class RescheduleRequestDto {
+  @ApiProperty({
+    description: 'Số phút từ bây giờ đến khi chiến dịch bắt đầu',
+    example: 30,
+    required: true,
+  })
+  @IsInt()
+  @Min(15)
+  offsetMinutes: number
+
+  @ApiProperty({
+    description: 'Ghi chú thêm về yêu cầu thay đổi',
+    example: 'Cần bắt đầu sớm hơn do lượng người đăng ký cao',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  note?: string
+}
+
+export class RescheduleRequestResponseDto {
+  @ApiProperty({ description: 'ID yêu cầu', example: 'clxxx...' })
+  id: string
+
+  @ApiProperty({ description: 'ID chiến dịch' })
+  campaignId: string
+
+  @ApiProperty({ description: 'Loại yêu cầu', enum: ['ADMIN_FORCE', 'MERCHANT_REQUEST'] })
+  requestType: string
+
+  @ApiProperty({ description: 'Thời gian bắt đầu mới được đề xuất' })
+  newStartTime: Date
+
+  @ApiProperty({ description: 'Trạng thái yêu cầu' })
+  status: string
+
+  @ApiProperty({ description: 'Yêu cầu hết hạn lúc' })
+  expiresAt: Date
+
+  @ApiProperty({ description: 'Ghi chú', required: false })
+  note?: string | null
+
+  @ApiProperty({ description: 'Thời điểm tạo' })
+  createdAt: Date
+}
+
 export class CampaignReportResponseDto {
   @ApiProperty({ example: 45 }) totalOrders: number
   @ApiProperty({ example: 42 }) successOrders: number

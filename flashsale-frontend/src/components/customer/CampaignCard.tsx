@@ -69,7 +69,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
           {isActive && (
             <div className="absolute top-2 left-2 flex items-center gap-1.5 bg-red-500/90 backdrop-blur-sm rounded-full px-2.5 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-white animate-live" />
-              <span className="text-white text-xs font-bold">LIVE</span>
+              <span className="text-white text-xs font-bold">ĐANG DIỄN RA</span>
             </div>
           )}
           {isScheduled && (

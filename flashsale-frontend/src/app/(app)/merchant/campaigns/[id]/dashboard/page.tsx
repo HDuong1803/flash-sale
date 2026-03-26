@@ -56,7 +56,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-white text-xl font-bold">{campaign?.name ?? 'Dashboard Live'}</h1>
             <span className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1 text-red-300 text-xs font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-live" /> LIVE
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-live" /> ĐANG DIỄN RA
             </span>
             <div className={cn('flex items-center gap-1.5 text-xs px-2 py-1 rounded-full', connected ? 'text-emerald-400' : 'text-red-400')}>
               {connected ? <Wifi size={12} /> : <WifiOff size={12} />}

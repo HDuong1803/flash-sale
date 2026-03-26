@@ -88,7 +88,7 @@ export default function MerchantCampaignsPage() {
                     {campaign.status === 'ACTIVE' && (
                       <span className="flex items-center gap-1 text-emerald-400 text-xs">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live" />
-                        LIVE
+                        ĐANG DIỄN RA
                       </span>
                     )}
                   </div>

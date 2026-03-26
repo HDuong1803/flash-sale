@@ -28,13 +28,14 @@ model User {
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamp(6)
 
-  photo            Photo?            @relation("AvatarImage", fields: [avatarId], references: [id])
-  merchantProfile  MerchantProfile?
-  customerProfile  CustomerProfile?
-  preRegistrations PreRegistration[]
-  reservations     Reservation[]
-  orders           Order[]
-  notifications    Notification[]
+  photo              Photo?                      @relation("AvatarImage", fields: [avatarId], references: [id])
+  merchantProfile    MerchantProfile?
+  customerProfile    CustomerProfile?
+  preRegistrations   PreRegistration[]
+  reservations       Reservation[]
+  orders             Order[]
+  notifications      Notification[]
+  rescheduleRequests CampaignRescheduleRequest[] @relation("RescheduleRequests")
 
   @@map("users")
 }
@@ -178,9 +179,10 @@ model Campaign {
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamp(6)
 
-  merchant         MerchantProfile   @relation(fields: [merchantId], references: [id], onDelete: Restrict)
-  campaignProducts CampaignProduct[]
-  preRegistrations PreRegistration[]
+  merchant             MerchantProfile             @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  campaignProducts     CampaignProduct[]
+  preRegistrations     PreRegistration[]
+  rescheduleRequests   CampaignRescheduleRequest[]
 
   @@index([status, startTime])
   @@index([merchantId])
@@ -227,6 +229,27 @@ model PreRegistration {
   @@unique([customerId, campaignId])
   @@index([campaignId])
   @@map("pre_registrations")
+}
+
+model CampaignRescheduleRequest {
+  id           String                  @id @default(cuid()) @map("id") @db.VarChar(36)
+  campaignId   String                  @map("campaign_id") @db.VarChar(36)
+  requestedBy  String                  @map("requested_by") @db.VarChar(36)
+  requestType  RescheduleRequestType   @map("request_type")
+  newStartTime DateTime                @map("new_start_time") @db.Timestamp(6)
+  status       RescheduleRequestStatus @default(PENDING_MERCHANT) @map("status")
+  expiresAt    DateTime                @map("expires_at") @db.Timestamp(6)
+  note         String?                 @db.Text
+  resolvedAt   DateTime?               @map("resolved_at") @db.Timestamp(6)
+  createdAt    DateTime                @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt    DateTime                @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  campaign        Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  requestedByUser User     @relation("RescheduleRequests", fields: [requestedBy], references: [id], onDelete: Restrict)
+
+  @@index([campaignId, status])
+  @@index([requestType, status])
+  @@map("campaign_reschedule_requests")
 }
 
 model Reservation {
@@ -510,4 +533,19 @@ enum NotificationType {
   ORDER_CONFIRMED // Đơn hàng được xác nhận
   PAYMENT_FAILED // Thanh toán thất bại
   CAMPAIGN_STARTING // Flash sale sắp bắt đầu
+  CAMPAIGN_RESCHEDULED // Thời gian bắt đầu chiến dịch đã thay đổi
+  RESCHEDULE_CONFIRMATION_NEEDED // Merchant cần xác nhận yêu cầu thay đổi lịch
+}
+
+enum RescheduleRequestType {
+  ADMIN_FORCE // Admin khởi tạo, merchant phải xác nhận
+  MERCHANT_REQUEST // Merchant khởi tạo, admin phải duyệt
+}
+
+enum RescheduleRequestStatus {
+  PENDING_MERCHANT // Admin force: chờ merchant xác nhận
+  PENDING_ADMIN // Merchant request: chờ admin duyệt
+  APPLIED // Đã áp dụng — startTime campaign đã được cập nhật
+  REJECTED // Bị từ chối
+  EXPIRED // Hết hạn
 }

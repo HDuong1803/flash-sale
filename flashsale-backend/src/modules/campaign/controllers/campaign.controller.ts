@@ -39,7 +39,9 @@ import {
   CampaignReportResponseDto,
   CampaignResponseDto,
   CreateCampaignDto,
-  UpdateCampaignDto
+  RescheduleRequestDto,
+  RescheduleRequestResponseDto,
+  UpdateCampaignDto,
 } from '../dto/campaign.dto'
 
 const moduleName = 'campaigns'
@@ -333,5 +335,87 @@ export class CampaignController {
     @Param('id') id: string
   ): Promise<CampaignReportResponseDto> {
     return this.campaignService.getReport(user.userId, id)
+  }
+
+  // ─── Reschedule ───────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Lấy danh sách yêu cầu thay đổi lịch đang chờ xác nhận' })
+  @ApiResponse({ status: HttpStatus.OK, type: [RescheduleRequestResponseDto] })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Merchant chưa được duyệt' })
+  @ApiBearerAuth('JWT-auth')
+  @Get('reschedule-requests/pending')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('MERCHANT')
+  async getMerchantPendingRescheduleRequests(
+    @CurrentUser() user: { userId: string }
+  ): Promise<RescheduleRequestResponseDto[]> {
+    return this.campaignService.getMerchantPendingRescheduleRequests(user.userId)
+  }
+
+  @ApiOperation({ summary: 'Merchant xác nhận yêu cầu force start từ admin' })
+  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Đã xác nhận, lịch đã được cập nhật',
+    type: RescheduleRequestResponseDto,
+  })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Yêu cầu không tồn tại' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Yêu cầu không hợp lệ' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiBearerAuth('JWT-auth')
+  @Post('reschedule-requests/:requestId/confirm')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('MERCHANT')
+  async confirmAdminReschedule(
+    @CurrentUser() user: { userId: string },
+    @Param('requestId') requestId: string
+  ): Promise<RescheduleRequestResponseDto> {
+    return this.campaignService.confirmAdminReschedule(user.userId, requestId)
+  }
+
+  @ApiOperation({ summary: 'Merchant từ chối yêu cầu force start từ admin' })
+  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Đã từ chối yêu cầu' })
+  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Yêu cầu không tồn tại' })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Yêu cầu không hợp lệ' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiBearerAuth('JWT-auth')
+  @Post('reschedule-requests/:requestId/reject')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('MERCHANT')
+  async rejectAdminReschedule(
+    @CurrentUser() user: { userId: string },
+    @Param('requestId') requestId: string
+  ): Promise<{ rejected: boolean }> {
+    return this.campaignService.rejectAdminReschedule(user.userId, requestId)
+  }
+
+  @ApiOperation({ summary: 'Merchant yêu cầu thay đổi lịch bắt đầu chiến dịch' })
+  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiBody({ type: RescheduleRequestDto })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Đã tạo yêu cầu',
+    type: RescheduleRequestResponseDto,
+  })
+  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiBearerAuth('JWT-auth')
+  @Post(':id/reschedule-request')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('MERCHANT')
+  async createRescheduleRequest(
+    @CurrentUser() user: { userId: string },
+    @Param('id') campaignId: string,
+    @Body() dto: RescheduleRequestDto
+  ): Promise<RescheduleRequestResponseDto> {
+    return this.campaignService.createRescheduleRequest(user.userId, campaignId, dto)
   }
 }

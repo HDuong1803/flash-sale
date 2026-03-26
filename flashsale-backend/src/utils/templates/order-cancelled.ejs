@@ -1,0 +1,119 @@
+<%- include('_header', { title: 'Đơn hàng đã bị hủy — Flash Sale', preheader: 'Đơn hàng #' + orderId + ' của bạn đã bị hủy.' }) %>
+
+<!-- Greeting -->
+<p style="margin:0 0 8px 0;font-size:22px;font-weight:700;color:#111827;line-height:1.3;">Xin chào, <%= name %>!</p>
+<p style="margin:0 0 24px 0;font-size:15px;color:#6B7280;line-height:1.6;">
+  Chúng tôi muốn thông báo rằng đơn hàng của bạn trên <strong style="color:#DC2626;">Flash Sale</strong> đã bị hủy. Chúng tôi rất tiếc về sự bất tiện này.
+</p>
+
+<!-- Cancelled banner -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;">
+  <tr>
+    <td style="background-color:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:18px 24px;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <tr>
+          <td style="vertical-align:middle;width:48px;">
+            <span style="font-size:28px;">&#10060;</span>
+          </td>
+          <td style="vertical-align:middle;">
+            <p style="margin:0;font-size:16px;font-weight:700;color:#991B1B;">Đơn hàng đã bị hủy</p>
+            <p style="margin:4px 0 0 0;font-size:13px;color:#DC2626;">Mã đơn hàng: <strong>#<%= orderId %></strong></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Divider -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;">
+  <tr><td style="border-top:1px solid #E5E7EB;"></td></tr>
+</table>
+
+<!-- Order info card -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">
+  <tr>
+    <td style="background-color:#F9FAFB;padding:14px 20px;border-bottom:1px solid #E5E7EB;">
+      <p style="margin:0;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:1px;">Thông tin đơn hàng</p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:0;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+        <!-- Order ID -->
+        <tr>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;width:42%;vertical-align:top;">
+            <p style="margin:0;font-size:13px;color:#6B7280;font-weight:500;">Mã đơn hàng</p>
+          </td>
+          <td style="padding:14px 20px;border-bottom:1px solid #F3F4F6;vertical-align:top;">
+            <p style="margin:0;font-size:14px;font-weight:700;color:#111827;">#<%= orderId %></p>
+          </td>
+        </tr>
+        <!-- Product name -->
+        <tr>
+          <td style="padding:14px 20px;<% if (reason) { %>border-bottom:1px solid #F3F4F6;<% } %>vertical-align:top;">
+            <p style="margin:0;font-size:13px;color:#6B7280;font-weight:500;">Sản phẩm</p>
+          </td>
+          <td style="padding:14px 20px;<% if (reason) { %>border-bottom:1px solid #F3F4F6;<% } %>vertical-align:top;">
+            <p style="margin:0;font-size:14px;font-weight:600;color:#111827;"><%= productName %></p>
+          </td>
+        </tr>
+        <!-- Reason (if provided) -->
+        <% if (reason) { %>
+        <tr>
+          <td style="padding:14px 20px;vertical-align:top;background-color:#FFF7ED;">
+            <p style="margin:0;font-size:13px;color:#92400E;font-weight:500;">Lý do hủy</p>
+          </td>
+          <td style="padding:14px 20px;vertical-align:top;background-color:#FFF7ED;">
+            <p style="margin:0;font-size:14px;color:#92400E;"><%= reason %></p>
+          </td>
+        </tr>
+        <% } %>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- CTA Button -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:28px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+          <td align="center" style="border-radius:8px;background-color:#DC2626;">
+            <a href="<%= orderUrl %>" style="display:inline-block;padding:14px 32px;color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">Xem chi tiết đơn hàng &#8594;</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<!-- Divider -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:24px;">
+  <tr><td style="border-top:1px solid #E5E7EB;"></td></tr>
+</table>
+
+<!-- Refund note -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:20px;">
+  <tr>
+    <td style="background-color:#EFF6FF;border-radius:8px;padding:16px 20px;border-left:4px solid #3B82F6;">
+      <p style="margin:0;font-size:14px;color:#1E40AF;line-height:1.6;">
+        <strong>&#128176; Hoàn tiền:</strong> Nếu bạn đã thanh toán, khoản hoàn tiền sẽ được xử lý trong vòng 3-7 ngày làm việc tùy theo phương thức thanh toán của bạn.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<!-- Support note -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+  <tr>
+    <td style="background-color:#F9FAFB;border-radius:8px;padding:14px 20px;">
+      <p style="margin:0;font-size:13px;color:#6B7280;line-height:1.6;">
+        Nếu bạn không yêu cầu hủy đơn hàng này hoặc cần hỗ trợ thêm, vui lòng liên hệ bộ phận chăm sóc khách hàng của chúng tôi ngay.
+      </p>
+    </td>
+  </tr>
+</table>
+
+<%- include('_footer') %>
