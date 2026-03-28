@@ -179,7 +179,7 @@ function UserAvatarMenu({ initials, user, onLogout }: UserAvatarMenuProps) {
                 Hồ sơ cá nhân
               </Link>
               <button
-                onClick={() => { setOpen(false); router.push('/profile') }}
+                onClick={() => { setOpen(false); router.push('/settings') }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-white/70 hover:text-white hover:bg-white/8 rounded-xl text-sm transition-all text-left"
               >
                 Cài đặt

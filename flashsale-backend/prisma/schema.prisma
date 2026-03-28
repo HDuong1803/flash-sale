@@ -35,6 +35,7 @@ model User {
   reservations       Reservation[]
   orders             Order[]
   notifications      Notification[]
+  notificationPreference NotificationPreference?
   rescheduleRequests CampaignRescheduleRequest[] @relation("RescheduleRequests")
 
   @@map("users")
@@ -380,6 +381,20 @@ model Notification {
   @@index([userId, read])
   @@index([userId, createdAt(sort: Desc)]) // Feed notification theo thời gian
   @@map("notifications")
+}
+
+model NotificationPreference {
+  id                       String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId                   String   @unique @map("user_id") @db.VarChar(36)
+  notificationsEnabled     Boolean  @default(true) @map("notifications_enabled")
+  campaignReminderEnabled  Boolean  @default(true) @map("campaign_reminder_enabled")
+  orderStatusEnabled       Boolean  @default(true) @map("order_status_enabled")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
 }
 
 model DeadLetterJob {

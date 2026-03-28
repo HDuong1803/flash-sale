@@ -37,10 +37,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const isPreRegistered = preRegisteredOverride !== null
     ? preRegisteredOverride
     : (campaign?.isPreRegistered ?? null)
-  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
-  const isSoldOut = product ? product.remainingQuantity === 0 : false
-  const isActive = campaign?.status === 'ACTIVE'
   const isScheduled = campaign?.status === 'SCHEDULED'
+  const displayRemaining =
+    product && isScheduled && product.remainingQuantity === 0 && product.saleQuantity > 0
+      ? product.saleQuantity
+      : (product?.remainingQuantity ?? 0)
+  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
+  const isSoldOut = campaign?.status === 'ACTIVE' ? (displayRemaining <= 0) : false
+  const isActive = campaign?.status === 'ACTIVE'
 
   const handleBuy = async () => {
     if (!isAuthenticated) { openAuthModal('login'); return }
@@ -171,7 +175,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             {/* Stock */}
             {product && (
               <div className="space-y-1.5">
-                <StockProgressBar remaining={product.remainingQuantity} total={product.saleQuantity} showText size="md" />
+                <StockProgressBar remaining={displayRemaining} total={product.saleQuantity} showText size="md" />
               </div>
             )}
 

@@ -203,6 +203,12 @@ export interface Notification {
   createdAt: string
 }
 
+export interface NotificationPreferences {
+  notificationsEnabled: boolean
+  campaignReminderEnabled: boolean
+  orderStatusEnabled: boolean
+}
+
 export interface DashboardMetrics {
   stockRemaining: number
   stockTotal: number

@@ -35,6 +35,7 @@ export const queryKeys = {
     all: ['notifications'] as const,
     list: () => ['notifications', 'list'] as const,
     unreadCount: () => ['notifications', 'unread-count'] as const,
+    preferences: () => ['notifications', 'preferences'] as const,
   },
   admin: {
     all: ['admin'] as const,

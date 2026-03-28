@@ -17,6 +17,7 @@ const AUTH_ROUTES = [
   '/orders',
   '/purchase',
   '/profile',
+  '/settings',
   '/notifications',
   '/merchant/apply',
 ]

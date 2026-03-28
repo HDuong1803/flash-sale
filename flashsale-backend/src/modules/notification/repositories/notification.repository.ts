@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common'
-import { Notification, NotificationType } from '@prisma/client'
+import {
+  Notification,
+  NotificationPreference,
+  NotificationType
+} from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -45,6 +49,39 @@ export class NotificationRepository {
     await this.prisma.notification.updateMany({
       where: { userId, read: false },
       data: { read: true }
+    })
+  }
+
+  async getOrCreatePreferences(userId: string): Promise<NotificationPreference> {
+    return this.prisma.notificationPreference.upsert({
+      where: { userId },
+      update: {},
+      create: {
+        userId,
+        notificationsEnabled: true,
+        campaignReminderEnabled: true,
+        orderStatusEnabled: true
+      }
+    })
+  }
+
+  async updatePreferences(
+    userId: string,
+    data: {
+      notificationsEnabled?: boolean
+      campaignReminderEnabled?: boolean
+      orderStatusEnabled?: boolean
+    }
+  ): Promise<NotificationPreference> {
+    return this.prisma.notificationPreference.upsert({
+      where: { userId },
+      update: data,
+      create: {
+        userId,
+        notificationsEnabled: data.notificationsEnabled ?? true,
+        campaignReminderEnabled: data.campaignReminderEnabled ?? true,
+        orderStatusEnabled: data.orderStatusEnabled ?? true
+      }
     })
   }
 }

@@ -5,6 +5,8 @@ import { useAuthContext } from '@/contexts/auth-context'
 import { LayoutGrid, ShoppingBag, User, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { GlassCard } from '@/components/shared/GlassCard'
+import { StatusBadge } from '@/components/shared/StatusBadge'
+import { formatCurrency } from '@/lib/utils'
 
 export default function CustomerDashboardPage() {
   const { user } = useAuthContext()
@@ -12,6 +14,9 @@ export default function CustomerDashboardPage() {
 
   const totalOrders = orders?.length ?? 0
   const confirmedOrders = orders?.filter(o => o.status === 'CONFIRMED' || o.status === 'DONE').length ?? 0
+  const pendingOrders = orders?.filter((o) => o.status === 'PENDING' || o.status === 'SHIPPING').length ?? 0
+  const cancelledOrders = orders?.filter((o) => o.status === 'CANCELLED').length ?? 0
+  const totalSpent = orders?.reduce((sum, o) => sum + (o.totalAmount ?? 0), 0) ?? 0
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -21,7 +26,7 @@ export default function CustomerDashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <GlassCard className="p-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center">
@@ -45,7 +50,37 @@ export default function CustomerDashboardPage() {
             </div>
           </div>
         </GlassCard>
+
+        <GlassCard className="p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+              <LayoutGrid size={20} className="text-amber-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-white">{loading ? '...' : pendingOrders}</p>
+              <p className="text-xs text-white/50">Đơn đang xử lý</p>
+            </div>
+          </div>
+        </GlassCard>
+
+        <GlassCard className="p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+              <ShoppingBag size={20} className="text-purple-400" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-white">{loading ? '...' : formatCurrency(totalSpent)}</p>
+              <p className="text-xs text-white/50">Tổng chi tiêu</p>
+            </div>
+          </div>
+        </GlassCard>
       </div>
+
+      {!loading && (
+        <div className="text-xs text-white/45">
+          Đơn đã huỷ: <span className="text-white/70 font-medium">{cancelledOrders}</span>
+        </div>
+      )}
 
       {/* Error state */}
       {error && (
@@ -80,7 +115,7 @@ export default function CustomerDashboardPage() {
                     <p className="text-sm text-white/80 font-medium">#{order.id.slice(-8).toUpperCase()}</p>
                     <p className="text-xs text-white/40">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60">{order.status}</span>
+                  <StatusBadge status={order.status} className="scale-90 origin-right" />
                 </div>
               </Link>
             ))}

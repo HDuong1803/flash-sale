@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { Store, Loader2 } from 'lucide-react'
@@ -8,6 +9,7 @@ import { useUiContext } from '@/contexts/ui-context'
 import { useCountdown } from '@/hooks/useCountdown'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
+import { useCancelPreRegister } from '@/hooks/mutations/useCancelPreRegister'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { formatCurrency, calculateDiscount } from '@/lib/utils'
 import type { Campaign, CampaignProduct } from '@/types'
@@ -23,14 +25,25 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
   const { openAuthModal } = useUiContext()
   const { purchase, loading: buyLoading } = usePurchase()
   const { preRegister, loading: regLoading } = usePreRegister()
+  const { cancelPreRegister, loading: cancelLoading } = useCancelPreRegister()
+  const [preRegisteredOverride, setPreRegisteredOverride] = useState<boolean | null>(null)
+  const [preRegisterHovered, setPreRegisterHovered] = useState(false)
 
   // Use first product for display
   const product = campaign.campaignProducts?.[0] as CampaignProduct | undefined
-  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
-  const isSoldOut = product ? product.remainingQuantity === 0 : true
-  const isActive = campaign.status === 'ACTIVE'
   const isScheduled = campaign.status === 'SCHEDULED'
+  const displayRemaining =
+    product && isScheduled && product.remainingQuantity === 0 && product.saleQuantity > 0
+      ? product.saleQuantity
+      : (product?.remainingQuantity ?? 0)
+  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
+  const isSoldOut = campaign.status === 'ACTIVE' ? (displayRemaining <= 0) : false
+  const isActive = campaign.status === 'ACTIVE'
   const isEnded = campaign.status === 'ENDED'
+  const isPreRegistered =
+    preRegisteredOverride !== null
+      ? preRegisteredOverride
+      : (campaign.isPreRegistered ?? false)
 
   const handleBuy = async () => {
     if (!isAuthenticated) { openAuthModal('login'); return }
@@ -43,7 +56,18 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
 
   const handlePreRegister = async () => {
     if (!isAuthenticated) { openAuthModal('login'); return }
-    try { await preRegister(campaign.id) } catch { /* toast shown */ }
+    try {
+      await preRegister(campaign.id)
+      setPreRegisteredOverride(true)
+    } catch { /* toast shown */ }
+  }
+
+  const handleCancelPreRegister = async () => {
+    if (!isAuthenticated) { openAuthModal('login'); return }
+    try {
+      await cancelPreRegister(campaign.id)
+      setPreRegisteredOverride(false)
+    } catch { /* toast shown */ }
   }
 
   return (
@@ -107,8 +131,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                 <span className="text-white/40 text-xs line-through">{formatCurrency(product.product?.originalPrice ?? 0)}</span>
                 <span className="text-indigo-300 text-xl font-bold">{formatCurrency(product.salePrice)}</span>
               </div>
-              <StockProgressBar remaining={product.remainingQuantity} total={product.saleQuantity} size="sm" />
-              <p className="text-white/40 text-xs">{product.remainingQuantity} còn lại</p>
+              <StockProgressBar remaining={displayRemaining} total={product.saleQuantity} size="sm" />
+              <p className="text-white/40 text-xs">{displayRemaining} còn lại</p>
             </>
           )}
 
@@ -139,11 +163,27 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             )}
             {isScheduled && (
               <button
-                onClick={handlePreRegister}
-                disabled={regLoading}
-                className="btn-glass w-full text-sm py-2 disabled:opacity-50"
+                onClick={isPreRegistered ? handleCancelPreRegister : handlePreRegister}
+                onMouseEnter={() => setPreRegisterHovered(true)}
+                onMouseLeave={() => setPreRegisterHovered(false)}
+                onBlur={() => setPreRegisterHovered(false)}
+                disabled={regLoading || cancelLoading}
+                className={[
+                  'w-full text-sm py-2 rounded-xl border transition-colors disabled:opacity-50',
+                  isPreRegistered
+                    ? (preRegisterHovered
+                        ? 'bg-red-500/10 text-red-300 border-red-400/60 hover:bg-red-500/20'
+                        : 'bg-indigo-500/10 text-indigo-200 border-indigo-400/50 hover:bg-indigo-500/20')
+                    : 'btn-glass',
+                ].join(' ')}
               >
-                {regLoading ? 'Đang đăng ký...' : 'Đăng ký nhắc nhở'}
+                {regLoading
+                  ? 'Đang đăng ký...'
+                  : cancelLoading
+                    ? 'Đang huỷ...'
+                    : isPreRegistered
+                      ? (preRegisterHovered ? 'Huỷ đăng ký' : 'Đã đăng ký nhắc nhở')
+                      : 'Đăng ký nhắc nhở'}
               </button>
             )}
             {(isEnded || (isActive && isSoldOut)) && (

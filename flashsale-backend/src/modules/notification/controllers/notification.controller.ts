@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -19,6 +20,10 @@ import { ResponseInterceptor } from '@common/interceptors'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { NotificationService } from '../services/notification.service'
+import {
+  NotificationPreferencesResponseDto,
+  UpdateNotificationPreferencesDto
+} from '../dto/notification-preferences.dto'
 
 const moduleName = 'notifications'
 
@@ -79,5 +84,42 @@ export class NotificationController {
   ): Promise<{ updated: boolean }> {
     await this.notificationService.markAllRead(user.userId)
     return { updated: true }
+  }
+
+  @ApiOperation({ summary: 'Lấy cấu hình thông báo của người dùng hiện tại' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Trả về notification preferences',
+    type: NotificationPreferencesResponseDto
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @Get('preferences')
+  @HttpCode(HttpStatus.OK)
+  async getPreferences(
+    @CurrentUser() user: { userId: string }
+  ): Promise<NotificationPreferencesResponseDto> {
+    return this.notificationService.getPreferences(user.userId)
+  }
+
+  @ApiOperation({ summary: 'Cập nhật cấu hình thông báo của người dùng hiện tại' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Cập nhật thành công',
+    type: NotificationPreferencesResponseDto
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @Patch('preferences')
+  @HttpCode(HttpStatus.OK)
+  async updatePreferences(
+    @CurrentUser() user: { userId: string },
+    @Body() body: UpdateNotificationPreferencesDto
+  ): Promise<NotificationPreferencesResponseDto> {
+    return this.notificationService.updatePreferences(user.userId, body)
   }
 }

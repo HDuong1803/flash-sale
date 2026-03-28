@@ -1,5 +1,5 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Notification } from '@/types'
+import type { Notification, NotificationPreferences } from '@/types'
 
 class NotificationService {
   getAll(): Promise<Notification[]> {
@@ -10,6 +10,16 @@ class NotificationService {
   }
   markAllRead(): Promise<void> {
     return apiClient.patch('/notifications/read-all')
+  }
+
+  getPreferences(): Promise<NotificationPreferences> {
+    return withRetry(() => apiClient.get('/notifications/preferences'))
+  }
+
+  updatePreferences(
+    data: Partial<NotificationPreferences>
+  ): Promise<NotificationPreferences> {
+    return apiClient.patch('/notifications/preferences', data)
   }
 }
 

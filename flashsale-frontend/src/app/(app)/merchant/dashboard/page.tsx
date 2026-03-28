@@ -38,6 +38,17 @@ export default function MerchantDashboardPage() {
   const { data: campaigns, loading: campaignLoading } = useCampaigns()
   const { data: orders, loading: ordersLoading } = useMerchantOrders()
 
+  const liveCampaigns = campaigns.filter((c) => c.status === 'ACTIVE').length
+  const endingSoonCampaigns = campaigns.filter((c) => {
+    if (c.status !== 'ACTIVE') return false
+    const diffMs = new Date(c.endTime).getTime() - Date.now()
+    return diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000
+  }).length
+  const pendingOrders = orders.filter((o) => o.status === 'PENDING').length
+  const averageOrderValue = orders.length > 0
+    ? Math.round(orders.reduce((sum, o) => sum + o.totalAmount, 0) / orders.length)
+    : 0
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -71,6 +82,25 @@ export default function MerchantDashboardPage() {
           <StatCard icon={TrendingUp} label="Tỷ lệ chuyển đổi" value={stats?.conversionRate ? `${stats.conversionRate}%` : '—'} color="bg-purple-500/20" />
         </div>
       )}
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="glass rounded-2xl p-4">
+          <p className="text-white/45 text-xs mb-1">Campaign live (thực tế)</p>
+          <p className="text-white text-xl font-bold">{liveCampaigns}</p>
+        </div>
+        <div className="glass rounded-2xl p-4">
+          <p className="text-white/45 text-xs mb-1">Campaign sắp kết thúc (24h)</p>
+          <p className="text-white text-xl font-bold">{endingSoonCampaigns}</p>
+        </div>
+        <div className="glass rounded-2xl p-4">
+          <p className="text-white/45 text-xs mb-1">Đơn chờ xác nhận</p>
+          <p className="text-white text-xl font-bold">{pendingOrders}</p>
+        </div>
+        <div className="glass rounded-2xl p-4">
+          <p className="text-white/45 text-xs mb-1">Giá trị đơn TB</p>
+          <p className="text-white text-xl font-bold">{formatCurrency(averageOrderValue)}</p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Campaign mini table */}

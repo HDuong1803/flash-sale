@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { ArrowLeft, Wifi, WifiOff, AlertCircle } from 'lucide-react'
 import { useSSE } from '@/hooks/useSSE'
 import { useCampaign } from '@/hooks/queries/useCampaign'
+import { useMyCampaigns } from '@/hooks/queries/useMyCampaigns'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
+import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatCurrency, maskString, cn } from '@/lib/utils'
 import type { DashboardMetrics } from '@/types'
 
@@ -20,6 +22,7 @@ interface LiveOrder {
 export default function CampaignLiveDashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { data: campaign } = useCampaign(id)
+  const { data: myCampaigns } = useMyCampaigns()
   const { data: metrics, connected, error } = useSSE(id)
   const [orderHistory, setOrderHistory] = useState<LiveOrder[]>([])
   const [opsHistory, setOpsHistory] = useState<number[]>(Array(30).fill(0))
@@ -44,6 +47,8 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
   const stockTotal = metrics?.stockTotal ?? 1
   const stockPct = stockTotal > 0 ? (stockRemaining / stockTotal) * 100 : 0
   const isSoldOut = stockRemaining === 0
+  const listCampaign = myCampaigns.find((c) => c.id === id)
+  const displayStatus = listCampaign?.status ?? campaign?.status
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -55,9 +60,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-white text-xl font-bold">{campaign?.name ?? 'Dashboard Live'}</h1>
-            <span className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1 text-red-300 text-xs font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-live" /> ĐANG DIỄN RA
-            </span>
+            {displayStatus && <StatusBadge status={displayStatus} />}
             <div className={cn('flex items-center gap-1.5 text-xs px-2 py-1 rounded-full', connected ? 'text-emerald-400' : 'text-red-400')}>
               {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
               {connected ? 'Kết nối' : 'Mất kết nối'}
