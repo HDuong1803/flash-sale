@@ -9,12 +9,11 @@ node_modules
 /coverage
 .DS_Store
 .vscode
-docs
 plans
-.claude
-CLAUDE.md
 .repomixignore
 .opencode
+class-ai-agent
+flashsale-frontend/CLAUDE.md
 
 /plans
 /scout-reports
