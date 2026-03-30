@@ -10,6 +10,7 @@ import { MerchantRepository } from '@modules/merchant/repositories/merchant.repo
 import { ProductRepository } from '@modules/product/repositories/product.repository'
 import { NotificationService } from '@modules/notification/services/notification.service'
 import { EmailService } from '@common/providers/email.service'
+import { RedisService } from '@infrastructure/redis/redis.service'
 import { CampaignRepository } from '../repositories/campaign.repository'
 import { RescheduleRequestRepository } from '../repositories/reschedule-request.repository'
 import {
@@ -32,6 +33,7 @@ export class CampaignService {
     private readonly rescheduleRequestRepository: RescheduleRequestRepository,
     private readonly notificationService: NotificationService,
     private readonly emailService: EmailService,
+    private readonly redis: RedisService,
   ) {}
 
   private async getApprovedMerchant(userId: string) {
@@ -87,6 +89,20 @@ export class CampaignService {
       userId
     )
     if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
+
+    // Khi campaign ACTIVE, remainingQuantity trong DB có thể là 0 (chưa sync từ Redis).
+    // Đọc stock thực từ Redis để trả về giá trị chính xác.
+    if (campaign.status === CampaignStatus.ACTIVE) {
+      await Promise.allSettled(
+        campaign.campaignProducts.map(async (cp) => {
+          const remaining = await this.redis.getStock(cp.id)
+          if (remaining !== null) {
+            cp.remainingQuantity = remaining
+          }
+        })
+      )
+    }
+
     return campaign
   }
 

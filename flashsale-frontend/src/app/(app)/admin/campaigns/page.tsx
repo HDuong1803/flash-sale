@@ -5,6 +5,8 @@ import { Zap, AlertCircle, Loader2, X, Calendar, Package } from 'lucide-react'
 import { useAdminCampaigns } from '@/hooks/queries/useAdminCampaigns'
 import { useApproveCampaign } from '@/hooks/mutations/useApproveCampaign'
 import { useRejectCampaign } from '@/hooks/mutations/useRejectCampaign'
+import { useForceStartCampaign } from '@/hooks/mutations/useForceStartCampaign'
+import { useForceStopCampaign } from '@/hooks/mutations/useForceStopCampaign'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -25,10 +27,14 @@ export default function AdminCampaignsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectForm, setShowRejectForm] = useState(false)
   const [confirmApprove, setConfirmApprove] = useState<string | null>(null)
+  const [confirmForceStart, setConfirmForceStart] = useState<string | null>(null)
+  const [confirmForceStop, setConfirmForceStop] = useState<string | null>(null)
 
   const { data: campaigns, loading, error, refetch } = useAdminCampaigns(activeTab)
   const { approve, loading: approving } = useApproveCampaign()
   const { reject, loading: rejecting } = useRejectCampaign()
+  const { forceStart, loading: forceStarting } = useForceStartCampaign()
+  const { forceStop, loading: forceStoping } = useForceStopCampaign()
 
   const closeDetail = () => {
     setSelectedCampaign(null)
@@ -43,6 +49,14 @@ export default function AdminCampaignsPage() {
   const handleReject = async (id: string) => {
     if (!rejectReason.trim()) return
     try { await reject(id, rejectReason); refetch(); closeDetail() } catch {}
+  }
+
+  const handleForceStart = async (id: string) => {
+    try { await forceStart(id); refetch(); closeDetail(); setConfirmForceStart(null) } catch {}
+  }
+
+  const handleForceStop = async (id: string) => {
+    try { await forceStop(id); refetch(); closeDetail(); setConfirmForceStop(null) } catch {}
   }
 
   return (
@@ -233,6 +247,44 @@ export default function AdminCampaignsPage() {
                     )}
                   </div>
                 )}
+
+                {selectedCampaign.status === 'SCHEDULED' && (
+                  <div className="pt-2">
+                    <div className="glass rounded-xl p-3 mb-3 border border-amber-500/20">
+                      <p className="text-amber-300/80 text-xs flex items-center gap-1.5">
+                        <Zap size={12} className="shrink-0" />
+                        <span>Debug/Testing only — Force start sẽ kích hoạt chiến dịch ngay lập tức, bỏ qua thời gian lên lịch.</span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setConfirmForceStart(selectedCampaign.id)}
+                      className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                    >
+                      <Zap size={14} />
+                      Force Start
+                    </button>
+                  </div>
+                )}
+
+                {selectedCampaign.status === 'ACTIVE' && (
+                  <div className="pt-2">
+                    <div className="glass rounded-xl p-3 mb-3 border border-red-500/20">
+                      <p className="text-red-300/80 text-xs flex items-center gap-1.5">
+                        <Zap size={12} className="shrink-0" />
+                        <span>Debug/Testing only — Force stop sẽ kết thúc chiến dịch ngay lập tức và sync stock về DB.</span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setConfirmForceStop(selectedCampaign.id)}
+                      className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}
+                    >
+                      <Zap size={14} />
+                      Force Stop
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -248,6 +300,28 @@ export default function AdminCampaignsPage() {
         onConfirm={() => confirmApprove && handleApprove(confirmApprove)}
         onCancel={() => setConfirmApprove(null)}
         loading={approving}
+      />
+
+      <ConfirmDialog
+        open={!!confirmForceStart}
+        title="Force Start chiến dịch?"
+        description="Chiến dịch sẽ chuyển sang ACTIVE ngay lập tức, bỏ qua thời gian đã lên lịch. Thông báo sẽ được gửi đến người đăng ký. Hành động này chỉ dùng cho debug/testing."
+        confirmLabel="Bắt đầu ngay"
+        cancelLabel="Hủy"
+        onConfirm={() => confirmForceStart && handleForceStart(confirmForceStart)}
+        onCancel={() => setConfirmForceStart(null)}
+        loading={forceStarting}
+      />
+
+      <ConfirmDialog
+        open={!!confirmForceStop}
+        title="Force Stop chiến dịch?"
+        description="Chiến dịch sẽ chuyển sang ENDED ngay lập tức. Stock còn lại sẽ được sync về database. Hành động này chỉ dùng cho debug/testing."
+        confirmLabel="Dừng ngay"
+        cancelLabel="Hủy"
+        onConfirm={() => confirmForceStop && handleForceStop(confirmForceStop)}
+        onCancel={() => setConfirmForceStop(null)}
+        loading={forceStoping}
       />
     </div>
   )

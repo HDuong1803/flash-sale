@@ -24,6 +24,12 @@ class AdminService {
   rejectCampaign(id: string, reason: string): Promise<Campaign> {
     return apiClient.patch(`/admin/campaigns/${id}/reject`, { reason })
   }
+  forceStartCampaign(id: string): Promise<{ started: boolean }> {
+    return apiClient.post(`/admin/campaigns/${id}/force-start`)
+  }
+  forceStopCampaign(id: string): Promise<{ stopped: boolean }> {
+    return apiClient.post(`/admin/campaigns/${id}/force-stop`)
+  }
   getUsers(filters?: { role?: UserRole; search?: string; page?: number; limit?: number }): Promise<User[]> {
     return withRetry(() => apiClient.get('/admin/users', { params: filters }))
   }

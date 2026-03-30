@@ -66,6 +66,68 @@ export class AdminService {
     )
   }
 
+  async forceStartCampaign(campaignId: string): Promise<{ started: boolean }> {
+    const campaign = await this.campaignRepository.findByIdForActivation(campaignId)
+    if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
+    if (campaign.status !== CampaignStatus.SCHEDULED)
+      throw new BadRequestException(
+        'Chỉ có thể force start chiến dịch ở trạng thái SCHEDULED',
+      )
+
+    for (const cp of campaign.campaignProducts) {
+      await this.redis.initStock(cp.id, cp.saleQuantity)
+    }
+
+    if (campaign.preRegistrations.length > 0) {
+      await this.redis.loadWhitelist(
+        campaign.id,
+        campaign.preRegistrations.map(r => r.customerId),
+      )
+    }
+
+    await this.adminRepository.updateCampaignStatus(campaignId, CampaignStatus.ACTIVE)
+    this.logger.log(`Campaign force-started by admin: ${campaign.id} (${campaign.name})`)
+
+    await Promise.allSettled(
+      campaign.preRegistrations.map(async ({ customerId }) => {
+        try {
+          await this.notificationService.createNotification(customerId, {
+            type: NotificationType.CAMPAIGN_STARTING,
+            title: 'Flash Sale đang bắt đầu ngay!',
+            message: `"${campaign.name}" đã được bắt đầu sớm. Tham gia ngay!`,
+          })
+        } catch (err: unknown) {
+          this.logger.warn(
+            `Không thể gửi notification cho user ${customerId}: ${err instanceof Error ? err.message : String(err)}`,
+          )
+        }
+      }),
+    )
+
+    return { started: true }
+  }
+
+  async forceStopCampaign(campaignId: string): Promise<{ stopped: boolean }> {
+    const campaign = await this.campaignRepository.findByIdForActivation(campaignId)
+    if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
+    if (campaign.status !== CampaignStatus.ACTIVE)
+      throw new BadRequestException(
+        'Chỉ có thể force stop chiến dịch ở trạng thái ACTIVE',
+      )
+
+    for (const cp of campaign.campaignProducts) {
+      const remaining = await this.redis.getStock(cp.id)
+      if (remaining !== null) {
+        await this.campaignRepository.updateCampaignProductRemaining(cp.id, remaining)
+      }
+    }
+
+    await this.adminRepository.updateCampaignStatus(campaignId, CampaignStatus.ENDED)
+    this.logger.log(`Campaign force-stopped by admin: ${campaign.id} (${campaign.name})`)
+
+    return { stopped: true }
+  }
+
   async rejectCampaign(campaignId: string) {
     // Revert to DRAFT so merchant can revise
     return this.adminRepository.updateCampaignStatus(

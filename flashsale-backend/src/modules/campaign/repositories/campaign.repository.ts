@@ -8,6 +8,11 @@ import {
 } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
+export type CampaignForActivation = Campaign & {
+  campaignProducts: Array<{ id: string; saleQuantity: number }>
+  preRegistrations: Array<{ customerId: string }>
+}
+
 export type CampaignWithProducts = Campaign & {
   campaignProducts: Array<
     CampaignProduct & {
@@ -50,6 +55,18 @@ export class CampaignRepository {
 
   async findById(id: string): Promise<Campaign | null> {
     return this.prisma.campaign.findUnique({ where: { id } })
+  }
+
+  async findByIdForActivation(
+    id: string
+  ): Promise<CampaignForActivation | null> {
+    return this.prisma.campaign.findUnique({
+      where: { id },
+      include: {
+        campaignProducts: { select: { id: true, saleQuantity: true } },
+        preRegistrations: { select: { customerId: true } }
+      }
+    }) as Promise<CampaignForActivation | null>
   }
 
   async findByIdWithProducts(
@@ -234,6 +251,16 @@ export class CampaignRepository {
       where: { customerId_campaignId: { customerId, campaignId } }
     })
     return true
+  }
+
+  async updateCampaignProductRemaining(
+    id: string,
+    remaining: number
+  ): Promise<void> {
+    await this.prisma.campaignProduct.update({
+      where: { id },
+      data: { remainingQuantity: remaining }
+    })
   }
 
   async getReport(campaignId: string): Promise<{
