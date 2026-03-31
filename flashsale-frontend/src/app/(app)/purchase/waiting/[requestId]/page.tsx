@@ -13,7 +13,7 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
   const { requestId } = use(params)
   const router = useRouter()
 
-  const { data, loading, error, attemptCount, stop } = usePurchaseResult(requestId)
+  const { data, error, attemptCount, stop } = usePurchaseResult(requestId)
 
   const { data: campaigns } = useCampaigns()
   const otherCampaigns = campaigns.filter((c) => c.status === 'ACTIVE').slice(0, 3)
@@ -83,7 +83,7 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
               targetDate={data.expiredAt}
               size="lg"
               onExpire={() => {
-                alert('Reservation đã hết hạn')
+                alert('Giữ chỗ đã hết hạn')
                 router.push('/campaigns')
               }}
             />

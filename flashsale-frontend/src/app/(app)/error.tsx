@@ -9,5 +9,5 @@ export default function AppError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  return <RouteError error={error} reset={reset} logPrefix="Route error" />
+  return <RouteError error={error} reset={reset} logPrefix="Lỗi tuyến" />
 }

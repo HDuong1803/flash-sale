@@ -70,7 +70,10 @@ export class UserRepository {
     })
   }
 
-  async updatePassword(email: string, passwordHash: string): Promise<SafeUser | null> {
+  async updatePassword(
+    email: string,
+    passwordHash: string
+  ): Promise<SafeUser | null> {
     try {
       return await this.prisma.user.update({
         where: { email },
@@ -110,7 +113,7 @@ export class UserRepository {
       return await this.prisma.user.update({
         where: { email },
         data: { emailVerified: true },
-        select: safeUserSelect,
+        select: safeUserSelect
       })
     } catch {
       return null

@@ -6,7 +6,7 @@ import { AlertCircle } from 'lucide-react'
 export function RouteError({
   error,
   reset,
-  logPrefix = 'Route error',
+  logPrefix = 'Lỗi tuyến',
   defaultMessage = 'Trang này gặp sự cố. Vui lòng thử lại.',
 }: {
   error: Error & { digest?: string }

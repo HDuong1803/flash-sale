@@ -11,12 +11,12 @@ export class UploadFileDto {
 }
 
 export class UploadPhotoOutputDto {
-  @ApiProperty({ type: 'string', description: 'Photo id' })
+  @ApiProperty({ type: 'string', description: 'ID ảnh' })
   photoId: string
 
   @ApiProperty({ type: 'string', description: 'URL ảnh trên IPFS' })
   url: string
 
-  @ApiProperty({ type: 'string', description: 'File entity id' })
+  @ApiProperty({ type: 'string', description: 'ID bản ghi tệp' })
   fileEntityId: string
 }

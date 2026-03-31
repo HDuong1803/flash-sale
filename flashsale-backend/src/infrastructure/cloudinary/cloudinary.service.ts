@@ -17,9 +17,18 @@ export class CloudinaryService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit(): void {
-    const cloudName = this.configService.get<string>('cloudinary.CLOUDINARY_CLOUD_NAME', '')
-    const apiKey = this.configService.get<string>('cloudinary.CLOUDINARY_API_KEY', '')
-    const apiSecret = this.configService.get<string>('cloudinary.CLOUDINARY_API_SECRET', '')
+    const cloudName = this.configService.get<string>(
+      'cloudinary.CLOUDINARY_CLOUD_NAME',
+      ''
+    )
+    const apiKey = this.configService.get<string>(
+      'cloudinary.CLOUDINARY_API_KEY',
+      ''
+    )
+    const apiSecret = this.configService.get<string>(
+      'cloudinary.CLOUDINARY_API_SECRET',
+      ''
+    )
 
     cloudinary.config({
       cloud_name: cloudName,
@@ -70,7 +79,9 @@ export class CloudinaryService implements OnModuleInit {
       await cloudinary.uploader.destroy(publicId)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
-      this.logger.warn(`Failed to delete Cloudinary asset ${publicId}: ${message}`)
+      this.logger.warn(
+        `Failed to delete Cloudinary asset ${publicId}: ${message}`
+      )
     }
   }
 
@@ -79,13 +90,16 @@ export class CloudinaryService implements OnModuleInit {
     options: UploadApiOptions
   ): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
-        if (error) {
-          reject(new Error(`Cloudinary upload failed: ${error.message}`))
-        } else {
-          resolve(result!)
+      const stream = cloudinary.uploader.upload_stream(
+        options,
+        (error, result) => {
+          if (error) {
+            reject(new Error(`Cloudinary upload failed: ${error.message}`))
+          } else {
+            resolve(result!)
+          }
         }
-      })
+      )
       stream.end(buffer)
     })
   }

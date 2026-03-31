@@ -234,7 +234,9 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
         }
 
         this.logger.warn(
-          `Retrying message from ${queue} (attempt ${retries + 1}/${maxRetries})`
+          `Retrying message from ${queue} (attempt ${
+            retries + 1
+          }/${maxRetries})`
         )
         this.channel.ack(msg)
       }

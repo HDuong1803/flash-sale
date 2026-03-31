@@ -41,7 +41,7 @@ import {
   CreateCampaignDto,
   RescheduleRequestDto,
   RescheduleRequestResponseDto,
-  UpdateCampaignDto,
+  UpdateCampaignDto
 } from '../dto/campaign.dto'
 
 const moduleName = 'campaigns'
@@ -85,7 +85,7 @@ export class CampaignController {
     ) as unknown as CampaignResponseDto
   }
 
-  @ApiOperation({ summary: 'Lấy danh sách chiến dịch (public)' })
+  @ApiOperation({ summary: 'Lấy danh sách chiến dịch (công khai)' })
   @ApiResponse({ status: HttpStatus.OK, type: [CampaignResponseDto] })
   @Get()
   @HttpCode(HttpStatus.OK)
@@ -102,7 +102,7 @@ export class CampaignController {
     summary:
       'Lấy chi tiết chiến dịch (public, isPreRegistered nếu đã đăng nhập)'
   })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({ status: HttpStatus.OK, type: CampaignResponseDto })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -122,7 +122,7 @@ export class CampaignController {
   }
 
   @ApiOperation({ summary: 'Cập nhật chiến dịch (chỉ khi DRAFT)' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiBody({ type: UpdateCampaignDto })
   @ApiResponse({ status: HttpStatus.OK, type: CampaignResponseDto })
   @ApiResponse({
@@ -155,7 +155,7 @@ export class CampaignController {
   }
 
   @ApiOperation({ summary: 'Thêm sản phẩm vào chiến dịch' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiBody({ type: AddCampaignProductDto })
   @ApiResponse({ status: HttpStatus.CREATED, type: CampaignProductResponseDto })
   @ApiResponse({
@@ -187,7 +187,7 @@ export class CampaignController {
   }
 
   @ApiOperation({ summary: 'Xóa chiến dịch (chỉ khi DRAFT)' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Xóa thành công' })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -214,8 +214,8 @@ export class CampaignController {
   }
 
   @ApiOperation({ summary: 'Xóa sản phẩm khỏi chiến dịch' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
-  @ApiParam({ name: 'productId', description: 'Product ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
+  @ApiParam({ name: 'productId', description: 'ID sản phẩm' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Xóa thành công' })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -239,7 +239,7 @@ export class CampaignController {
   }
 
   @ApiOperation({ summary: 'Gửi chiến dịch để admin duyệt' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({ status: HttpStatus.OK, type: CampaignResponseDto })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -267,7 +267,7 @@ export class CampaignController {
   @ApiOperation({
     summary: 'Đăng ký nhận thông báo trước khi chiến dịch bắt đầu'
   })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Đăng ký thành công' })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -292,7 +292,7 @@ export class CampaignController {
   @ApiOperation({
     summary: 'Huỷ đăng ký nhận thông báo trước khi chiến dịch bắt đầu'
   })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Huỷ đăng ký thành công' })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -315,7 +315,7 @@ export class CampaignController {
   }
 
   @ApiOperation({ summary: 'Xem báo cáo hiệu quả chiến dịch' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({ status: HttpStatus.OK, type: CampaignReportResponseDto })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -339,10 +339,18 @@ export class CampaignController {
 
   // ─── Reschedule ───────────────────────────────────────────────────────────
 
-  @ApiOperation({ summary: 'Lấy danh sách yêu cầu thay đổi lịch đang chờ xác nhận' })
+  @ApiOperation({
+    summary: 'Lấy danh sách yêu cầu thay đổi lịch đang chờ xác nhận'
+  })
   @ApiResponse({ status: HttpStatus.OK, type: [RescheduleRequestResponseDto] })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Merchant chưa được duyệt' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Merchant chưa được duyệt'
+  })
   @ApiBearerAuth('JWT-auth')
   @Get('reschedule-requests/pending')
   @HttpCode(HttpStatus.OK)
@@ -351,20 +359,31 @@ export class CampaignController {
   async getMerchantPendingRescheduleRequests(
     @CurrentUser() user: { userId: string }
   ): Promise<RescheduleRequestResponseDto[]> {
-    return this.campaignService.getMerchantPendingRescheduleRequests(user.userId)
+    return this.campaignService.getMerchantPendingRescheduleRequests(
+      user.userId
+    )
   }
 
   @ApiOperation({ summary: 'Merchant xác nhận yêu cầu force start từ admin' })
-  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiParam({ name: 'requestId', description: 'ID yêu cầu đổi lịch' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Đã xác nhận, lịch đã được cập nhật',
-    type: RescheduleRequestResponseDto,
+    type: RescheduleRequestResponseDto
   })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Yêu cầu không tồn tại' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Yêu cầu không hợp lệ' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Yêu cầu không tồn tại'
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Yêu cầu không hợp lệ'
+  })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
   @ApiBearerAuth('JWT-auth')
   @Post('reschedule-requests/:requestId/confirm')
   @HttpCode(HttpStatus.OK)
@@ -378,12 +397,21 @@ export class CampaignController {
   }
 
   @ApiOperation({ summary: 'Merchant từ chối yêu cầu force start từ admin' })
-  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiParam({ name: 'requestId', description: 'ID yêu cầu đổi lịch' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Đã từ chối yêu cầu' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Yêu cầu không tồn tại' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Yêu cầu không hợp lệ' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Yêu cầu không tồn tại'
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Yêu cầu không hợp lệ'
+  })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
   @ApiBearerAuth('JWT-auth')
   @Post('reschedule-requests/:requestId/reject')
   @HttpCode(HttpStatus.OK)
@@ -396,17 +424,25 @@ export class CampaignController {
     return this.campaignService.rejectAdminReschedule(user.userId, requestId)
   }
 
-  @ApiOperation({ summary: 'Merchant yêu cầu thay đổi lịch bắt đầu chiến dịch' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiOperation({
+    summary: 'Merchant yêu cầu thay đổi lịch bắt đầu chiến dịch'
+  })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiBody({ type: RescheduleRequestDto })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Đã tạo yêu cầu',
-    type: RescheduleRequestResponseDto,
+    type: RescheduleRequestResponseDto
   })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Dữ liệu không hợp lệ'
+  })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không có quyền' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
   @ApiBearerAuth('JWT-auth')
   @Post(':id/reschedule-request')
   @UseGuards(AccessTokenGuard, RolesGuard)
@@ -416,6 +452,10 @@ export class CampaignController {
     @Param('id') campaignId: string,
     @Body() dto: RescheduleRequestDto
   ): Promise<RescheduleRequestResponseDto> {
-    return this.campaignService.createRescheduleRequest(user.userId, campaignId, dto)
+    return this.campaignService.createRescheduleRequest(
+      user.userId,
+      campaignId,
+      dto
+    )
   }
 }

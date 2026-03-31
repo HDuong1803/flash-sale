@@ -9,9 +9,9 @@ import { formatDate } from '@/lib/utils'
 
 const SERVICE_CONFIG = [
   { key: 'postgres' as const, label: 'PostgreSQL', icon: Database, desc: 'Cơ sở dữ liệu chính' },
-  { key: 'redis' as const, label: 'Redis', icon: Layers, desc: 'Cache & Queue' },
-  { key: 'rabbitmq' as const, label: 'RabbitMQ', icon: MessageSquare, desc: 'Message Broker' },
-  { key: 'api' as const, label: 'API Server', icon: Server, desc: 'Backend REST API' },
+  { key: 'redis' as const, label: 'Redis', icon: Layers, desc: 'Bộ nhớ đệm và hàng đợi' },
+  { key: 'rabbitmq' as const, label: 'RabbitMQ', icon: MessageSquare, desc: 'Bộ điều phối tin nhắn' },
+  { key: 'api' as const, label: 'Máy chủ API', icon: Server, desc: 'API REST backend' },
 ]
 
 const LEVEL_COLORS: Record<string, string> = {

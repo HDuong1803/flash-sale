@@ -15,7 +15,7 @@ class PaymentService {
    * Lấy trạng thái thanh toán hiện tại.
    * Dùng cho frontend polling ở trang /payment/pending.
    *
-   * @param paymentId - ID của payment (lấy từ URL params)
+   * @param paymentId - ID thanh toán (lấy từ URL params)
    */
   getStatus(paymentId: string): Promise<PaymentStatusResponse> {
     return apiClient.get(`/payments/${paymentId}/status`)

@@ -102,7 +102,10 @@ export class ProductQueryDto {
 }
 
 export class ProductImageDto {
-  @ApiProperty({ example: 'clxyz123', description: 'ProductImage ID (dùng để xoá)' })
+  @ApiProperty({
+    example: 'clxyz123',
+    description: 'ID ảnh sản phẩm (dùng để xoá)'
+  })
   id: string
 
   @ApiProperty({
@@ -111,7 +114,10 @@ export class ProductImageDto {
   })
   url: string
 
-  @ApiProperty({ example: true, description: 'Ảnh chính (hiển thị trong listing)' })
+  @ApiProperty({
+    example: true,
+    description: 'Ảnh chính (hiển thị trong listing)'
+  })
   isPrimary: boolean
 
   @ApiProperty({ example: 0, description: 'Thứ tự sắp xếp (0 = đầu tiên)' })
@@ -119,10 +125,10 @@ export class ProductImageDto {
 }
 
 export class ProductResponseDto {
-  @ApiProperty({ example: 'clxyz123', description: 'Product ID' })
+  @ApiProperty({ example: 'clxyz123', description: 'ID sản phẩm' })
   id: string
 
-  @ApiProperty({ example: 'clmerchant1', description: 'Merchant ID' })
+  @ApiProperty({ example: 'clmerchant1', description: 'ID merchant' })
   merchantId: string
 
   @ApiProperty({ example: 'iPhone 15 Pro Max' })
@@ -173,11 +179,15 @@ export class ProductCampaignSummaryDto {
   @ApiProperty({ example: 'ACTIVE' }) status: string
   @ApiProperty() startTime: Date
   @ApiProperty() endTime: Date
-  @ApiProperty({ example: 24990000, description: 'Giá bán trong chiến dịch' }) salePrice: number
+  @ApiProperty({ example: 24990000, description: 'Giá bán trong chiến dịch' })
+  salePrice: number
 }
 
 export class ProductDetailResponseDto extends ProductResponseDto {
-  @ApiProperty({ type: [ProductCampaignSummaryDto], description: 'Các chiến dịch đã/đang sử dụng sản phẩm này' })
+  @ApiProperty({
+    type: [ProductCampaignSummaryDto],
+    description: 'Các chiến dịch đã/đang sử dụng sản phẩm này'
+  })
   campaigns: ProductCampaignSummaryDto[]
 }
 

@@ -18,7 +18,7 @@ import { Type, Transform } from 'class-transformer'
 
 export class GetNotificationsQueryDto {
   @ApiPropertyOptional({
-    description: 'Filter by notification types',
+    description: 'Lọc theo loại thông báo',
     example: ['SYSTEM', 'CONTRACT', 'PAYMENT'],
     type: [String]
   })
@@ -31,7 +31,7 @@ export class GetNotificationsQueryDto {
   types?: string[]
 
   @ApiPropertyOptional({
-    description: 'Filter by read status',
+    description: 'Lọc theo trạng thái đã đọc',
     example: false
   })
   @IsOptional()
@@ -45,7 +45,7 @@ export class GetNotificationsQueryDto {
   isRead?: boolean
 
   @ApiPropertyOptional({
-    description: 'Page number (1-indexed)',
+    description: 'Số trang (bắt đầu từ 1)',
     example: 1,
     default: 1
   })
@@ -55,7 +55,7 @@ export class GetNotificationsQueryDto {
   page?: number = 1
 
   @ApiPropertyOptional({
-    description: 'Page size',
+    description: 'Kích thước trang',
     example: 10,
     default: 10
   })
@@ -116,7 +116,7 @@ export class GetNotificationsResponseDto {
   notifications: NotificationItemDto[]
 
   @ApiProperty({
-    description: 'Total notifications count'
+    description: 'Tổng số thông báo'
   })
   total: number
 }
@@ -139,12 +139,12 @@ export class UpdateNotificationStatusDto {
 
 export class UpdateNotificationStatusResponseDto {
   @ApiProperty({
-    description: 'Number of notifications updated'
+    description: 'Số thông báo đã cập nhật'
   })
   updatedCount: number
 
   @ApiProperty({
-    description: 'List of updated notification IDs',
+    description: 'Danh sách ID thông báo đã cập nhật',
     type: [Number]
   })
   updatedNotificationIds: number[]

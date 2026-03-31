@@ -59,7 +59,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-white text-xl font-bold">{campaign?.name ?? 'Dashboard Live'}</h1>
+            <h1 className="text-white text-xl font-bold">{campaign?.name ?? 'Bảng điều khiển trực tiếp'}</h1>
             {displayStatus && <StatusBadge status={displayStatus} />}
             <div className={cn('flex items-center gap-1.5 text-xs px-2 py-1 rounded-full', connected ? 'text-emerald-400' : 'text-red-400')}>
               {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
@@ -132,7 +132,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
           <p className="text-white/30 text-xs">{metrics?.queueDepth ?? 0} yêu cầu đang chờ</p>
           {metrics && (
             <div className={cn('text-xs px-2 py-1 rounded-full inline-block', metrics.queueDepth < 100 ? 'bg-emerald-500/20 text-emerald-300' : metrics.queueDepth < 500 ? 'bg-yellow-500/20 text-yellow-300' : 'bg-red-500/20 text-red-300')}>
-              Queue: {metrics.queueDepth}
+              Hàng đợi: {metrics.queueDepth}
             </div>
           )}
         </div>
@@ -144,7 +144,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
           <h2 className="text-white font-semibold flex items-center gap-2">
             Đơn hàng trực tiếp
             <span className="flex items-center gap-1 text-xs text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live" /> Live
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live" /> Trực tiếp
             </span>
           </h2>
         </div>
@@ -161,7 +161,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
                   <span className="text-white/70 text-sm">{maskString(order.customer)}</span>
                   <span className="text-white/40 text-xs ml-2">× {order.qty}</span>
                 </div>
-                <span className="bg-emerald-500/15 text-emerald-300 text-xs px-2 py-0.5 rounded-full">SECURED</span>
+                <span className="bg-emerald-500/15 text-emerald-300 text-xs px-2 py-0.5 rounded-full">ĐÃ CHỐT</span>
                 <span className="text-white/30 text-xs">{order.time}</span>
               </div>
             ))

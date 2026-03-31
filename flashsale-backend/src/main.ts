@@ -64,7 +64,10 @@ async function bootstrap() {
   app.enableCors({
     origin: (origin, callback) => {
       const allowedOrigins = [
-        configService.get<string>('application.CLIENT_API_HOST', 'http://localhost:3000'),
+        configService.get<string>(
+          'application.CLIENT_API_HOST',
+          'http://localhost:3000'
+        ),
         configService.get<string>('application.CLIENT_URL'),
         configService.get<string>('application.SERVER_URL')
       ].filter(Boolean)
@@ -108,8 +111,14 @@ async function bootstrap() {
       const isLongRunning =
         req.path.includes('/webhook') || req.path.includes('/checkout')
       const timeoutMs = isLongRunning
-        ? configService.get<number>('timeouts.LONG_RUNNING_REQUEST_TIMEOUT_MS', 60_000)
-        : configService.get<number>('timeouts.NORMAL_REQUEST_TIMEOUT_MS', 30_000)
+        ? configService.get<number>(
+            'timeouts.LONG_RUNNING_REQUEST_TIMEOUT_MS',
+            60_000
+          )
+        : configService.get<number>(
+            'timeouts.NORMAL_REQUEST_TIMEOUT_MS',
+            30_000
+          )
 
       res.setTimeout(timeoutMs, () => {
         if (!res.headersSent) {
@@ -164,7 +173,7 @@ async function bootstrap() {
         throw new HttpException(
           {
             statusCode: 400,
-            message: 'Input data validation failed',
+            message: 'Dữ liệu đầu vào không hợp lệ',
             errors: result
           },
           HttpStatus.BAD_REQUEST
@@ -195,7 +204,7 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'JWT',
-        description: 'Enter JWT token',
+        description: 'Nhập JWT token',
         in: 'header'
       },
       'JWT-auth'

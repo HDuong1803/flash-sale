@@ -5,10 +5,7 @@ import { PrismaService } from '@infrastructure/prisma/prisma.service'
 const productInclude = {
   inventory: true,
   images: {
-    orderBy: [
-      { isPrimary: 'desc' as const },
-      { sortOrder: 'asc' as const }
-    ],
+    orderBy: [{ isPrimary: 'desc' as const }, { sortOrder: 'asc' as const }],
     include: {
       photo: { select: { url: true, file: { select: { uploadHash: true } } } }
     }
@@ -102,12 +99,17 @@ export class ProductRepository {
   ): Promise<{ photoId: string; publicId: string | null } | null> {
     const img = await this.prisma.productImage.findFirst({
       where: { id: productImageId, productId },
-      include: { photo: { include: { file: { select: { uploadHash: true } } } } }
+      include: {
+        photo: { include: { file: { select: { uploadHash: true } } } }
+      }
     })
     if (!img) return null
 
     await this.prisma.productImage.delete({ where: { id: productImageId } })
-    return { photoId: img.photoId, publicId: img.photo.file?.uploadHash ?? null }
+    return {
+      photoId: img.photoId,
+      publicId: img.photo.file?.uploadHash ?? null
+    }
   }
 
   async getImageCount(productId: string): Promise<number> {
@@ -173,12 +175,29 @@ export class ProductRepository {
 
   async getCampaignSummaries(
     productId: string
-  ): Promise<Array<{ id: string; name: string; status: string; startTime: Date; endTime: Date; salePrice: number }>> {
+  ): Promise<
+    Array<{
+      id: string
+      name: string
+      status: string
+      startTime: Date
+      endTime: Date
+      salePrice: number
+    }>
+  > {
     const rows = await this.prisma.campaignProduct.findMany({
       where: { productId, campaign: { deletedAt: null } },
       select: {
         salePrice: true,
-        campaign: { select: { id: true, name: true, status: true, startTime: true, endTime: true } }
+        campaign: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            startTime: true,
+            endTime: true
+          }
+        }
       },
       orderBy: { campaign: { startTime: 'desc' } }
     })

@@ -49,7 +49,9 @@ export class SepayService implements OnModuleInit {
    * - Lý do: tránh vô tình deploy production với verification bị tắt
    */
   get isSandbox(): boolean {
-    return this.configService.get<string>('sepay.SEPAY_SANDBOX', 'false') === 'true'
+    return (
+      this.configService.get<string>('sepay.SEPAY_SANDBOX', 'false') === 'true'
+    )
   }
 
   private get bankAccount(): string {
@@ -259,7 +261,10 @@ export class SepayService implements OnModuleInit {
     qrCodeUrl: string,
     transferContent: string
   ): string {
-    const frontendUrl = this.configService.get<string>('frontend.FRONTEND_URL', '')
+    const frontendUrl = this.configService.get<string>(
+      'frontend.FRONTEND_URL',
+      ''
+    )
     const query = new URLSearchParams({
       paymentId: params.paymentId,
       amount: String(params.amount),

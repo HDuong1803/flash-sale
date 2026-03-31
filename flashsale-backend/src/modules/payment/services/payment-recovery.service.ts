@@ -129,7 +129,7 @@ export class PaymentRecoveryService {
         stuckMinutes
       })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
 
       if (err instanceof CheckoutDataExpiredException) {
         // Checkout data đã hết hạn trong Redis — không thể tự recover

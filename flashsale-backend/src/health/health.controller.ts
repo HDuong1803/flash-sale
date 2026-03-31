@@ -88,7 +88,7 @@ export class HealthController {
       if (pong !== 'PONG') throw new Error(`Unexpected PING response: ${pong}`)
       return { [key]: { status: 'up' as const } }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
       return { [key]: { status: 'down' as const, message } }
     }
   }
@@ -101,7 +101,7 @@ export class HealthController {
       if (!isConnected) throw new Error('RabbitMQ channel is closed')
       return { [key]: { status: 'up' as const } }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
       return { [key]: { status: 'down' as const, message } }
     }
   }

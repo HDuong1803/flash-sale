@@ -14,7 +14,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
       map(result => ({
         result,
         success: true,
-        message: 'Request was successful',
+        message: 'Yêu cầu thành công',
         count: Array.isArray(result) ? result.length : 1
       }))
     )

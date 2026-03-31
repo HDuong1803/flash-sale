@@ -34,12 +34,12 @@ export class DashboardController {
   ) {}
 
   @ApiOperation({
-    summary: 'Stream realtime dashboard events cho chiến dịch (SSE)'
+    summary: 'Luồng sự kiện dashboard thời gian thực cho chiến dịch (SSE)'
   })
-  @ApiParam({ name: 'campaignId', description: 'Campaign ID' })
+  @ApiParam({ name: 'campaignId', description: 'ID chiến dịch' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'SSE stream: STOCK_UPDATE, ORDER_CONFIRMED, heartbeat'
+    description: 'Luồng SSE: STOCK_UPDATE, ORDER_CONFIRMED, heartbeat'
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,

@@ -51,10 +51,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ) {
         message = responseObj.error.message
       } else {
-        message = exception.message || 'Internal server error'
+        message = exception.message || 'Lỗi máy chủ nội bộ'
       }
     } else {
-      message = exception.message || 'Internal server error'
+      message = exception.message || 'Lỗi máy chủ nội bộ'
     }
 
     response.status(status).json({

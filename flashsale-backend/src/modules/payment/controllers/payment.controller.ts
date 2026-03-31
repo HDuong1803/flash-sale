@@ -68,7 +68,7 @@ export class PaymentController {
   @ApiResponse({ status: HttpStatus.OK, type: SepayWebhookResponseDto })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
-    description: 'Webhook signature không hợp lệ'
+    description: 'Chữ ký webhook không hợp lệ'
   })
   @Post('webhook/sepay')
   @HttpCode(HttpStatus.OK)
@@ -83,13 +83,14 @@ export class PaymentController {
   // ─── Payment status (dành cho frontend polling) ────────────────────────────
 
   @ApiOperation({
-    summary: 'Kiểm tra trạng thái thanh toán — frontend dùng để polling',
+    summary:
+      'Kiểm tra trạng thái thanh toán — frontend dùng để thăm dò trạng thái',
     description:
       'Frontend gọi endpoint này mỗi 3 giây sau khi hiển thị trang QR. ' +
       'Khi status = SUCCESS, frontend redirect về trang xác nhận đơn hàng.'
   })
   @ApiBearerAuth('JWT-auth')
-  @ApiParam({ name: 'paymentId', description: 'ID của payment' })
+  @ApiParam({ name: 'paymentId', description: 'ID thanh toán' })
   @ApiResponse({
     status: HttpStatus.OK,
     type: PaymentStatusResponseDto,
@@ -123,7 +124,10 @@ export class PaymentController {
   @Public()
   @Redirect()
   async returnFromPayment(@Query() query: Record<string, string>) {
-    const frontendUrl = this.configService.get<string>('frontend.FRONTEND_URL', '')
+    const frontendUrl = this.configService.get<string>(
+      'frontend.FRONTEND_URL',
+      ''
+    )
 
     // Chỉ forward các param đã biết — KHÔNG forward hết query string
     // Lý do: tránh open redirect attack và injection qua query params

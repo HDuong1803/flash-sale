@@ -135,7 +135,7 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Đăng nhập thành công — tokens delivered via HttpOnly cookies',
+    description: 'Đăng nhập thành công — token được trả qua cookie HttpOnly',
     type: AuthResponseDto
   })
   @ApiResponse({
@@ -186,7 +186,7 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Làm mới access token — đọc refresh_token từ cookie'
+    summary: 'Làm mới mã truy cập — đọc refresh_token từ cookie'
   })
   @ApiBody({ type: RefreshDto, required: false })
   @ApiResponse({
@@ -302,9 +302,12 @@ export class AuthController {
   @UseGuards(AccessTokenGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Đăng xuất — xóa tất cả auth cookies' })
+  @ApiOperation({ summary: 'Đăng xuất — xóa toàn bộ cookie xác thực' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Đăng xuất thành công' })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
   async logout(
     @CurrentUser() user: { userId: string },
     @Res({ passthrough: true }) res: Response

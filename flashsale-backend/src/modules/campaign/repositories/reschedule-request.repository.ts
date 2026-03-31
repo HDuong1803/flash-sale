@@ -3,7 +3,7 @@ import {
   CampaignRescheduleRequest,
   RescheduleRequestStatus,
   RescheduleRequestType,
-  CampaignStatus,
+  CampaignStatus
 } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
@@ -48,8 +48,8 @@ export class RescheduleRequestRepository {
             ? RescheduleRequestStatus.PENDING_MERCHANT
             : RescheduleRequestStatus.PENDING_ADMIN,
         expiresAt: data.expiresAt,
-        note: data.note,
-      },
+        note: data.note
+      }
     })
   }
 
@@ -57,7 +57,9 @@ export class RescheduleRequestRepository {
     return this.prisma.campaignRescheduleRequest.findUnique({ where: { id } })
   }
 
-  async findByIdWithDetails(id: string): Promise<RescheduleRequestWithDetails | null> {
+  async findByIdWithDetails(
+    id: string
+  ): Promise<RescheduleRequestWithDetails | null> {
     return this.prisma.campaignRescheduleRequest.findUnique({
       where: { id },
       include: {
@@ -65,28 +67,30 @@ export class RescheduleRequestRepository {
           include: {
             merchant: {
               include: {
-                user: { select: { email: true, fullName: true } },
-              },
+                user: { select: { email: true, fullName: true } }
+              }
             },
             preRegistrations: {
               include: {
-                customer: { select: { id: true, email: true, fullName: true } },
-              },
-            },
-          },
-        },
-      },
+                customer: { select: { id: true, email: true, fullName: true } }
+              }
+            }
+          }
+        }
+      }
     }) as Promise<RescheduleRequestWithDetails | null>
   }
 
-  async findPendingByMerchantUserId(merchantUserId: string): Promise<CampaignRescheduleRequest[]> {
+  async findPendingByMerchantUserId(
+    merchantUserId: string
+  ): Promise<CampaignRescheduleRequest[]> {
     return this.prisma.campaignRescheduleRequest.findMany({
       where: {
         status: RescheduleRequestStatus.PENDING_MERCHANT,
         requestType: RescheduleRequestType.ADMIN_FORCE,
-        campaign: { merchant: { userId: merchantUserId } },
+        campaign: { merchant: { userId: merchantUserId } }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     })
   }
 
@@ -99,9 +103,9 @@ export class RescheduleRequestRepository {
       where: {
         ...(filters?.status && { status: filters.status }),
         ...(filters?.requestType && { requestType: filters.requestType }),
-        ...(filters?.campaignId && { campaignId: filters.campaignId }),
+        ...(filters?.campaignId && { campaignId: filters.campaignId })
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     })
   }
 
@@ -112,21 +116,21 @@ export class RescheduleRequestRepository {
         status: {
           in: [
             RescheduleRequestStatus.PENDING_MERCHANT,
-            RescheduleRequestStatus.PENDING_ADMIN,
-          ],
-        },
-      },
+            RescheduleRequestStatus.PENDING_ADMIN
+          ]
+        }
+      }
     })
     return count > 0
   }
 
   async update(
     id: string,
-    data: { status: RescheduleRequestStatus; resolvedAt?: Date },
+    data: { status: RescheduleRequestStatus; resolvedAt?: Date }
   ): Promise<CampaignRescheduleRequest> {
     return this.prisma.campaignRescheduleRequest.update({
       where: { id },
-      data,
+      data
     })
   }
 }

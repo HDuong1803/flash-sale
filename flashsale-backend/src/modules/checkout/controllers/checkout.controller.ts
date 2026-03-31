@@ -39,11 +39,11 @@ export class CheckoutController {
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Reservation hết hạn'
+    description: 'Giữ chỗ hết hạn'
   })
   @ApiResponse({
     status: HttpStatus.FORBIDDEN,
-    description: 'Không có quyền truy cập reservation'
+    description: 'Không có quyền truy cập giữ chỗ'
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,

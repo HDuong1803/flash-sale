@@ -140,7 +140,7 @@ function CheckoutContent() {
 
             {/* Countdown */}
             <div className="glass-brand rounded-xl p-3">
-              <p className="text-white/60 text-xs mb-2">Reservation hết hạn sau</p>
+              <p className="text-white/60 text-xs mb-2">Giữ chỗ hết hạn sau</p>
               <CountdownTimer
                 targetDate={expiredAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString()}
                 size="sm"
@@ -183,7 +183,7 @@ function CheckoutContent() {
 
       <ConfirmDialog
         open={expiredDialog}
-        title="Reservation đã hết hạn"
+        title="Giữ chỗ đã hết hạn"
         description="Thời gian giữ chỗ đã hết. Bạn cần thực hiện lại quá trình mua hàng."
         confirmLabel="Về trang Flash Sale"
         cancelLabel=""

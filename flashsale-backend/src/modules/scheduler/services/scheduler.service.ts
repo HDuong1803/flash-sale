@@ -50,7 +50,8 @@ export class SchedulerService {
             `Campaign activated: ${campaign.id} (${campaign.name})`
           )
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'Unknown error'
+          const message =
+            err instanceof Error ? err.message : 'Lỗi không xác định'
           this.logger.error(
             `Failed to activate campaign ${campaign.id}: ${message}`
           )
@@ -87,7 +88,8 @@ export class SchedulerService {
           )
           this.logger.log(`Campaign closed: ${campaign.id} (${campaign.name})`)
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'Unknown error'
+          const message =
+            err instanceof Error ? err.message : 'Lỗi không xác định'
           this.logger.error(
             `Failed to close campaign ${campaign.id}: ${message}`
           )
@@ -118,7 +120,8 @@ export class SchedulerService {
           await this.reservationService.releaseReservation(id, 'TTL_EXPIRED')
           released++
         } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : 'Unknown error'
+          const message =
+            err instanceof Error ? err.message : 'Lỗi không xác định'
           this.logger.warn(`Failed to release reservation ${id}: ${message}`)
         }
       }
@@ -151,7 +154,8 @@ export class SchedulerService {
             })
             await this.schedulerRepository.markReminderSent(reg.id)
           } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Unknown error'
+            const message =
+              err instanceof Error ? err.message : 'Lỗi không xác định'
             this.logger.warn(
               `Failed to send reminder for preReg ${reg.id}: ${message}`
             )
@@ -210,7 +214,7 @@ export class SchedulerService {
       await this.paymentRecovery.recoverStuckPayments()
     } catch (err: unknown) {
       // Job lỗi không được throw — sẽ ảnh hưởng đến các job khác trong scheduler
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
       this.logger.error({
         event: 'recovery_job_failed',
         error: message

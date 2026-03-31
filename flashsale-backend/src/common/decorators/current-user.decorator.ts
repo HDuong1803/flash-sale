@@ -34,7 +34,7 @@ export const CurrentUser = createParamDecorator(
     }
     const user = request?.user
     if (!user) {
-      throw new UnauthorizedException('No user found for request')
+      throw new UnauthorizedException('Không tìm thấy người dùng trong request')
     }
     return user as IUserFromRequest
   }
@@ -51,7 +51,7 @@ export const HttpUser = createParamDecorator(
   (data, context: ExecutionContext) => {
     const req = context.switchToHttp().getRequest()
     if (!req.user) {
-      throw new UnauthorizedException('No user found for request')
+      throw new UnauthorizedException('Không tìm thấy người dùng trong request')
     }
     return req.user as IUserFromRequest
   }

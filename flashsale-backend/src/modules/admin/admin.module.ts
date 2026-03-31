@@ -8,6 +8,6 @@ import { NotificationModule } from '@modules/notification/notification.module'
 @Module({
   imports: [CampaignModule, NotificationModule],
   controllers: [AdminController],
-  providers: [AdminService, AdminRepository],
+  providers: [AdminService, AdminRepository]
 })
 export class AdminModule {}

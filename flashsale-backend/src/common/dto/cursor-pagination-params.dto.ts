@@ -6,7 +6,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger'
 
 export class CursorPaginationParams {
   @ApiPropertyOptional({
-    description: 'Cursor for pagination',
+    description: 'Con trỏ phân trang',
     example: 1
   })
   @IsOptional()
@@ -15,7 +15,7 @@ export class CursorPaginationParams {
   cursor?: string
 
   @ApiPropertyOptional({
-    description: 'Limit for pagination',
+    description: 'Giới hạn phân trang',
     example: 20
   })
   @IsOptional()

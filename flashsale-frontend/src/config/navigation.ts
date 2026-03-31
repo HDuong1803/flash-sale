@@ -37,7 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'shopping',
   },
   {
-    label: 'Dashboard',
+    label: 'Bảng điều khiển',
     href: '/customer/dashboard',
     iconName: 'LayoutGrid',
     permission: 'view_customer_dashboard',
@@ -47,12 +47,12 @@ export const NAV_ITEMS: NavItem[] = [
   // ── SECTION: QUẢN LÝ SHOP ─────────────────────────────────────────
   // Chỉ hiển thị cho: MERCHANT đã được APPROVED
   {
-    label: 'Dashboard Shop',
+    label: 'Bảng điều khiển cửa hàng',
     href: '/merchant/dashboard',
     iconName: 'LayoutDashboard',
     permission: 'view_shop_dashboard',
     section: 'shop_management',
-    sectionLabel: 'Quản lý Shop',
+    sectionLabel: 'Quản lý cửa hàng',
   },
   {
     label: 'Chiến dịch',
@@ -95,7 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
     sectionLabel: 'Quản trị hệ thống',
   },
   {
-    label: 'Merchants',
+    label: 'Nhà bán hàng',
     href: '/admin/merchants',
     iconName: 'Store',
     permission: 'admin_merchants',
@@ -137,14 +137,14 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
   },
   {
-    label: 'Hồ sơ Merchant',
+    label: 'Hồ sơ nhà bán hàng',
     href: '/admin/merchant-profiles',
     iconName: 'Building2',
     permission: 'admin_profiles',
     section: 'admin',
   },
   {
-    label: 'Hồ sơ Customer',
+    label: 'Hồ sơ khách hàng',
     href: '/admin/customer-profiles',
     iconName: 'UserCheck',
     permission: 'admin_profiles',
@@ -158,28 +158,28 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
   },
   {
-    label: 'Stock Audit',
+    label: 'Kiểm kê tồn kho',
     href: '/admin/stock-audit-logs',
     iconName: 'ClipboardCheck',
     permission: 'admin_stock_audit',
     section: 'admin',
   },
   {
-    label: 'Dead Letter',
+    label: 'Hàng đợi lỗi',
     href: '/admin/dead-letter-queue',
     iconName: 'AlertTriangle',
     permission: 'admin_system',
     section: 'admin',
   },
   {
-    label: 'Action Logs',
+    label: 'Nhật ký thao tác',
     href: '/admin/user-action-logs',
     iconName: 'ScrollText',
     permission: 'admin_action_logs',
     section: 'admin',
   },
   {
-    label: 'Outbox Events',
+    label: 'Sự kiện outbox',
     href: '/admin/outbox-events',
     iconName: 'Radio',
     permission: 'admin_outbox',

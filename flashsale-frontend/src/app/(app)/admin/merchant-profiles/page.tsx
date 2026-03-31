@@ -20,7 +20,7 @@ export default function AdminMerchantProfilesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Quản lý Hồ sơ Merchant</h1>
+      <h1 className="text-2xl font-bold text-white">Quản lý hồ sơ nhà bán hàng</h1>
       {loading && (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />)}

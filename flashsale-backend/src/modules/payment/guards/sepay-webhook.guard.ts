@@ -25,7 +25,7 @@ export class SepayWebhookGuard implements CanActivate {
         event: 'sepay_webhook_rejected',
         ip: request.ip
       })
-      throw new ForbiddenException('Webhook signature không hợp lệ')
+      throw new ForbiddenException('Chữ ký webhook không hợp lệ')
     }
 
     return true

@@ -93,7 +93,7 @@ export class OrderWorker implements OnModuleInit {
       )
     } catch (err: unknown) {
       // If reservation creation fails, roll back the stock decrement
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
       this.logger.error(
         `Failed to create reservation for requestId=${requestId}: ${message}`
       )

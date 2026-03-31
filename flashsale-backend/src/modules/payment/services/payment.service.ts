@@ -23,7 +23,10 @@ export class PaymentService {
     private readonly sepayService: SepayService,
     private readonly configService: ConfigService
   ) {
-    this.webhookTimeoutMs = this.configService.get<number>('timeouts.WEBHOOK_TIMEOUT_MS', 30_000)
+    this.webhookTimeoutMs = this.configService.get<number>(
+      'timeouts.WEBHOOK_TIMEOUT_MS',
+      30_000
+    )
   }
 
   // ─── Generic webhook (legacy) ───────────────────────────────────────────────
@@ -209,7 +212,7 @@ export class PaymentService {
         referenceCode: dto.referenceCode
       })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
       const stack = err instanceof Error ? err.stack : undefined
 
       if (err instanceof CheckoutDataExpiredException) {

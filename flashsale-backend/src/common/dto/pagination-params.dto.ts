@@ -6,7 +6,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger'
 
 export class PaginationParams {
   @ApiPropertyOptional({
-    description: 'Starting ID for pagination',
+    description: 'ID bắt đầu để phân trang',
     example: 1
   })
   @IsOptional()
@@ -16,7 +16,7 @@ export class PaginationParams {
   startId?: number
 
   @ApiPropertyOptional({
-    description: 'Offset for pagination',
+    description: 'Độ lệch để phân trang',
     example: 1
   })
   @IsOptional()
@@ -26,7 +26,7 @@ export class PaginationParams {
   offset?: number
 
   @ApiPropertyOptional({
-    description: 'Limit for pagination',
+    description: 'Giới hạn phân trang',
     example: 20
   })
   @IsOptional()

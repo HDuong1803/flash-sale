@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString } from 'class-validator'
 
 export class GoogleAuthDto {
   @ApiProperty({
-    description: 'Google ID token từ Google Sign-In (GSI)',
+    description: 'ID token Google từ Google Sign-In (GSI)',
     example: 'eyJhbGciOiJSUzI1NiIsImtpZCI6...',
     required: true
   })

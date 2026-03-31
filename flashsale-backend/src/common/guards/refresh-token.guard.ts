@@ -17,7 +17,7 @@ export class RefreshTokenGuard extends AuthGuard(StrategyToken.JWT_REFRESH) {
     // You can throw an exception based on either "info" or "err" arguments\
     if (err || !user) {
       this.logger.error(info)
-      throw new NotFoundException('Token is invalid')
+      throw new NotFoundException('Token không hợp lệ')
     }
     return user
   }

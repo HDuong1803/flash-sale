@@ -31,9 +31,8 @@ export class NotificationService {
       message: string
     }
   ): Promise<void> {
-    const preferences = await this.notificationRepository.getOrCreatePreferences(
-      userId
-    )
+    const preferences =
+      await this.notificationRepository.getOrCreatePreferences(userId)
 
     if (!preferences.notificationsEnabled) {
       return
@@ -102,9 +101,8 @@ export class NotificationService {
     campaignReminderEnabled: boolean
     orderStatusEnabled: boolean
   }> {
-    const preferences = await this.notificationRepository.getOrCreatePreferences(
-      userId
-    )
+    const preferences =
+      await this.notificationRepository.getOrCreatePreferences(userId)
 
     return {
       notificationsEnabled: preferences.notificationsEnabled,
@@ -125,7 +123,9 @@ export class NotificationService {
     campaignReminderEnabled: boolean
     orderStatusEnabled: boolean
   }> {
-    const existing = await this.notificationRepository.getOrCreatePreferences(userId)
+    const existing = await this.notificationRepository.getOrCreatePreferences(
+      userId
+    )
 
     const nextNotificationsEnabled =
       payload.notificationsEnabled ?? existing.notificationsEnabled
@@ -138,11 +138,14 @@ export class NotificationService {
       ? payload.orderStatusEnabled ?? existing.orderStatusEnabled
       : false
 
-    const updated = await this.notificationRepository.updatePreferences(userId, {
-      notificationsEnabled: nextNotificationsEnabled,
-      campaignReminderEnabled: nextCampaignReminderEnabled,
-      orderStatusEnabled: nextOrderStatusEnabled
-    })
+    const updated = await this.notificationRepository.updatePreferences(
+      userId,
+      {
+        notificationsEnabled: nextNotificationsEnabled,
+        campaignReminderEnabled: nextCampaignReminderEnabled,
+        orderStatusEnabled: nextOrderStatusEnabled
+      }
+    )
 
     return {
       notificationsEnabled: updated.notificationsEnabled,

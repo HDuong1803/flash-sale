@@ -162,10 +162,10 @@ export function AppSidebar() {
           <div className="glass rounded-xl p-3 mx-1 mt-4 border border-amber-400/20">
             <p className="text-amber-300/80 text-xs font-medium mb-0.5">
               {merchantApplicationStatus === 'PENDING'
-                ? 'Shop đang chờ duyệt'
+                ? 'Cửa hàng đang chờ duyệt'
                 : merchantApplicationStatus === 'REJECTED'
                   ? 'Đơn đăng ký bị từ chối'
-                  : 'Shop chưa được duyệt'}
+                  : 'Cửa hàng chưa được duyệt'}
             </p>
             <p className="text-amber-400/50 text-[11px]">
               {merchantApplicationStatus === 'REJECTED'
@@ -192,7 +192,7 @@ export function AppSidebar() {
                     <p className="text-sm font-medium text-indigo-300 truncate">
                       {application?.status === 'PENDING'
                         ? 'Đang chờ duyệt...'
-                        : 'Đăng ký Merchant'}
+                        : 'Đăng ký nhà bán hàng'}
                     </p>
                     {!application && (
                       <p className="text-xs text-indigo-400/60">Mở rộng kinh doanh</p>

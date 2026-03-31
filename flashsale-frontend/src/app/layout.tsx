@@ -8,8 +8,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Flash Sale Platform',
-  description: 'Flash Sale Management System',
+  title: 'Nền tảng Flash Sale',
+  description: 'Hệ thống quản lý Flash Sale',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

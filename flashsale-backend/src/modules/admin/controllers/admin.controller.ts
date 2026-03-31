@@ -76,7 +76,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Duyệt đơn đăng ký merchant' })
-  @ApiParam({ name: 'id', description: 'MerchantProfile ID' })
+  @ApiParam({ name: 'id', description: 'ID hồ sơ merchant' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Duyệt thành công, user.role = MERCHANT'
@@ -94,7 +94,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Từ chối đơn đăng ký merchant' })
-  @ApiParam({ name: 'id', description: 'MerchantProfile ID' })
+  @ApiParam({ name: 'id', description: 'ID hồ sơ merchant' })
   @ApiBody({ type: RejectReasonDto })
   @ApiResponse({ status: HttpStatus.OK, description: 'Từ chối thành công' })
   @ApiResponse({
@@ -112,8 +112,8 @@ export class AdminController {
 
   // ─── Campaigns ──────────────────────────────────────────────────────
 
-  @ApiOperation({ summary: 'Lấy danh sách chiến dịch (admin view)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách campaigns' })
+  @ApiOperation({ summary: 'Lấy danh sách chiến dịch (góc nhìn admin)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách chiến dịch' })
   @Get('campaigns')
   @HttpCode(HttpStatus.OK)
   async getCampaigns(
@@ -123,7 +123,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Duyệt chiến dịch' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Duyệt thành công, status = APPROVED'
@@ -134,8 +134,8 @@ export class AdminController {
     return this.adminService.approveCampaign(id)
   }
 
-  @ApiOperation({ summary: 'Từ chối chiến dịch (revert về DRAFT)' })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiOperation({ summary: 'Từ chối chiến dịch (đưa về DRAFT)' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiBody({ type: RejectReasonDto })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -160,16 +160,17 @@ export class AdminController {
   }
 
   @ApiOperation({
-    summary: 'Force start campaign ngay lập tức (chỉ dùng cho debug/testing)'
+    summary:
+      'Buộc bắt đầu chiến dịch ngay lập tức (chỉ dùng cho gỡ lỗi/kiểm thử)'
   })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Campaign đã chuyển sang ACTIVE ngay lập tức'
+    description: 'Chiến dịch đã chuyển sang ACTIVE ngay lập tức'
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Campaign không ở trạng thái SCHEDULED'
+    description: 'Chiến dịch không ở trạng thái SCHEDULED'
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -184,9 +185,9 @@ export class AdminController {
   }
 
   @ApiOperation({
-    summary: 'Force stop campaign ngay lập tức (chỉ dùng cho debug/testing)'
+    summary: 'Buộc dừng chiến dịch ngay lập tức (chỉ dùng cho gỡ lỗi/kiểm thử)'
   })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({
     status: HttpStatus.OK,
     description:
@@ -211,7 +212,7 @@ export class AdminController {
   @ApiOperation({
     summary: 'Admin tạo yêu cầu force thay đổi lịch bắt đầu campaign'
   })
-  @ApiParam({ name: 'id', description: 'Campaign ID' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiBody({ type: ForceRescheduleDto })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -236,7 +237,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Admin duyệt yêu cầu thay đổi lịch từ merchant' })
-  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiParam({ name: 'requestId', description: 'ID yêu cầu đổi lịch' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Đã duyệt, lịch campaign đã được cập nhật'
@@ -259,7 +260,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Admin từ chối yêu cầu thay đổi lịch từ merchant' })
-  @ApiParam({ name: 'requestId', description: 'Reschedule Request ID' })
+  @ApiParam({ name: 'requestId', description: 'ID yêu cầu đổi lịch' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Đã từ chối yêu cầu' })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -281,7 +282,7 @@ export class AdminController {
   // ─── Users ──────────────────────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách người dùng' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách users' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách người dùng' })
   @Get('users')
   @HttpCode(HttpStatus.OK)
   async getUsers(@Query() query: AdminUserQueryDto): Promise<unknown[]> {
@@ -289,7 +290,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Khoá tài khoản user' })
-  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiParam({ name: 'id', description: 'ID người dùng' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Khoá thành công, status = BANNED'
@@ -301,7 +302,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Kích hoạt lại tài khoản user' })
-  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiParam({ name: 'id', description: 'ID người dùng' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Kích hoạt thành công, status = ACTIVE'
@@ -365,7 +366,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Retry một job thất bại' })
-  @ApiParam({ name: 'id', description: 'DLQ Job ID' })
+  @ApiParam({ name: 'id', description: 'ID job DLQ' })
   @ApiResponse({ status: HttpStatus.OK, description: '{ retried: true }' })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -378,7 +379,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Xoá job thất bại khỏi DLQ' })
-  @ApiParam({ name: 'id', description: 'DLQ Job ID' })
+  @ApiParam({ name: 'id', description: 'ID job DLQ' })
   @ApiResponse({ status: HttpStatus.OK, description: '{ discarded: true }' })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -409,7 +410,7 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Xem system logs gần nhất (50 entries)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Array of log objects' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Mảng bản ghi nhật ký' })
   @Get('system/logs')
   @HttpCode(HttpStatus.OK)
   async getSystemLogs(): Promise<object[]> {
@@ -419,7 +420,7 @@ export class AdminController {
   // ─── Orders (admin) ─────────────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách đơn hàng (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách orders' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách đơn hàng' })
   @Get('orders')
   @HttpCode(HttpStatus.OK)
   async getAdminOrders(@Query('status') status?: string): Promise<unknown[]> {
@@ -429,7 +430,7 @@ export class AdminController {
   // ─── Payments (admin) ────────────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách thanh toán (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách payments' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách thanh toán' })
   @Get('payments')
   @HttpCode(HttpStatus.OK)
   async getAdminPayments(@Query('status') status?: string): Promise<unknown[]> {
@@ -441,7 +442,7 @@ export class AdminController {
   // ─── Products (admin) ────────────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách sản phẩm (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách products' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách sản phẩm' })
   @Get('products')
   @HttpCode(HttpStatus.OK)
   async getAdminProducts(@Query('status') status?: string): Promise<unknown[]> {
@@ -455,7 +456,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Lấy danh sách hồ sơ customer (admin)' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Danh sách customer profiles'
+    description: 'Danh sách hồ sơ khách hàng'
   })
   @Get('customer-profiles')
   @HttpCode(HttpStatus.OK)
@@ -468,7 +469,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Lấy danh sách hồ sơ merchant đầy đủ (admin)' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Danh sách merchant profiles'
+    description: 'Danh sách hồ sơ merchant'
   })
   @Get('merchant-profiles')
   @HttpCode(HttpStatus.OK)
@@ -483,7 +484,7 @@ export class AdminController {
   @ApiOperation({ summary: 'Lấy danh sách thông báo (admin)' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Danh sách notifications'
+    description: 'Danh sách thông báo'
   })
   @Get('notifications')
   @HttpCode(HttpStatus.OK)
@@ -494,7 +495,10 @@ export class AdminController {
   // ─── Stock Audit Logs (admin) ────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách stock audit log (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Stock audit logs' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Nhật ký kiểm kê tồn kho'
+  })
   @Get('stock-audit-logs')
   @HttpCode(HttpStatus.OK)
   async getStockAuditLogs(): Promise<unknown[]> {
@@ -504,7 +508,10 @@ export class AdminController {
   // ─── User Action Logs (admin) ────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách user action log (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'User action logs' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Nhật ký thao tác người dùng'
+  })
   @Get('user-action-logs')
   @HttpCode(HttpStatus.OK)
   async getUserActionLogs(): Promise<unknown[]> {
@@ -514,7 +521,7 @@ export class AdminController {
   // ─── Outbox Events (admin) ───────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách outbox events (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Outbox events' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Sự kiện outbox' })
   @Get('outbox-events')
   @HttpCode(HttpStatus.OK)
   async getOutboxEvents(): Promise<unknown[]> {

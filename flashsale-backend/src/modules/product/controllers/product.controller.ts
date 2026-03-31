@@ -65,7 +65,9 @@ const imageFilePipe = new ParseFilePipe({
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  @ApiOperation({ summary: 'Tạo sản phẩm mới (bắt buộc ít nhất 3 ảnh, tối đa 10 ảnh)' })
+  @ApiOperation({
+    summary: 'Tạo sản phẩm mới (bắt buộc ít nhất 3 ảnh, tối đa 10 ảnh)'
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -79,7 +81,8 @@ export class ProductController {
         files: {
           type: 'array',
           items: { type: 'string', format: 'binary' },
-          description: 'Ảnh sản phẩm (bắt buộc ít nhất 3 file, tối đa 10 file, mỗi file tối đa 5MB)'
+          description:
+            'Ảnh sản phẩm (bắt buộc ít nhất 3 file, tối đa 10 file, mỗi file tối đa 5MB)'
         }
       },
       required: ['name', 'originalPrice', 'inventory', 'files']
@@ -101,7 +104,11 @@ export class ProductController {
     @Body() dto: CreateProductDto,
     @UploadedFiles(imageFilePipe) files?: Express.Multer.File[]
   ): Promise<ProductResponseDto> {
-    return this.productService.create(user.userId, dto, files ?? []) as unknown as ProductResponseDto
+    return this.productService.create(
+      user.userId,
+      dto,
+      files ?? []
+    ) as unknown as ProductResponseDto
   }
 
   @ApiOperation({ summary: 'Danh sách sản phẩm của merchant' })
@@ -112,27 +119,42 @@ export class ProductController {
     @CurrentUser() user: { userId: string },
     @Query() query: ProductQueryDto
   ): Promise<ProductResponseDto[]> {
-    return this.productService.findAll(user.userId, query) as unknown as ProductResponseDto[]
+    return this.productService.findAll(
+      user.userId,
+      query
+    ) as unknown as ProductResponseDto[]
   }
 
   @ApiOperation({ summary: 'Chi tiết sản phẩm kèm danh sách chiến dịch' })
-  @ApiParam({ name: 'id', description: 'Product ID' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm' })
   @ApiResponse({ status: HttpStatus.OK, type: ProductDetailResponseDto })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Sản phẩm không tồn tại' })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Sản phẩm không tồn tại'
+  })
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   async getById(
     @CurrentUser() user: { userId: string },
     @Param('id') id: string
   ): Promise<ProductDetailResponseDto> {
-    return this.productService.getById(user.userId, id) as unknown as ProductDetailResponseDto
+    return this.productService.getById(
+      user.userId,
+      id
+    ) as unknown as ProductDetailResponseDto
   }
 
-  @ApiOperation({ summary: 'Xoá sản phẩm (soft delete)' })
-  @ApiParam({ name: 'id', description: 'Product ID' })
+  @ApiOperation({ summary: 'Xoá sản phẩm (xóa mềm)' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Đã xoá sản phẩm' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Sản phẩm đang tham gia chiến dịch' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Sản phẩm không tồn tại' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Sản phẩm đang tham gia chiến dịch'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Sản phẩm không tồn tại'
+  })
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   async delete(
@@ -144,9 +166,10 @@ export class ProductController {
 
   @ApiOperation({
     summary: 'Cập nhật thông tin sản phẩm + thêm ảnh mới',
-    description: 'Thêm ảnh mới vào sản phẩm (không xóa ảnh cũ). Sản phẩm phải luôn có ít nhất 3 ảnh.'
+    description:
+      'Thêm ảnh mới vào sản phẩm (không xóa ảnh cũ). Sản phẩm phải luôn có ít nhất 3 ảnh.'
   })
-  @ApiParam({ name: 'id', description: 'Product ID' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -159,7 +182,8 @@ export class ProductController {
         files: {
           type: 'array',
           items: { type: 'string', format: 'binary' },
-          description: 'Ảnh mới thêm vào (không xóa ảnh cũ). Tổng ảnh sau khi thêm phải >= 3'
+          description:
+            'Ảnh mới thêm vào (không xóa ảnh cũ). Tổng ảnh sau khi thêm phải >= 3'
         }
       }
     }
@@ -186,15 +210,21 @@ export class ProductController {
     @Body() dto: UpdateProductDto,
     @UploadedFiles(imageFilePipe) files?: Express.Multer.File[]
   ): Promise<ProductResponseDto> {
-    return this.productService.update(user.userId, id, dto, files ?? []) as unknown as ProductResponseDto
+    return this.productService.update(
+      user.userId,
+      id,
+      dto,
+      files ?? []
+    ) as unknown as ProductResponseDto
   }
 
   @ApiOperation({
     summary: 'Xoá một ảnh khỏi sản phẩm',
-    description: 'Chỉ có thể xóa nếu sản phẩm đang có hơn 3 ảnh. Cần thêm ảnh mới trước khi xóa nếu đang có đúng 3 ảnh.'
+    description:
+      'Chỉ có thể xóa nếu sản phẩm đang có hơn 3 ảnh. Cần thêm ảnh mới trước khi xóa nếu đang có đúng 3 ảnh.'
   })
-  @ApiParam({ name: 'id', description: 'Product ID' })
-  @ApiParam({ name: 'imageId', description: 'ProductImage ID' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm' })
+  @ApiParam({ name: 'imageId', description: 'ID ảnh sản phẩm' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Đã xoá ảnh' })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
@@ -215,7 +245,7 @@ export class ProductController {
   }
 
   @ApiOperation({ summary: 'Bật/tắt trạng thái sản phẩm (ACTIVE ↔ INACTIVE)' })
-  @ApiParam({ name: 'id', description: 'Product ID' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm' })
   @ApiResponse({ status: HttpStatus.OK, type: ProductResponseDto })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -227,11 +257,14 @@ export class ProductController {
     @CurrentUser() user: { userId: string },
     @Param('id') id: string
   ): Promise<ProductResponseDto> {
-    return this.productService.toggleStatus(user.userId, id) as unknown as ProductResponseDto
+    return this.productService.toggleStatus(
+      user.userId,
+      id
+    ) as unknown as ProductResponseDto
   }
 
   @ApiOperation({ summary: 'Lấy thông tin tồn kho sản phẩm' })
-  @ApiParam({ name: 'id', description: 'Product ID' })
+  @ApiParam({ name: 'id', description: 'ID sản phẩm' })
   @ApiResponse({ status: HttpStatus.OK, type: InventoryResponseDto })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,

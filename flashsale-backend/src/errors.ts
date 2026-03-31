@@ -43,7 +43,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>()
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR
-    let message = 'Internal server error'
+    let message = 'Lỗi máy chủ nội bộ'
     let code: string | undefined
 
     if (exception instanceof HttpException) {
@@ -77,11 +77,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           message = responseObj['message']
         } else if (
           responseObj['error'] &&
-          typeof responseObj['error'] === 'object' &&
-          typeof (responseObj['error'] as Record<string, unknown>)['message'] ===
-            'string'
+          typeof responseObj['error'] === 'object'
         ) {
-          message = (responseObj['error'] as Record<string, string>)['message']
+          const errorObj = responseObj['error'] as Record<string, unknown>
+          if (typeof errorObj['message'] === 'string') {
+            message = errorObj['message']
+          }
         } else if (typeof responseObj['error'] === 'string') {
           message = responseObj['error']
         }

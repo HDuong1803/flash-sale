@@ -90,7 +90,7 @@ export class SagaCoordinatorService {
     const resv = await this.paymentRepository.findReservationWithProduct(
       reservationId
     )
-    if (!resv) throw new NotFoundException('Reservation không tồn tại')
+    if (!resv) throw new NotFoundException('Giữ chỗ không tồn tại')
 
     try {
       // Bước 1: Đánh dấu thanh toán thành công
@@ -136,7 +136,7 @@ export class SagaCoordinatorService {
     } catch (err: unknown) {
       // CheckoutDataExpiredException: đã được throw trước try block → không bao giờ vào đây
       // Các lỗi khác (DB, Redis, ...): rollback an toàn vì payment chưa được đánh dấu SUCCESS
-      const message = err instanceof Error ? err.message : 'Unknown error'
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
       this.logger.error({
         event: 'saga_forward_failed',
         paymentId,

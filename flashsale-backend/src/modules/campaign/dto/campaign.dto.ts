@@ -155,7 +155,7 @@ export class RescheduleRequestDto {
   @ApiProperty({
     description: 'Số phút từ bây giờ đến khi chiến dịch bắt đầu',
     example: 30,
-    required: true,
+    required: true
   })
   @IsInt()
   @Min(15)
@@ -164,7 +164,7 @@ export class RescheduleRequestDto {
   @ApiProperty({
     description: 'Ghi chú thêm về yêu cầu thay đổi',
     example: 'Cần bắt đầu sớm hơn do lượng người đăng ký cao',
-    required: false,
+    required: false
   })
   @IsString()
   @IsOptional()
@@ -179,7 +179,10 @@ export class RescheduleRequestResponseDto {
   @ApiProperty({ description: 'ID chiến dịch' })
   campaignId: string
 
-  @ApiProperty({ description: 'Loại yêu cầu', enum: ['ADMIN_FORCE', 'MERCHANT_REQUEST'] })
+  @ApiProperty({
+    description: 'Loại yêu cầu',
+    enum: ['ADMIN_FORCE', 'MERCHANT_REQUEST']
+  })
   requestType: string
 
   @ApiProperty({ description: 'Thời gian bắt đầu mới được đề xuất' })

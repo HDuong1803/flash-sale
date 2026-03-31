@@ -8,7 +8,7 @@ export class AdminGuard implements CanActivate {
     const user = request?.user
 
     if (!user) {
-      throw new ForbiddenException('Unauthenticated')
+      throw new ForbiddenException('Chưa xác thực')
     }
 
     const role =
@@ -21,7 +21,7 @@ export class AdminGuard implements CanActivate {
     const isAdmin = role === 'ADMIN' || user.isOwner === true
 
     if (!isAdmin) {
-      throw new ForbiddenException('Admin privileges required')
+      throw new ForbiddenException('Cần quyền quản trị viên')
     }
 
     return true

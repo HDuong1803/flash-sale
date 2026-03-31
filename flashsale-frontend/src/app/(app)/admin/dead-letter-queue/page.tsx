@@ -55,7 +55,7 @@ export default function DeadLetterQueuePage() {
         <div className="flex items-center gap-3">
           <AlertTriangle size={24} className={jobs.length > 0 ? 'text-red-400' : 'text-white/30'} />
           <div>
-            <h1 className="text-white text-2xl font-bold">Dead Letter Queue</h1>
+            <h1 className="text-white text-2xl font-bold">Hàng đợi lỗi</h1>
             <p className={`text-sm ${jobs.length > 0 ? 'text-red-400' : 'text-white/40'}`}>
               {jobs.length} công việc thất bại {jobs.length > 0 ? 'cần xử lý' : ''}
             </p>
@@ -67,7 +67,7 @@ export default function DeadLetterQueuePage() {
             <RotateCcw size={14} /> Làm mới
           </button>
           <button onClick={handleRetryAll} disabled={jobs.length === 0 || retrying} className="btn-primary text-sm disabled:opacity-40">
-            Retry Tất Cả
+            Thử lại tất cả
           </button>
         </div>
       </div>
@@ -90,7 +90,7 @@ export default function DeadLetterQueuePage() {
               <thead>
                 <tr className="border-b border-white/10">
                   <th className="px-4 py-3 w-8" />
-                  {['Loại', 'Mã job', 'Lỗi', 'Thất bại lúc', 'Retry', 'Hành động'].map((h) => (
+                  {['Loại', 'Mã công việc', 'Lỗi', 'Thất bại lúc', 'Thử lại', 'Hành động'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-white/40 text-xs font-semibold uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -123,7 +123,7 @@ export default function DeadLetterQueuePage() {
                         <div className="flex gap-2">
                           <button onClick={() => retry(job.id).then(() => refetch())} disabled={retrying}
                             className="text-xs px-3 py-1.5 rounded-xl bg-orange-500/15 text-orange-300 border border-orange-500/20 hover:bg-orange-500/25 transition-all disabled:opacity-50">
-                            Retry
+                            Thử lại
                           </button>
                           <button onClick={() => setConfirmDiscard(job.id)}
                             className="text-xs px-3 py-1.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all">
@@ -152,8 +152,8 @@ export default function DeadLetterQueuePage() {
 
       <ConfirmDialog
         open={!!confirmDiscard}
-        title="Loại bỏ job này?"
-        description="Job sẽ bị xóa vĩnh viễn và không thể khôi phục."
+        title="Loại bỏ công việc này?"
+        description="Công việc sẽ bị xóa vĩnh viễn và không thể khôi phục."
         confirmLabel="Loại bỏ"
         cancelLabel="Hủy"
         variant="destructive"

@@ -83,7 +83,7 @@ export class OrderController {
   @ApiOperation({ summary: 'Poll kết quả đặt hàng theo requestId' })
   @ApiParam({
     name: 'requestId',
-    description: 'Request ID nhận từ POST /orders/purchase'
+    description: 'ID yêu cầu nhận từ POST /orders/purchase'
   })
   @ApiResponse({ status: HttpStatus.OK, type: PurchaseResultResponseDto })
   @ApiResponse({
@@ -124,7 +124,7 @@ export class OrderController {
   }
 
   @ApiOperation({ summary: 'Xem chi tiết một đơn hàng' })
-  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiParam({ name: 'id', description: 'ID đơn hàng' })
   @ApiResponse({ status: HttpStatus.OK, type: OrderResponseDto })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,

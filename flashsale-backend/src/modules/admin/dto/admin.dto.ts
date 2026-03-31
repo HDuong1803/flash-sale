@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsOptional, IsString, IsInt, IsEnum, IsISO8601, Min, MaxLength } from 'class-validator'
+import {
+  IsOptional,
+  IsString,
+  IsInt,
+  IsEnum,
+  IsISO8601,
+  Min,
+  MaxLength
+} from 'class-validator'
 import { Type } from 'class-transformer'
 import { CampaignStatus, KycStatus, UserRole } from '@common/enums/prisma-enums'
 
@@ -125,7 +133,7 @@ export class ForceRescheduleDto {
   @ApiProperty({
     description: 'Số phút từ bây giờ đến khi chiến dịch bắt đầu (tối thiểu 15)',
     example: 30,
-    required: true,
+    required: true
   })
   @IsInt()
   @Min(15)
@@ -134,7 +142,7 @@ export class ForceRescheduleDto {
   @ApiProperty({
     description: 'Lý do thay đổi lịch',
     example: 'Điều chỉnh để phù hợp với campaign marketing',
-    required: false,
+    required: false
   })
   @IsString()
   @IsOptional()
@@ -145,8 +153,14 @@ export class ForceRescheduleDto {
 export class RescheduleRequestQueryDto {
   @ApiProperty({
     description: 'Lọc theo trạng thái',
-    enum: ['PENDING_MERCHANT', 'PENDING_ADMIN', 'APPLIED', 'REJECTED', 'EXPIRED'],
-    required: false,
+    enum: [
+      'PENDING_MERCHANT',
+      'PENDING_ADMIN',
+      'APPLIED',
+      'REJECTED',
+      'EXPIRED'
+    ],
+    required: false
   })
   @IsString()
   @IsOptional()
@@ -155,13 +169,13 @@ export class RescheduleRequestQueryDto {
   @ApiProperty({
     description: 'Lọc theo loại yêu cầu',
     enum: ['ADMIN_FORCE', 'MERCHANT_REQUEST'],
-    required: false,
+    required: false
   })
   @IsString()
   @IsOptional()
   requestType?: string
 
-  @ApiProperty({ description: 'Lọc theo campaign ID', required: false })
+  @ApiProperty({ description: 'Lọc theo ID chiến dịch', required: false })
   @IsString()
   @IsOptional()
   campaignId?: string

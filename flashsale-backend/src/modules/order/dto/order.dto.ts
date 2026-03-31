@@ -39,7 +39,10 @@ export class OrderQueryDto {
 }
 
 export class PurchaseResponseDto {
-  @ApiProperty({ example: 'uuid', description: 'Request ID để poll kết quả' })
+  @ApiProperty({
+    example: 'uuid',
+    description: 'ID yêu cầu để truy vấn kết quả'
+  })
   requestId: string
 }
 

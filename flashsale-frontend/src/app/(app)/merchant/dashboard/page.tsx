@@ -53,7 +53,7 @@ export default function MerchantDashboardPage() {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-white text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-white text-2xl font-bold">Bảng điều khiển</h1>
           <p className="text-white/40 text-sm mt-1">Xin chào, {user?.fullName}</p>
         </div>
         <Link href="/merchant/campaigns/create" className="btn-primary flex items-center gap-2 text-sm">
@@ -85,11 +85,11 @@ export default function MerchantDashboardPage() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass rounded-2xl p-4">
-          <p className="text-white/45 text-xs mb-1">Campaign live (thực tế)</p>
+          <p className="text-white/45 text-xs mb-1">Chiến dịch đang diễn ra (thực tế)</p>
           <p className="text-white text-xl font-bold">{liveCampaigns}</p>
         </div>
         <div className="glass rounded-2xl p-4">
-          <p className="text-white/45 text-xs mb-1">Campaign sắp kết thúc (24h)</p>
+          <p className="text-white/45 text-xs mb-1">Chiến dịch sắp kết thúc (24h)</p>
           <p className="text-white text-xl font-bold">{endingSoonCampaigns}</p>
         </div>
         <div className="glass rounded-2xl p-4">
@@ -146,7 +146,7 @@ export default function MerchantDashboardPage() {
                           <StockProgressBar remaining={remaining} total={totalStock} size="sm" />
                         </td>
                         <td className="px-4 py-3">
-                          <Link href={`/merchant/campaigns/${c.id}/dashboard`} className="text-indigo-400 text-xs hover:text-indigo-300 transition-colors">Dashboard</Link>
+                          <Link href={`/merchant/campaigns/${c.id}/dashboard`} className="text-indigo-400 text-xs hover:text-indigo-300 transition-colors">Bảng điều khiển</Link>
                         </td>
                       </tr>
                     )

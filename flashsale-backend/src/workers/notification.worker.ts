@@ -9,6 +9,8 @@ export class NotificationWorker implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     await this.notificationService.startNotificationConsumer()
-    this.logger.log('Notification Worker started — consuming notification queue')
+    this.logger.log(
+      'Notification Worker started — consuming notification queue'
+    )
   }
 }

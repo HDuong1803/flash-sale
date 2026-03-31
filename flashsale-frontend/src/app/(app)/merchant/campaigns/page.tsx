@@ -108,7 +108,7 @@ export default function MerchantCampaignsPage() {
                   )}
                   {campaign.status === 'ACTIVE' && (
                     <>
-                      <Link href={`/merchant/campaigns/${campaign.id}/dashboard`} className="btn-primary text-xs px-3 py-1.5">Dashboard Live</Link>
+                      <Link href={`/merchant/campaigns/${campaign.id}/dashboard`} className="btn-primary text-xs px-3 py-1.5">Bảng điều khiển trực tiếp</Link>
                       <Link href="/merchant/orders" className="btn-glass text-xs px-3 py-1.5">Đơn hàng</Link>
                     </>
                   )}

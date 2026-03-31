@@ -38,7 +38,7 @@ export class NotificationController {
   @ApiOperation({ summary: 'Lấy danh sách thông báo của tôi' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Danh sách notifications'
+    description: 'Danh sách thông báo'
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -53,7 +53,7 @@ export class NotificationController {
   }
 
   @ApiOperation({ summary: 'Đánh dấu một thông báo đã đọc' })
-  @ApiParam({ name: 'id', description: 'Notification ID' })
+  @ApiParam({ name: 'id', description: 'ID thông báo' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Đánh dấu thành công' })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
@@ -104,7 +104,9 @@ export class NotificationController {
     return this.notificationService.getPreferences(user.userId)
   }
 
-  @ApiOperation({ summary: 'Cập nhật cấu hình thông báo của người dùng hiện tại' })
+  @ApiOperation({
+    summary: 'Cập nhật cấu hình thông báo của người dùng hiện tại'
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Cập nhật thành công',

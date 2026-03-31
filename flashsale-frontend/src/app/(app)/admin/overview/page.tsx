@@ -206,7 +206,7 @@ export default function AdminOverviewPage() {
           <div className="flex items-center gap-3">
             <AlertTriangle size={18} className="text-yellow-400 flex-shrink-0" />
             <p className="text-yellow-300 text-sm">
-              ⚠️ {pendingMerchants.length > 0 && `${pendingMerchants.length} merchant`}
+              ⚠️ {pendingMerchants.length > 0 && `${pendingMerchants.length} nhà bán hàng`}
               {pendingMerchants.length > 0 && pendingCampaigns.length > 0 && ' và '}
               {pendingCampaigns.length > 0 && `${pendingCampaigns.length} chiến dịch`}
               {' '}đang chờ phê duyệt
@@ -229,11 +229,11 @@ export default function AdminOverviewPage() {
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard icon={Users} label="Tổng người dùng" value={stats?.totalUsers?.toLocaleString() ?? '—'} color="bg-blue-500/20" />
-          <StatCard icon={Store} label="Merchant hoạt động" value={String(stats?.activeMerchants ?? '—')} color="bg-emerald-500/20" />
+          <StatCard icon={Store} label="Nhà bán hàng hoạt động" value={String(stats?.activeMerchants ?? '—')} color="bg-emerald-500/20" />
           <StatCard icon={Zap} label="Chiến dịch đang chạy" value={String(stats?.liveCampaigns ?? '—')} color="bg-indigo-500/20" />
           <StatCard icon={ShoppingCart} label="Đơn hàng hôm nay" value={String(stats?.ordersToday ?? '—')} color="bg-purple-500/20" />
           <StatCard icon={DollarSign} label="Doanh thu hôm nay" value={formatCurrency(stats?.revenueToday ?? 0)} color="bg-emerald-500/20" />
-          <StatCard icon={AlertTriangle} label="Job thất bại" value={String(jobs.length ?? '—')} color={jobs.length > 0 ? 'bg-red-500/20' : 'bg-gray-500/20'} href="/admin/dead-letter-queue" />
+          <StatCard icon={AlertTriangle} label="Công việc thất bại" value={String(jobs.length ?? '—')} color={jobs.length > 0 ? 'bg-red-500/20' : 'bg-gray-500/20'} href="/admin/dead-letter-queue" />
         </div>
       )}
 
@@ -323,7 +323,7 @@ export default function AdminOverviewPage() {
           <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {(['postgres', 'redis', 'rabbitmq', 'api'] as const).map((svc) => {
               const isUp = health?.[svc] === 'UP'
-              const labels: Record<string, string> = { postgres: 'PostgreSQL', redis: 'Redis', rabbitmq: 'RabbitMQ', api: 'API Server' }
+              const labels: Record<string, string> = { postgres: 'PostgreSQL', redis: 'Redis', rabbitmq: 'RabbitMQ', api: 'Máy chủ API' }
               return (
                 <div key={svc} className="glass rounded-xl p-3 flex items-center gap-3">
                   <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isUp ? 'bg-emerald-400' : 'bg-red-400 animate-live'}`} />
@@ -348,7 +348,7 @@ export default function AdminOverviewPage() {
             <Link href="/admin/merchants" className="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors">
               <div className="flex items-center gap-3">
                 <Store size={16} className="text-yellow-400" />
-                <span className="text-white/70 text-sm">Merchant chờ duyệt</span>
+                <span className="text-white/70 text-sm">Nhà bán hàng chờ duyệt</span>
               </div>
               {pendingMerchants.length > 0 ? (
                 <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{pendingMerchants.length}</span>

@@ -92,7 +92,7 @@ export default function AdminCampaignsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/10">
-                  {['Tên chiến dịch', 'Merchant', 'SP', 'Thời gian', 'Trạng thái', 'Hành động'].map((h) => (
+                  {['Tên chiến dịch', 'Nhà bán hàng', 'SP', 'Thời gian', 'Trạng thái', 'Hành động'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-white/40 text-xs font-semibold uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -150,7 +150,7 @@ export default function AdminCampaignsPage() {
                 {/* Campaign info */}
                 <div className="glass rounded-xl p-4 space-y-2.5 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-white/50">Merchant</span>
+                    <span className="text-white/50">Nhà bán hàng</span>
                     <span className="text-white font-medium">{selectedCampaign.merchant?.businessName}</span>
                   </div>
                   <div className="flex justify-between">

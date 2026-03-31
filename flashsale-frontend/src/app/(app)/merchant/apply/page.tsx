@@ -23,7 +23,7 @@ type ApplyForm = z.infer<typeof schema>
 const BENEFITS = [
   { icon: Users, label: 'Tiếp cận triệu khách' },
   { icon: Zap, label: 'Tạo Flash Sale dễ dàng' },
-  { icon: BarChart3, label: 'Dashboard thời gian thực' },
+  { icon: BarChart3, label: 'Bảng điều khiển thời gian thực' },
 ]
 
 export default function MerchantApplyPage() {
@@ -112,7 +112,7 @@ export default function MerchantApplyPage() {
             style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>
             <Store size={36} className="text-white" />
           </div>
-          <h1 className="text-white text-2xl font-bold">Trở thành Merchant trên FlashSale</h1>
+          <h1 className="text-white text-2xl font-bold">Trở thành nhà bán hàng trên Flash Sale</h1>
           <p className="text-white/60 text-sm">Tiếp cận hàng triệu khách hàng và tăng doanh số với Flash Sale</p>
           <div className="flex flex-wrap justify-center gap-3">
             {BENEFITS.map((b) => (
@@ -132,7 +132,7 @@ export default function MerchantApplyPage() {
     <div className="max-w-xl mx-auto space-y-6">
       <div className="glass-brand rounded-2xl p-6 text-center">
         <Store size={36} className="mx-auto text-indigo-400 mb-2" />
-        <h1 className="text-white text-xl font-bold">Đăng ký Merchant</h1>
+        <h1 className="text-white text-xl font-bold">Đăng ký nhà bán hàng</h1>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="glass rounded-2xl p-6 space-y-4" noValidate>

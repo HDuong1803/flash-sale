@@ -52,7 +52,9 @@ export class NotificationRepository {
     })
   }
 
-  async getOrCreatePreferences(userId: string): Promise<NotificationPreference> {
+  async getOrCreatePreferences(
+    userId: string
+  ): Promise<NotificationPreference> {
     return this.prisma.notificationPreference.upsert({
       where: { userId },
       update: {},

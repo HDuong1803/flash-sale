@@ -3,9 +3,15 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  NotFoundException,
+  NotFoundException
 } from '@nestjs/common'
-import { CampaignStatus, KycStatus, NotificationType, RescheduleRequestStatus, RescheduleRequestType } from '@prisma/client'
+import {
+  CampaignStatus,
+  KycStatus,
+  NotificationType,
+  RescheduleRequestStatus,
+  RescheduleRequestType
+} from '@prisma/client'
 import { MerchantRepository } from '@modules/merchant/repositories/merchant.repository'
 import { ProductRepository } from '@modules/product/repositories/product.repository'
 import { NotificationService } from '@modules/notification/services/notification.service'
@@ -19,7 +25,7 @@ import {
   CampaignQueryDto,
   RescheduleRequestDto,
   RescheduleRequestResponseDto,
-  UpdateCampaignDto,
+  UpdateCampaignDto
 } from '../dto/campaign.dto'
 
 @Injectable()
@@ -33,7 +39,7 @@ export class CampaignService {
     private readonly rescheduleRequestRepository: RescheduleRequestRepository,
     private readonly notificationService: NotificationService,
     private readonly emailService: EmailService,
-    private readonly redis: RedisService,
+    private readonly redis: RedisService
   ) {}
 
   private async getApprovedMerchant(userId: string) {
@@ -94,7 +100,7 @@ export class CampaignService {
     // Đọc stock thực từ Redis để trả về giá trị chính xác.
     if (campaign.status === CampaignStatus.ACTIVE) {
       await Promise.allSettled(
-        campaign.campaignProducts.map(async (cp) => {
+        campaign.campaignProducts.map(async cp => {
           const remaining = await this.redis.getStock(cp.id)
           if (remaining !== null) {
             cp.remainingQuantity = remaining
@@ -256,20 +262,27 @@ export class CampaignService {
   async createRescheduleRequest(
     userId: string,
     campaignId: string,
-    dto: RescheduleRequestDto,
+    dto: RescheduleRequestDto
   ): Promise<RescheduleRequestResponseDto> {
     const merchant = await this.getApprovedMerchant(userId)
 
-    const campaign = await this.campaignRepository.findByIdAndMerchant(campaignId, merchant.id)
+    const campaign = await this.campaignRepository.findByIdAndMerchant(
+      campaignId,
+      merchant.id
+    )
     if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
     if (campaign.status !== CampaignStatus.SCHEDULED)
       throw new BadRequestException(
-        'Chỉ có thể yêu cầu thay đổi lịch với chiến dịch ở trạng thái SCHEDULED',
+        'Chỉ có thể yêu cầu thay đổi lịch với chiến dịch ở trạng thái SCHEDULED'
       )
 
-    const hasPending = await this.rescheduleRequestRepository.hasPendingRequest(campaignId)
+    const hasPending = await this.rescheduleRequestRepository.hasPendingRequest(
+      campaignId
+    )
     if (hasPending)
-      throw new BadRequestException('Chiến dịch đang có yêu cầu thay đổi lịch chờ xử lý')
+      throw new BadRequestException(
+        'Chiến dịch đang có yêu cầu thay đổi lịch chờ xử lý'
+      )
 
     const newStartTime = new Date(Date.now() + dto.offsetMinutes * 60_000)
     const expiresAt = new Date(Date.now() + 48 * 60 * 60_000) // 48 giờ
@@ -280,7 +293,7 @@ export class CampaignService {
       requestType: RescheduleRequestType.MERCHANT_REQUEST,
       newStartTime,
       expiresAt,
-      note: dto.note,
+      note: dto.note
     })
 
     return request as RescheduleRequestResponseDto
@@ -289,16 +302,21 @@ export class CampaignService {
   /** Merchant xác nhận yêu cầu force reschedule của admin */
   async confirmAdminReschedule(
     userId: string,
-    requestId: string,
+    requestId: string
   ): Promise<RescheduleRequestResponseDto> {
     const merchant = await this.getApprovedMerchant(userId)
 
-    const request = await this.rescheduleRequestRepository.findByIdWithDetails(requestId)
-    if (!request) throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
+    const request = await this.rescheduleRequestRepository.findByIdWithDetails(
+      requestId
+    )
+    if (!request)
+      throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
     if (request.requestType !== RescheduleRequestType.ADMIN_FORCE)
       throw new BadRequestException('Chỉ có thể xác nhận yêu cầu từ admin')
     if (request.status !== RescheduleRequestStatus.PENDING_MERCHANT)
-      throw new BadRequestException('Yêu cầu này không cần xác nhận hoặc đã được xử lý')
+      throw new BadRequestException(
+        'Yêu cầu này không cần xác nhận hoặc đã được xử lý'
+      )
     if (request.campaign.merchant.id !== merchant.id)
       throw new ForbiddenException('Bạn không có quyền xác nhận yêu cầu này')
     if (new Date() > request.expiresAt)
@@ -306,7 +324,13 @@ export class CampaignService {
 
     const oldStartTime = request.campaign.startTime
 
-    await this.applyReschedule(requestId, request.campaignId, request.newStartTime, oldStartTime, request)
+    await this.applyReschedule(
+      requestId,
+      request.campaignId,
+      request.newStartTime,
+      oldStartTime,
+      request
+    )
 
     const updated = await this.rescheduleRequestRepository.findById(requestId)
     return updated as RescheduleRequestResponseDto
@@ -315,22 +339,27 @@ export class CampaignService {
   /** Merchant từ chối yêu cầu force reschedule của admin */
   async rejectAdminReschedule(
     userId: string,
-    requestId: string,
+    requestId: string
   ): Promise<{ rejected: boolean }> {
     const merchant = await this.getApprovedMerchant(userId)
 
-    const request = await this.rescheduleRequestRepository.findByIdWithDetails(requestId)
-    if (!request) throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
+    const request = await this.rescheduleRequestRepository.findByIdWithDetails(
+      requestId
+    )
+    if (!request)
+      throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
     if (request.requestType !== RescheduleRequestType.ADMIN_FORCE)
       throw new BadRequestException('Chỉ có thể từ chối yêu cầu từ admin')
     if (request.status !== RescheduleRequestStatus.PENDING_MERCHANT)
-      throw new BadRequestException('Yêu cầu này không thể từ chối hoặc đã được xử lý')
+      throw new BadRequestException(
+        'Yêu cầu này không thể từ chối hoặc đã được xử lý'
+      )
     if (request.campaign.merchant.id !== merchant.id)
       throw new ForbiddenException('Bạn không có quyền từ chối yêu cầu này')
 
     await this.rescheduleRequestRepository.update(requestId, {
       status: RescheduleRequestStatus.REJECTED,
-      resolvedAt: new Date(),
+      resolvedAt: new Date()
     })
 
     return { rejected: true }
@@ -338,10 +367,11 @@ export class CampaignService {
 
   /** Lấy danh sách yêu cầu thay đổi lịch đang chờ xác nhận của merchant */
   async getMerchantPendingRescheduleRequests(
-    userId: string,
+    userId: string
   ): Promise<RescheduleRequestResponseDto[]> {
     await this.getApprovedMerchant(userId)
-    const requests = await this.rescheduleRequestRepository.findPendingByMerchantUserId(userId)
+    const requests =
+      await this.rescheduleRequestRepository.findPendingByMerchantUserId(userId)
     return requests as RescheduleRequestResponseDto[]
   }
 
@@ -351,17 +381,22 @@ export class CampaignService {
     campaignId: string,
     newStartTime: Date,
     oldStartTime: Date,
-    requestWithDetails?: Awaited<ReturnType<RescheduleRequestRepository['findByIdWithDetails']>>,
+    requestWithDetails?: Awaited<
+      ReturnType<RescheduleRequestRepository['findByIdWithDetails']>
+    >
   ): Promise<void> {
-    await this.campaignRepository.update(campaignId, { startTime: newStartTime })
+    await this.campaignRepository.update(campaignId, {
+      startTime: newStartTime
+    })
 
     await this.rescheduleRequestRepository.update(requestId, {
       status: RescheduleRequestStatus.APPLIED,
-      resolvedAt: new Date(),
+      resolvedAt: new Date()
     })
 
     const details =
-      requestWithDetails ?? (await this.rescheduleRequestRepository.findByIdWithDetails(requestId))
+      requestWithDetails ??
+      (await this.rescheduleRequestRepository.findByIdWithDetails(requestId))
     if (!details) return
 
     const formattedOld = this.formatDateTime(oldStartTime)
@@ -374,11 +409,13 @@ export class CampaignService {
           await this.notificationService.createNotification(customer.id, {
             type: NotificationType.CAMPAIGN_RESCHEDULED,
             title: 'Thời gian bắt đầu campaign đã thay đổi',
-            message: `Campaign "${details.campaign.name}" sẽ bắt đầu lúc ${formattedNew} (thay vì ${formattedOld})`,
+            message: `Campaign "${details.campaign.name}" sẽ bắt đầu lúc ${formattedNew} (thay vì ${formattedOld})`
           })
         } catch (err: unknown) {
           this.logger.error(
-            `Không thể tạo notification cho user ${customer.id}: ${err instanceof Error ? err.message : String(err)}`,
+            `Không thể tạo notification cho user ${customer.id}: ${
+              err instanceof Error ? err.message : String(err)
+            }`
           )
         }
 
@@ -388,14 +425,16 @@ export class CampaignService {
             name: customer.fullName,
             campaignName: details.campaign.name,
             oldStartTime: formattedOld,
-            newStartTime: formattedNew,
+            newStartTime: formattedNew
           })
         } catch (err: unknown) {
           this.logger.error(
-            `Không thể gửi email cho ${customer.email}: ${err instanceof Error ? err.message : String(err)}`,
+            `Không thể gửi email cho ${customer.email}: ${
+              err instanceof Error ? err.message : String(err)
+            }`
           )
         }
-      }),
+      })
     )
   }
 
@@ -406,7 +445,7 @@ export class CampaignService {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Asia/Ho_Chi_Minh',
+      timeZone: 'Asia/Ho_Chi_Minh'
     })
   }
 

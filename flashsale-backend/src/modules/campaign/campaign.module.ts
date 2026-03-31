@@ -11,6 +11,6 @@ import { NotificationModule } from '@modules/notification/notification.module'
   imports: [MerchantModule, ProductModule, NotificationModule],
   controllers: [CampaignController],
   providers: [CampaignService, CampaignRepository, RescheduleRequestRepository],
-  exports: [CampaignRepository, RescheduleRequestRepository],
+  exports: [CampaignRepository, RescheduleRequestRepository]
 })
 export class CampaignModule {}

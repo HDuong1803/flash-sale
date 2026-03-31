@@ -24,9 +24,9 @@ export class CheckoutService {
     // 1. Validate reservation still HOLDING in Redis (source of truth)
     const resv = await this.redis.getReservation(dto.reservationId)
     if (!resv || resv.status !== 'HOLDING')
-      throw new BadRequestException('Reservation đã hết hạn hoặc không tồn tại')
+      throw new BadRequestException('Giữ chỗ đã hết hạn hoặc không tồn tại')
     if (resv.customerId !== userId)
-      throw new ForbiddenException('Không có quyền truy cập reservation này')
+      throw new ForbiddenException('Không có quyền truy cập giữ chỗ này')
 
     // 2. Get campaign product for price calculation
     const cp = await this.checkoutRepository.findCampaignProduct(
@@ -67,7 +67,10 @@ export class CheckoutService {
         paymentId: payment.id
       }),
       'EX',
-      this.configService.get<number>('timeouts.CHECKOUT_ADDRESS_TTL_SECONDS', 1200)
+      this.configService.get<number>(
+        'timeouts.CHECKOUT_ADDRESS_TTL_SECONDS',
+        1200
+      )
     )
 
     return {
@@ -85,7 +88,10 @@ export class CheckoutService {
     method: string,
     amount: number
   ): Promise<string> {
-    const frontendUrl = this.configService.get<string>('frontend.FRONTEND_URL', '')
+    const frontendUrl = this.configService.get<string>(
+      'frontend.FRONTEND_URL',
+      ''
+    )
     const returnUrl = `${frontendUrl}/payment/return`
     const cancelUrl = `${frontendUrl}/payment/cancel`
 

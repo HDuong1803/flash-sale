@@ -3,12 +3,12 @@ import { IsIn, IsNumber, IsString, Min } from 'class-validator'
 import { Type } from 'class-transformer'
 
 export class PaymentWebhookDto {
-  @ApiProperty({ description: 'Payment ID', example: 'uuid' })
+  @ApiProperty({ description: 'ID thanh toán', example: 'uuid' })
   @IsString()
   paymentId: string
 
   @ApiProperty({
-    description: 'Transaction ID từ cổng thanh toán',
+    description: 'Mã giao dịch từ cổng thanh toán',
     example: 'TXN001'
   })
   @IsString()

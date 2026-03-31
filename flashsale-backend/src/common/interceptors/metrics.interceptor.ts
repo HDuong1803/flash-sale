@@ -29,7 +29,10 @@ export class MetricsInterceptor implements NestInterceptor {
   private readonly slowRequestThresholdMs: number
 
   constructor(private readonly configService: ConfigService) {
-    this.slowRequestThresholdMs = this.configService.get<number>('timeouts.this.slowRequestThresholdMs', 1000)
+    this.slowRequestThresholdMs = this.configService.get<number>(
+      'timeouts.this.slowRequestThresholdMs',
+      1000
+    )
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -90,7 +93,7 @@ export class MetricsInterceptor implements NestInterceptor {
             method,
             url,
             durationMs: Date.now() - start,
-            error: err instanceof Error ? err.message : 'Unknown error'
+            error: err instanceof Error ? err.message : 'Lỗi không xác định'
           })
         }
       })

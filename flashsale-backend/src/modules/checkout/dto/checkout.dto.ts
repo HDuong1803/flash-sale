@@ -4,7 +4,7 @@ import { PaymentMethod } from '@prisma/client'
 
 export class CheckoutDto {
   @ApiProperty({
-    description: 'ID reservation (nhận từ GET /orders/result/:requestId)',
+    description: 'ID giữ chỗ (nhận từ GET /orders/result/:requestId)',
     example: 'uuid'
   })
   @IsUUID()

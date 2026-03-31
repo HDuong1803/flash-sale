@@ -73,7 +73,9 @@ export class ProductService {
       ...dto
     })
 
-    const uploaded = await Promise.all(files.map(f => this.fileService.createPhoto(f)))
+    const uploaded = await Promise.all(
+      files.map(f => this.fileService.createPhoto(f))
+    )
     await this.productRepository.addImages(
       product.id,
       uploaded.map((p, i) => ({
@@ -90,12 +92,15 @@ export class ProductService {
 
   async findAll(userId: string, query: ProductQueryDto) {
     const merchant = await this.getApprovedMerchant(userId)
-    const products = await this.productRepository.findAllByMerchant(merchant.id, {
-      search: query.search,
-      status: query.status,
-      page: query.page ?? 1,
-      limit: query.limit ?? 10
-    })
+    const products = await this.productRepository.findAllByMerchant(
+      merchant.id,
+      {
+        search: query.search,
+        status: query.status,
+        page: query.page ?? 1,
+        limit: query.limit ?? 10
+      }
+    )
     return products.map(toProductResponse)
   }
 
@@ -125,10 +130,14 @@ export class ProductService {
       if (currentCount + toUpload.length < MIN_IMAGES_PER_PRODUCT) {
         throw new BadRequestException(
           `Sản phẩm phải có ít nhất ${MIN_IMAGES_PER_PRODUCT} ảnh. ` +
-          `Hiện có ${currentCount} ảnh, cần thêm ít nhất ${MIN_IMAGES_PER_PRODUCT - currentCount} ảnh`
+            `Hiện có ${currentCount} ảnh, cần thêm ít nhất ${
+              MIN_IMAGES_PER_PRODUCT - currentCount
+            } ảnh`
         )
       }
-      const uploaded = await Promise.all(toUpload.map(f => this.fileService.createPhoto(f)))
+      const uploaded = await Promise.all(
+        toUpload.map(f => this.fileService.createPhoto(f))
+      )
       await this.productRepository.addImages(
         productId,
         uploaded.map((p, i) => ({
@@ -159,11 +168,14 @@ export class ProductService {
     if (currentCount <= MIN_IMAGES_PER_PRODUCT) {
       throw new BadRequestException(
         `Sản phẩm phải có ít nhất ${MIN_IMAGES_PER_PRODUCT} ảnh. ` +
-        `Hãy thêm ảnh mới trước khi xóa`
+          `Hãy thêm ảnh mới trước khi xóa`
       )
     }
 
-    const deleted = await this.productRepository.deleteImage(productImageId, productId)
+    const deleted = await this.productRepository.deleteImage(
+      productImageId,
+      productId
+    )
     if (!deleted) throw new NotFoundException('Ảnh không tồn tại')
 
     if (deleted.publicId) {
@@ -187,20 +199,30 @@ export class ProductService {
 
   async getById(userId: string, productId: string) {
     const merchant = await this.getApprovedMerchant(userId)
-    const product = await this.productRepository.findByIdAndMerchant(productId, merchant.id)
+    const product = await this.productRepository.findByIdAndMerchant(
+      productId,
+      merchant.id
+    )
     if (!product) throw new NotFoundException('Sản phẩm không tồn tại')
-    const campaigns = await this.productRepository.getCampaignSummaries(productId)
+    const campaigns = await this.productRepository.getCampaignSummaries(
+      productId
+    )
     return { ...toProductResponse(product), campaigns }
   }
 
   async delete(userId: string, productId: string): Promise<void> {
     const merchant = await this.getApprovedMerchant(userId)
-    const product = await this.productRepository.findByIdAndMerchant(productId, merchant.id)
+    const product = await this.productRepository.findByIdAndMerchant(
+      productId,
+      merchant.id
+    )
     if (!product) throw new NotFoundException('Sản phẩm không tồn tại')
 
     const hasActive = await this.productRepository.hasActiveCampaigns(productId)
     if (hasActive)
-      throw new BadRequestException('Không thể xoá sản phẩm đang tham gia chiến dịch')
+      throw new BadRequestException(
+        'Không thể xoá sản phẩm đang tham gia chiến dịch'
+      )
 
     await this.productRepository.softDelete(productId)
   }

@@ -280,7 +280,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               </div>
               <div>
                 <p className="text-white font-semibold">{campaign.merchant?.businessName}</p>
-                <p className="text-white/40 text-sm">Merchant đã xác minh</p>
+                <p className="text-white/40 text-sm">Nhà bán hàng đã xác minh</p>
               </div>
             </div>
           )}

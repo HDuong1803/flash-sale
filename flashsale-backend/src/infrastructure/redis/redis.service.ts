@@ -13,7 +13,10 @@ export class RedisService {
   private readonly logger = new Logger(RedisService.name)
 
   constructor(private readonly configService: ConfigService) {
-    this.redisHost = this.configService.get<string>('redis.REDIS_HOST', 'localhost')
+    this.redisHost = this.configService.get<string>(
+      'redis.REDIS_HOST',
+      'localhost'
+    )
     this.redisPort = this.configService.get<number>('redis.REDIS_PORT', 6379)
     this.redisUsername = this.configService.get<string>(
       'redis.REDIS_USERNAME',

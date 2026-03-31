@@ -17,5 +17,5 @@ export enum EmailTemplate {
   ORDER_CONFIRMED = 'order-confirmed',
   ORDER_CANCELLED = 'order-cancelled',
   CAMPAIGN_RESCHEDULE_REQUEST = 'campaign-reschedule-request',
-  CAMPAIGN_TIME_CHANGED = 'campaign-time-changed',
+  CAMPAIGN_TIME_CHANGED = 'campaign-time-changed'
 }

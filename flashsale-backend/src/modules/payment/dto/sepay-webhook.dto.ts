@@ -8,7 +8,7 @@ import { PaymentStatus } from '@prisma/client'
  * Ref: https://docs.sepay.vn/webhook-tu-dong.html
  */
 export class SepayWebhookDto {
-  @ApiProperty({ description: 'SePay transaction ID', example: 12345 })
+  @ApiProperty({ description: 'ID giao dịch SePay', example: 12345 })
   @IsNumber()
   @Type(() => Number)
   id: number
@@ -109,7 +109,7 @@ export class PaymentStatusResponseDto {
     example: 'clx1a2b3c4d5e',
     nullable: true,
     required: false,
-    description: 'ID đơn hàng — chỉ có khi status = SUCCESS'
+    description: 'ID đơn hàng — chỉ có khi trạng thái = SUCCESS'
   })
   orderId: string | null
 }

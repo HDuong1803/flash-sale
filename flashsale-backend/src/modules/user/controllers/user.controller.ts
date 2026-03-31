@@ -43,7 +43,10 @@ export class UserController {
     description: 'Thành công',
     type: UserResponseDto
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
     description: 'Người dùng không tồn tại'
@@ -94,7 +97,10 @@ export class UserController {
     status: HttpStatus.BAD_REQUEST,
     description: 'Dữ liệu không hợp lệ'
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
   async updateProfile(
     @CurrentUser() user: { userId: string },
     @Body() dto: UpdateProfileDto,

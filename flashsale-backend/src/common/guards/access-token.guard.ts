@@ -37,7 +37,10 @@ export class AccessTokenGuard extends AuthGuard(StrategyToken.JWT) {
     // Log and throw error
     if (err || !user) {
       this.logger.error(info)
-      throw err || new ForbiddenException(info || 'Invalid or expired token')
+      throw (
+        err ||
+        new ForbiddenException(info || 'Token không hợp lệ hoặc đã hết hạn')
+      )
     }
 
     return user
