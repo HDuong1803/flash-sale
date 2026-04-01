@@ -117,7 +117,7 @@ export default function AdminUserActionLogsPage() {
         <GlassCard className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/60 text-xs font-medium uppercase">Tổng số logs</p>
+              <p className="text-white/60 text-xs font-medium uppercase">Tổng số nhật ký</p>
               <p className="text-2xl font-bold text-white mt-1">{stats.total}</p>
             </div>
             <ScrollText className="text-white/30" size={32} />
@@ -200,7 +200,7 @@ export default function AdminUserActionLogsPage() {
       ) : filteredLogs.length === 0 ? (
         <GlassCard className="p-12 text-center">
           <ScrollText className="mx-auto mb-4 text-white/20" size={48} />
-          <p className="text-white/60">Không tìm thấy log nào</p>
+          <p className="text-white/60">Không tìm thấy nhật ký nào</p>
         </GlassCard>
       ) : (
         <GlassCard className="overflow-hidden">
@@ -272,14 +272,14 @@ export default function AdminUserActionLogsPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-3">
               <ScrollText className="text-indigo-400" size={24} />
-              Chi tiết log
+              Chi tiết nhật ký
             </DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">ID Log</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Mã nhật ký</p>
                   <p className="text-white/90 font-mono text-sm">{selectedLog.id}</p>
                 </div>
                 <div>

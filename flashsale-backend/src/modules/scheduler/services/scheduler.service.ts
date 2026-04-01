@@ -194,7 +194,7 @@ export class SchedulerService {
    * Every 10 minutes — recover payments stuck in PROCESSING state.
    *
    * Tại sao cần job này:
-   * Khi SePay webhook được nhận, payment chuyển PENDING → PROCESSING (atomic).
+   * Khi payment webhook được nhận, payment chuyển PENDING → PROCESSING (atomic).
    * Saga sau đó chạy để tạo Order. Nếu saga thất bại (timeout, checkout expired,
    * DB lỗi tạm thời), payment vẫn ở PROCESSING mà không có orderId.
    * Khách đã chuyển tiền nhưng chưa có đơn hàng — phải tự động recover.

@@ -594,10 +594,7 @@ enum OrderStatus {
 }
 
 enum PaymentMethod {
-  VNPAY
-  MOMO
   STRIPE
-  SEPAY
 }
 
 enum PaymentStatus {

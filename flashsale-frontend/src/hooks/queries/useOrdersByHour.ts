@@ -10,6 +10,7 @@ export function useOrdersByTime(start: Date, end: Date) {
   const query = useQuery<OrdersByHour[]>({
     queryKey: queryKeys.admin.ordersByTime(startIso, endIso),
     queryFn: () => adminService.getOrdersByTime(start, end),
+    refetchInterval: 30_000,
   })
 
   return {

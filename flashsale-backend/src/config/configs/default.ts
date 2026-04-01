@@ -64,14 +64,6 @@ export const config = {
     CLOUDINARY_API_SECRET: ''
   },
 
-  sepay: {
-    SEPAY_API_KEY: '',
-    SEPAY_BANK_ACCOUNT: '',
-    SEPAY_BANK_CODE: '',
-    SEPAY_ACCOUNT_NAME: '',
-    SEPAY_SANDBOX: 'false'
-  },
-
   stripe: {
     STRIPE_SECRET_KEY: '',
     STRIPE_WEBHOOK_SECRET: ''

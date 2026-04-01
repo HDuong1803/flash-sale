@@ -123,20 +123,20 @@ export default function AdminCampaignMonitorPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <KpiCard label="Lượt truy cập" value={overviewQuery.data.visits.toLocaleString()} hint="Tổng log tương tác" icon={MousePointerClick} />
-          <KpiCard label="Người dùng duy nhất" value={overviewQuery.data.uniqueVisitors.toLocaleString()} hint="Theo userId/IP" icon={Users} />
-          <KpiCard label="Giữ chỗ" value={overviewQuery.data.reservations.toLocaleString()} hint="Số reservation tạo mới" icon={ShoppingCart} />
+          <KpiCard label="Lượt truy cập" value={overviewQuery.data.visits.toLocaleString()} hint="Tổng số bản ghi tương tác" icon={MousePointerClick} />
+          <KpiCard label="Người dùng duy nhất" value={overviewQuery.data.uniqueVisitors.toLocaleString()} hint="Theo userId hoặc IP" icon={Users} />
+          <KpiCard label="Giữ chỗ" value={overviewQuery.data.reservations.toLocaleString()} hint="Số lượt giữ chỗ mới" icon={ShoppingCart} />
           <KpiCard label="Thanh toán thành công" value={overviewQuery.data.successfulPayments.toLocaleString()} hint="Số thanh toán ở trạng thái thành công" icon={Gauge} />
           <KpiCard label="Tỷ lệ giữ chỗ→thanh toán" value={`${overviewQuery.data.reservationToPaymentRatePct.toFixed(2)}%`} hint="Hiệu quả phễu chuyển đổi" icon={Activity} />
           <KpiCard label="Độ trễ thanh toán TB" value={`${overviewQuery.data.avgCheckoutLatencySeconds.toFixed(2)}s`} hint="Từ lúc tạo thanh toán đến khi trả tiền thành công" icon={Timer} />
           <KpiCard label="Đỉnh hành động/giây" value={overviewQuery.data.peakActionsPerSecond.toFixed(2)} hint="Mức tải cao nhất theo giây" icon={Gauge} />
-          <KpiCard label="Chỉ số dao động" value={overviewQuery.data.volatilityIndex.toFixed(2)} hint="Độ lệch chuẩn traffic theo phút" icon={Activity} />
+          <KpiCard label="Chỉ số dao động" value={overviewQuery.data.volatilityIndex.toFixed(2)} hint="Độ lệch chuẩn lưu lượng theo phút" icon={Activity} />
         </div>
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="glass rounded-2xl p-4">
-          <h2 className="text-white font-semibold mb-3">Timeline truy cập & giữ chỗ</h2>
+          <h2 className="text-white font-semibold mb-3">Dòng thời gian truy cập và giữ chỗ</h2>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={timelineQuery.data}>
@@ -156,7 +156,7 @@ export default function AdminCampaignMonitorPage() {
         </div>
 
         <div className="glass rounded-2xl p-4">
-          <h2 className="text-white font-semibold mb-3">Timeline chuyển đổi thanh toán</h2>
+          <h2 className="text-white font-semibold mb-3">Dòng thời gian chuyển đổi thanh toán</h2>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={timelineQuery.data}>

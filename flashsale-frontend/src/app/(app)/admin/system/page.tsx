@@ -7,6 +7,7 @@ import { useQueueStats } from '@/hooks/queries/useQueueStats'
 import { useSystemLogs } from '@/hooks/queries/useSystemLogs'
 import { usePaymentGatewayConfigs } from '@/hooks/queries/usePaymentGatewayConfigs'
 import { useUpdatePaymentGatewayConfig } from '@/hooks/mutations/useUpdatePaymentGatewayConfig'
+import { useAdminStream } from '@/hooks/useAdminStream'
 import { formatDate } from '@/lib/utils'
 import type { PaymentGatewayConfig } from '@/types'
 
@@ -14,7 +15,7 @@ const SERVICE_CONFIG = [
   { key: 'postgres' as const, label: 'PostgreSQL', icon: Database, desc: 'Cơ sở dữ liệu chính' },
   { key: 'redis' as const, label: 'Redis', icon: Layers, desc: 'Bộ nhớ đệm và hàng đợi' },
   { key: 'rabbitmq' as const, label: 'RabbitMQ', icon: MessageSquare, desc: 'Bộ điều phối tin nhắn' },
-  { key: 'api' as const, label: 'Máy chủ API', icon: Server, desc: 'API REST backend' },
+  { key: 'api' as const, label: 'Máy chủ API', icon: Server, desc: 'API REST phía máy chủ' },
 ]
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -35,34 +36,21 @@ export default function AdminSystemPage() {
   const { data: logs, loading: logsLoading, error: logsError, refetch: refetchLogs } = useSystemLogs()
   const { data: gateways, loading: gatewayLoading } = usePaymentGatewayConfigs()
   const { updateGateway, loading: updatingGateway } = useUpdatePaymentGatewayConfig()
-  const [lastRefresh, setLastRefresh] = useState(Date.now())
+  const { connected: streamConnected } = useAdminStream()
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({})
 
+  // health và queue stats được cập nhật realtime qua SSE (useAdminStream)
   const doRefresh = useCallback(() => {
     refetch()
     refetchQueue()
     refetchLogs()
-    setLastRefresh(Date.now())
   }, [refetch, refetchQueue, refetchLogs])
-
-  useEffect(() => {
-    const interval = setInterval(doRefresh, 60000)
-    return () => clearInterval(interval)
-  }, [doRefresh])
-
-  // Auto-refresh queue every 30s
-  useEffect(() => {
-    const interval = setInterval(() => refetchQueue(), 30000)
-    return () => clearInterval(interval)
-  }, [refetchQueue])
 
   useEffect(() => {
     const initialNames: Record<string, string> = {}
     for (const item of gateways) initialNames[item.gateway] = item.displayName
     setDisplayNames(initialNames)
   }, [gateways])
-
-  void lastRefresh
 
   const onToggleEnabled = async (gateway: PaymentGatewayConfig) => {
     await updateGateway(gateway.gateway, { enabled: !gateway.enabled })
@@ -83,7 +71,12 @@ export default function AdminSystemPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-white text-2xl font-bold">Giám sát hệ thống</h1>
-          <p className="text-white/40 text-sm mt-1">Tự động làm mới mỗi 60 giây</p>
+          <div className="flex items-center gap-1.5 mt-1">
+            <span className={`w-2 h-2 rounded-full ${streamConnected ? 'bg-emerald-400 animate-pulse' : 'bg-white/20'}`} />
+            <p className={`text-sm ${streamConnected ? 'text-emerald-400' : 'text-white/40'}`}>
+              {streamConnected ? 'Đang theo dõi trực tiếp' : 'Đang kết nối...'}
+            </p>
+          </div>
         </div>
         <button onClick={doRefresh} className="btn-glass flex items-center gap-2 text-sm">
           <RotateCcw size={14} /> Làm mới
@@ -155,12 +148,12 @@ export default function AdminSystemPage() {
         ) : (
           <div className="space-y-4">
             {[
-              { label: 'order.high', value: queueStats?.high ?? 0 },
-              { label: 'order.normal', value: queueStats?.normal ?? 0 },
+              { label: 'Đơn hàng ưu tiên cao', value: queueStats?.high ?? 0 },
+              { label: 'Đơn hàng ưu tiên thường', value: queueStats?.normal ?? 0 },
             ].map(({ label, value }) => (
               <div key={label} className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-white/60 font-mono">{label}</span>
+                  <span className="text-white/60">{label}</span>
                   <span className="text-white font-semibold">{value} mục</span>
                 </div>
                 <div className="h-2 glass rounded-full overflow-hidden">
@@ -267,7 +260,7 @@ export default function AdminSystemPage() {
         ) : logsError ? (
           <p className="text-white/40 text-sm text-center py-8">Không thể tải nhật ký</p>
         ) : logs.length === 0 ? (
-          <p className="text-white/40 text-sm text-center py-8">Không có log lỗi. Hệ thống hoạt động bình thường.</p>
+          <p className="text-white/40 text-sm text-center py-8">Không có nhật ký lỗi. Hệ thống hoạt động bình thường.</p>
         ) : (
           <>
             <div className="overflow-x-auto">

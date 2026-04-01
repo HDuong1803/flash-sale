@@ -7,7 +7,7 @@ export function useQueueStats() {
   const query = useQuery<QueueStats | null>({
     queryKey: queryKeys.admin.queueStats(),
     queryFn: () => adminService.getQueueStats(),
-    refetchInterval: 1000 * 30,
+    refetchInterval: 60_000, // fallback khi SSE mất — SSE push mỗi 10s là primary
   })
 
   return {

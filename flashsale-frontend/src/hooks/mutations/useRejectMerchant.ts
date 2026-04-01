@@ -10,7 +10,7 @@ export function useRejectMerchant() {
     mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
       adminService.rejectMerchant(id, reason ?? ''),
     onSuccess: () => {
-      toast.success('Đã từ chối merchant')
+      toast.success('Đã từ chối nhà bán hàng')
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.merchants.all })
     },

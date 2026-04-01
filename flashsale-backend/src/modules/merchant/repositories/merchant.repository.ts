@@ -277,7 +277,17 @@ export class MerchantRepository {
           }
         },
         payment: { select: { status: true, method: true, paidAt: true } },
-        customer: { select: { fullName: true } }
+        customer: { select: { fullName: true } },
+        reservation: {
+          select: {
+            campaignProduct: {
+              select: {
+                campaignId: true,
+                campaign: { select: { name: true } }
+              }
+            }
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
       skip: (filters.page - 1) * filters.limit,
@@ -285,6 +295,9 @@ export class MerchantRepository {
     })
     return orders.map(o => ({
       ...o,
+      campaignId: o.reservation.campaignProduct.campaignId,
+      campaignName: o.reservation.campaignProduct.campaign.name,
+      reservation: undefined,
       items: o.items.map(item => ({
         ...item,
         productName: item.product.name,

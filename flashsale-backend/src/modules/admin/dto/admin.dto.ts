@@ -214,10 +214,10 @@ export class CommissionCategoryBreakdownDto {
 }
 
 export class PaymentGatewayConfigDto {
-  @ApiProperty({ enum: PaymentMethod, example: PaymentMethod.SEPAY })
+  @ApiProperty({ enum: PaymentMethod, example: PaymentMethod.STRIPE })
   gateway: PaymentMethod
 
-  @ApiProperty({ example: 'SePay QR Transfer' })
+  @ApiProperty({ example: 'Stripe' })
   displayName: string
 
   @ApiProperty({ example: true })

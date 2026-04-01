@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { PaymentMethod } from '@prisma/client'
-import { SepayService } from './sepay.service'
 import { StripeService } from './stripe.service'
 import type { CreatePaymentLinkInput, PaymentGatewayProvider } from './payment-gateway.types'
 
@@ -9,11 +8,9 @@ export class PaymentGatewayRegistry {
   private readonly providers: Map<PaymentMethod, PaymentGatewayProvider>
 
   constructor(
-    private readonly sepayService: SepayService,
     private readonly stripeService: StripeService
   ) {
     this.providers = new Map<PaymentMethod, PaymentGatewayProvider>([
-      [this.sepayService.method, this.sepayService],
       [this.stripeService.method, this.stripeService]
     ])
   }

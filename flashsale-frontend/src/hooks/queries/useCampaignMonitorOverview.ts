@@ -10,6 +10,7 @@ export function useCampaignMonitorOverview(params?: {
   const query = useQuery<CampaignMonitorOverview>({
     queryKey: queryKeys.admin.campaignMonitorOverview(params),
     queryFn: () => adminService.getCampaignMonitorOverview(params),
+    refetchInterval: 30_000,
   })
 
   return {

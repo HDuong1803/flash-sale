@@ -7,6 +7,7 @@ export function useActivity() {
   const query = useQuery<ActivityLog[]>({
     queryKey: queryKeys.admin.activity(),
     queryFn: () => adminService.getActivity(),
+    refetchInterval: 30_000,
   })
 
   return {

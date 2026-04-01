@@ -6,7 +6,7 @@ export function useSystemHealth() {
   const query = useQuery({
     queryKey: queryKeys.admin.health(),
     queryFn: () => adminService.getSystemHealth(),
-    refetchInterval: 1000 * 30,
+    refetchInterval: 60_000, // fallback khi SSE mất — SSE push mỗi 15s là primary
   })
 
   return {

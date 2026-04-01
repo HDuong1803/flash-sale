@@ -115,14 +115,6 @@ export const config = {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET
   },
 
-  sepay: {
-    SEPAY_API_KEY: process.env.SEPAY_API_KEY,
-    SEPAY_BANK_ACCOUNT: process.env.SEPAY_BANK_ACCOUNT,
-    SEPAY_BANK_CODE: process.env.SEPAY_BANK_CODE,
-    SEPAY_ACCOUNT_NAME: process.env.SEPAY_ACCOUNT_NAME,
-    SEPAY_SANDBOX: process.env.SEPAY_SANDBOX
-  },
-
   stripe: {
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET

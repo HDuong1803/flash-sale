@@ -66,7 +66,7 @@ export class SagaCoordinatorService {
 
     if (!checkoutRaw) {
       // ⚠️ QUAN TRỌNG: Không được rollback ở đây!
-      // Tiền đã được nhận bởi SePay webhook — rollback sẽ mất tiền của khách.
+      // Tiền đã được nhận bởi payment gateway — rollback sẽ mất tiền của khách.
       //
       // Nguyên nhân: Redis key `checkout:addr:{reservationId}` có TTL 20 phút.
       // Nếu khách chờ quá lâu rồi mới chuyển khoản, key đã hết hạn.

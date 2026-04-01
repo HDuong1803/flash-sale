@@ -16,6 +16,7 @@ import { useActivity } from '@/hooks/queries/useActivity'
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { formatCurrency, formatTimeAgo } from '@/lib/utils'
+import { useAdminStream } from '@/hooks/useAdminStream'
 
 // ─── Time range helpers ────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 export default function AdminOverviewPage() {
+  const { connected: streamConnected } = useAdminStream()
   const [alertDismissed, setAlertDismissed] = useState(false)
   const { data: pendingMerchants } = useAdminMerchants('PENDING')
   const { data: pendingCampaigns } = useAdminCampaigns('DRAFT' as CampaignStatus)
@@ -199,7 +201,15 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <h1 className="text-white text-2xl font-bold">Tổng quan hệ thống</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-white text-2xl font-bold">Tổng quan hệ thống</h1>
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className={`w-2 h-2 rounded-full ${streamConnected ? 'bg-emerald-400 animate-pulse' : 'bg-white/20'}`} />
+          <span className={streamConnected ? 'text-emerald-400' : 'text-white/30'}>
+            {streamConnected ? 'Trực tiếp' : 'Đang kết nối...'}
+          </span>
+        </div>
+      </div>
 
       {showAlert && (
         <div className="glass rounded-xl p-4 border border-yellow-500/30 flex items-center justify-between gap-4">

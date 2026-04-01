@@ -7,6 +7,7 @@ export function useSystemLogs() {
   const query = useQuery<SystemLog[]>({
     queryKey: queryKeys.admin.logs(),
     queryFn: () => adminService.getSystemLogs(),
+    refetchInterval: 30_000,
   })
 
   return {

@@ -9,7 +9,7 @@ export function useApproveMerchant() {
   const mutation = useMutation({
     mutationFn: (id: string) => adminService.approveMerchant(id),
     onSuccess: () => {
-      toast.success('Đã duyệt merchant!')
+      toast.success('Đã duyệt nhà bán hàng!')
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.merchants.all })
     },

@@ -30,13 +30,11 @@ import {
   IUserFromRequest
 } from '@common/decorators/current-user.decorator'
 import { PaymentService } from '../services/payment.service'
-import { PaymentWebhookDto, WebhookResponseDto } from '../dto/payment.dto'
 import {
-  SepayWebhookDto,
-  SepayWebhookResponseDto,
+  PaymentWebhookDto,
+  WebhookResponseDto,
   PaymentStatusResponseDto
-} from '../dto/sepay-webhook.dto'
-import { SepayWebhookGuard } from '../guards/sepay-webhook.guard'
+} from '../dto/payment.dto'
 import type { Request } from 'express'
 
 const moduleName = 'payments'
@@ -60,27 +58,6 @@ export class PaymentController {
   @Public()
   async webhook(@Body() dto: PaymentWebhookDto): Promise<WebhookResponseDto> {
     return this.paymentService.handleWebhook(dto)
-  }
-
-  // ─── SePay webhook ─────────────────────────────────────────────────────────
-
-  @ApiOperation({
-    summary: 'SePay webhook — nhận thông báo giao dịch ngân hàng từ SePay'
-  })
-  @ApiBody({ type: SepayWebhookDto })
-  @ApiResponse({ status: HttpStatus.OK, type: SepayWebhookResponseDto })
-  @ApiResponse({
-    status: HttpStatus.FORBIDDEN,
-    description: 'Chữ ký webhook không hợp lệ'
-  })
-  @Post('webhook/sepay')
-  @HttpCode(HttpStatus.OK)
-  @Public()
-  @UseGuards(SepayWebhookGuard)
-  async handleSepayWebhook(
-    @Body() dto: SepayWebhookDto
-  ): Promise<SepayWebhookResponseDto> {
-    return this.paymentService.handleSepayWebhook(dto)
   }
 
   @ApiOperation({ summary: 'Stripe webhook — xử lý checkout session completed' })

@@ -7,6 +7,7 @@ export function useDeadLetterJobs() {
   const query = useQuery<DeadLetterJob[]>({
     queryKey: queryKeys.admin.deadLetterQueue(),
     queryFn: () => adminService.getDeadLetterJobs(),
+    refetchInterval: 30_000,
   })
 
   return {

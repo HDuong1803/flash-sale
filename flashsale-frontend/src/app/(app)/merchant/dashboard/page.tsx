@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { DollarSign, Zap, ShoppingCart, TrendingUp, AlertCircle, Plus } from 'lucide-react'
 import { useMerchantStats } from '@/hooks/queries/useMerchantStats'
-import { useCampaigns } from '@/hooks/queries/useCampaigns'
+import { useMyCampaigns } from '@/hooks/queries/useMyCampaigns'
 import { useMerchantOrders } from '@/hooks/queries/useMerchantOrders'
 import { useAuthContext } from '@/contexts/auth-context'
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton'
@@ -35,7 +35,7 @@ function StatCard({
 export default function MerchantDashboardPage() {
   const { user } = useAuthContext()
   const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useMerchantStats()
-  const { data: campaigns, loading: campaignLoading } = useCampaigns()
+  const { data: campaigns, loading: campaignLoading } = useMyCampaigns()
   const { data: orders, loading: ordersLoading } = useMerchantOrders()
 
   const liveCampaigns = campaigns.filter((c) => c.status === 'ACTIVE').length
@@ -187,7 +187,15 @@ export default function MerchantDashboardPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white/70 text-xs font-medium">{maskString(order.items[0]?.productName ?? 'Sản phẩm')}</p>
-                    <p className="text-white/40 text-xs">{formatTimeAgo(order.createdAt)}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {order.campaignId ? (
+                        <Link href={`/merchant/campaigns/${order.campaignId}/dashboard`} className="text-indigo-400/70 text-xs hover:text-indigo-300 transition-colors truncate max-w-[120px]">
+                          {order.campaignName ?? 'Chiến dịch'}
+                        </Link>
+                      ) : null}
+                      <span className="text-white/25 text-xs">·</span>
+                      <p className="text-white/40 text-xs flex-shrink-0">{formatTimeAgo(order.createdAt)}</p>
+                    </div>
                   </div>
                   <div className="flex-shrink-0 text-right">
                     <p className="text-indigo-300 text-xs font-bold">{formatCurrency(order.totalAmount)}</p>

@@ -130,7 +130,7 @@ export default function AdminOutboxEventsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <Radio className="text-indigo-400" size={28} />
-            Sự kiện outbox
+            Sự kiện chờ gửi
           </h1>
           <p className="text-white/50 text-sm mt-1">Theo dõi hàng đợi tin nhắn và tiến trình xử lý sự kiện</p>
         </div>
@@ -302,7 +302,7 @@ export default function AdminOutboxEventsPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-3">
               <Radio className="text-indigo-400" size={24} />
-              Chi tiết sự kiện outbox
+              Chi tiết sự kiện
             </DialogTitle>
           </DialogHeader>
           {selectedEvent && (
@@ -328,7 +328,7 @@ export default function AdminOutboxEventsPage() {
                   <p className="text-white/90 font-mono text-sm break-all">{selectedEvent.aggregateId}</p>
                 </div>
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">Loại sự kiện (raw)</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Loại sự kiện (nguyên bản)</p>
                   <p className="text-white/90 font-mono text-sm">{selectedEvent.type}</p>
                 </div>
               </div>

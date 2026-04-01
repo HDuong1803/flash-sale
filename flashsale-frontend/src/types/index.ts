@@ -15,7 +15,7 @@ export type PaymentStatus =
   | 'FAILED'      // Thanh toán thất bại
   | 'REFUNDED'    // Đã hoàn tiền
   | 'CANCELLED'   // User huỷ trong quá trình thanh toán
-export type PaymentMethod = 'VNPAY' | 'MOMO' | 'STRIPE' | 'SEPAY'
+export type PaymentMethod = 'VNPAY' | 'MOMO' | 'STRIPE'
 export type NotificationType =
   | 'RESERVATION_EXPIRING'
   | 'ORDER_CONFIRMED'
@@ -186,6 +186,8 @@ export interface Order {
   shippingAddress: string
   items: OrderItem[]
   payment?: Payment
+  campaignId?: string
+  campaignName?: string
   createdAt: string
   updatedAt: string
 }

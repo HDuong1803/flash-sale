@@ -579,7 +579,7 @@ export class AdminController {
   // ─── Outbox Events (admin) ───────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách outbox events (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Sự kiện outbox' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Sự kiện chờ gửi' })
   @Get('outbox-events')
   @HttpCode(HttpStatus.OK)
   async getOutboxEvents(): Promise<unknown[]> {

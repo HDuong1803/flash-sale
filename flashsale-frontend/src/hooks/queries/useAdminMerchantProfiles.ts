@@ -13,7 +13,7 @@ export function useAdminMerchantProfiles(status?: KycStatus, enabled = true) {
   return {
     data: query.data ?? [],
     loading: query.isLoading,
-    error: query.error ? (query.error instanceof Error ? query.error.message : 'Không thể tải hồ sơ merchant') : null,
+    error: query.error ? (query.error instanceof Error ? query.error.message : 'Không thể tải hồ sơ nhà bán hàng') : null,
     refetch: () => { void query.refetch() },
   }
 }

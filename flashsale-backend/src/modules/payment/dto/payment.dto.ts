@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsIn, IsNumber, IsString, Min } from 'class-validator'
 import { Type } from 'class-transformer'
+import { PaymentStatus } from '@prisma/client'
 
 export class PaymentWebhookDto {
   @ApiProperty({ description: 'ID thanh toán', example: 'uuid' })
@@ -33,4 +34,12 @@ export class PaymentWebhookDto {
 
 export class WebhookResponseDto {
   @ApiProperty({ example: true }) received: boolean
+}
+
+export class PaymentStatusResponseDto {
+  @ApiProperty({ enum: PaymentStatus, example: PaymentStatus.PENDING })
+  status: PaymentStatus
+
+  @ApiProperty({ example: 'uuid', nullable: true })
+  orderId: string | null
 }

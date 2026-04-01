@@ -151,7 +151,7 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
   },
   {
-    label: 'Sự kiện outbox',
+    label: 'Sự kiện chờ gửi',
     href: '/admin/outbox-events',
     iconName: 'Radio',
     permission: 'admin_outbox',

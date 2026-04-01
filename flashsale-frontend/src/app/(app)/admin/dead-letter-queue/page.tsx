@@ -135,7 +135,7 @@ export default function DeadLetterQueuePage() {
                     {expandedId === job.id && (
                       <tr className="border-b border-white/5">
                         <td colSpan={7} className="px-8 py-4 bg-black/20">
-                          <p className="text-white/40 text-xs font-semibold uppercase mb-2">Payload</p>
+                          <p className="text-white/40 text-xs font-semibold uppercase mb-2">Dữ liệu payload</p>
                           <pre className="text-white/60 text-xs font-mono bg-black/30 rounded-xl p-3 overflow-x-auto">
                             {JSON.stringify(job.payload, null, 2)}
                           </pre>

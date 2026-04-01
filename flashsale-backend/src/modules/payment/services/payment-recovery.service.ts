@@ -23,7 +23,7 @@ const CRITICAL_STUCK_MINUTES = 60
  *
  * Tình huống cần recover:
  * Payment ở trạng thái PROCESSING mà không có orderId sau > 10 phút.
- * Nghĩa là: tiền đã nhận (SePay webhook đã xử lý) nhưng saga thất bại
+ * Nghĩa là: tiền đã nhận (webhook gateway đã xử lý) nhưng saga thất bại
  * vì checkout data Redis hết hạn, DB timeout, hoặc saga process crash.
  *
  * Chiến lược recovery:

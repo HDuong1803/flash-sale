@@ -78,7 +78,7 @@ export default function AdminMerchantProfilesPage() {
             <Building2 className="text-indigo-400" size={28} />
             Hồ sơ nhà bán hàng
           </h1>
-          <p className="text-white/50 text-sm mt-1">Quản lý và kiểm tra hồ sơ KYC của merchants</p>
+          <p className="text-white/50 text-sm mt-1">Quản lý và kiểm tra hồ sơ KYC của nhà bán hàng</p>
         </div>
         <AutoRefreshTimer onRefresh={refetch} />
       </div>
@@ -171,7 +171,7 @@ export default function AdminMerchantProfilesPage() {
       ) : filteredProfiles.length === 0 ? (
         <GlassCard className="p-12 text-center">
           <Building2 className="mx-auto mb-4 text-white/20" size={48} />
-          <p className="text-white/60">Không tìm thấy hồ sơ merchant nào</p>
+          <p className="text-white/60">Không tìm thấy hồ sơ nhà bán hàng nào</p>
         </GlassCard>
       ) : (
         <GlassCard className="overflow-hidden">
@@ -245,7 +245,7 @@ export default function AdminMerchantProfilesPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-3">
               <Building2 className="text-indigo-400" size={24} />
-              Chi tiết hồ sơ merchant
+              Chi tiết hồ sơ nhà bán hàng
             </DialogTitle>
           </DialogHeader>
           {selectedProfile && (

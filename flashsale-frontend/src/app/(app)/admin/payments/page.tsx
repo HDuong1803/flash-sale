@@ -64,7 +64,7 @@ export default function AdminPaymentsPage() {
               <TrendingUp className="text-emerald-400/50 mt-2" size={18} />
             </GlassCard>
             <GlassCard className="p-4">
-              <p className="text-white/50 text-xs uppercase">Tiền ròng merchant</p>
+              <p className="text-white/50 text-xs uppercase">Doanh thu ròng nhà bán hàng</p>
               <p className="text-indigo-300 text-xl font-bold mt-2">{formatCurrency(summary.merchantNetRevenue)}</p>
               <Layers className="text-indigo-300/50 mt-2" size={18} />
             </GlassCard>

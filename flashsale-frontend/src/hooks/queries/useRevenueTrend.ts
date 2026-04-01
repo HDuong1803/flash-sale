@@ -7,6 +7,7 @@ export function useRevenueTrend() {
   const query = useQuery<RevenueTrend[]>({
     queryKey: queryKeys.admin.revenueTrend(),
     queryFn: () => adminService.getRevenueTrend(),
+    refetchInterval: 60_000,
   })
 
   return {

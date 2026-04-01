@@ -7,6 +7,7 @@ export function useAdminStats() {
   const query = useQuery<AdminStats | null>({
     queryKey: queryKeys.admin.stats(),
     queryFn: () => adminService.getStats(),
+    refetchInterval: 60_000, // fallback khi SSE mất — SSE push mỗi 20s là primary
   })
 
   return {
