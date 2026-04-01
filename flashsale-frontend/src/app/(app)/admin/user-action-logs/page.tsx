@@ -65,19 +65,19 @@ export default function AdminUserActionLogsPage() {
       total: logs.length,
       uniqueIPs: new Set(logs.filter(l => l.ip).map(l => l.ip)).size,
       uniqueUsers: new Set(logs.filter(l => l.userId).map(l => l.userId)).size,
-      topAction: Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A',
+      topAction: Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'Chưa có',
     }
   }, [logs])
 
   const handleExportCSV = () => {
     const csv = [
-      ['Thời gian', 'Hành động', 'User ID', 'IP', 'Target ID', 'ID Log'].join(','),
+      ['Thời gian', 'Hành động', 'Mã người dùng', 'IP', 'Mã đối tượng', 'Mã log'].join(','),
       ...filteredLogs.map(log => [
         new Date(log.createdAt).toLocaleString('vi-VN'),
         log.action,
-        log.userId || 'Guest',
-        log.ip || 'N/A',
-        log.targetId || 'N/A',
+        log.userId || 'Khách',
+        log.ip || 'Không có',
+        log.targetId || 'Không có',
         log.id,
       ].join(','))
     ].join('\n')
@@ -135,7 +135,7 @@ export default function AdminUserActionLogsPage() {
         <GlassCard className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/60 text-xs font-medium uppercase">Users hoạt động</p>
+              <p className="text-white/60 text-xs font-medium uppercase">Người dùng hoạt động</p>
               <p className="text-2xl font-bold text-purple-400 mt-1">{stats.uniqueUsers}</p>
             </div>
             <User className="text-purple-400/30" size={32} />
@@ -144,7 +144,7 @@ export default function AdminUserActionLogsPage() {
         <GlassCard className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/60 text-xs font-medium uppercase">Action phổ biến</p>
+              <p className="text-white/60 text-xs font-medium uppercase">Hành động phổ biến</p>
               <p className="text-base font-bold text-indigo-400 mt-1">{ACTION_LABELS[stats.topAction]?.label || stats.topAction}</p>
             </div>
             <Calendar className="text-indigo-400/30" size={32} />
@@ -158,7 +158,7 @@ export default function AdminUserActionLogsPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
             <Input
-              placeholder="Tìm theo action, user ID, IP..."
+              placeholder="Tìm theo hành động, mã người dùng, IP..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input-glass pl-10"
@@ -169,7 +169,7 @@ export default function AdminUserActionLogsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="glass-strong border-white/10">
-              <SelectItem value="ALL">Tất cả actions</SelectItem>
+              <SelectItem value="ALL">Tất cả hành động</SelectItem>
               {Object.entries(ACTION_LABELS).map(([key, val]) => (
                 <SelectItem key={key} value={key}>{val.label}</SelectItem>
               ))}
@@ -210,9 +210,9 @@ export default function AdminUserActionLogsPage() {
                 <tr className="border-b border-white/10">
                   <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Thời gian</th>
                   <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Hành động</th>
-                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">User</th>
-                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">IP Address</th>
-                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Target</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Người dùng</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Địa chỉ IP</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Đối tượng</th>
                   <th className="text-right p-4 text-xs font-semibold text-white/60 uppercase">Chi tiết</th>
                 </tr>
               </thead>
@@ -235,11 +235,11 @@ export default function AdminUserActionLogsPage() {
                           <p className="text-white/80 text-sm font-mono">{log.userId.slice(0, 8)}</p>
                         </div>
                       ) : (
-                        <Badge className="bg-white/5 text-white/40 border-0">Guest</Badge>
+                        <Badge className="bg-white/5 text-white/40 border-0">Khách</Badge>
                       )}
                     </td>
                     <td className="p-4">
-                      <p className="text-white/70 font-mono text-sm">{log.ip || 'N/A'}</p>
+                      <p className="text-white/70 font-mono text-sm">{log.ip || 'Không có'}</p>
                     </td>
                     <td className="p-4">
                       {log.targetId ? (
@@ -290,18 +290,18 @@ export default function AdminUserActionLogsPage() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">User ID</p>
-                  <p className="text-white/90 font-mono text-sm">{selectedLog.userId || 'Guest'}</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Mã người dùng</p>
+                  <p className="text-white/90 font-mono text-sm">{selectedLog.userId || 'Khách'}</p>
                 </div>
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">IP Address</p>
-                  <p className="text-white/90 font-mono text-sm">{selectedLog.ip || 'N/A'}</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Địa chỉ IP</p>
+                  <p className="text-white/90 font-mono text-sm">{selectedLog.ip || 'Không có'}</p>
                 </div>
               </div>
 
               {selectedLog.targetId && (
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">Target ID</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Mã đối tượng</p>
                   <p className="text-white/90 font-mono text-sm break-all">{selectedLog.targetId}</p>
                 </div>
               )}

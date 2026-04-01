@@ -128,7 +128,7 @@ export default function AdminSystemPage() {
                     {health ? (isUp ? 'Hoạt động bình thường' : 'Không kết nối được') : '—'}
                   </p>
                   {!isUp && health && (
-                    <button className="btn-glass text-xs py-1.5 text-red-300">Kiểm tra logs</button>
+                    <button className="btn-glass text-xs py-1.5 text-red-300">Kiểm tra nhật ký</button>
                   )}
                 </>
               )}
@@ -161,7 +161,7 @@ export default function AdminSystemPage() {
               <div key={label} className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-white/60 font-mono">{label}</span>
-                  <span className="text-white font-semibold">{value} items</span>
+                  <span className="text-white font-semibold">{value} mục</span>
                 </div>
                 <div className="h-2 glass rounded-full overflow-hidden">
                   <div
@@ -179,7 +179,7 @@ export default function AdminSystemPage() {
       <div className="glass rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-white font-semibold">Cấu hình cổng thanh toán</h2>
-          <p className="text-white/40 text-xs">Áp dụng ngay cho luồng checkout</p>
+          <p className="text-white/40 text-xs">Áp dụng ngay cho luồng thanh toán</p>
         </div>
         {gatewayLoading ? (
           <div className="space-y-2 animate-pulse">
@@ -249,7 +249,7 @@ export default function AdminSystemPage() {
       {/* System logs */}
       <div className="glass rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h2 className="text-white font-semibold">Error Logs</h2>
+          <h2 className="text-white font-semibold">Nhật ký lỗi</h2>
           {logsError && (
             <button onClick={refetchLogs} className="btn-glass text-xs px-3 py-1.5">Thử lại</button>
           )}
@@ -265,7 +265,7 @@ export default function AdminSystemPage() {
             ))}
           </div>
         ) : logsError ? (
-          <p className="text-white/40 text-sm text-center py-8">Không thể tải logs</p>
+          <p className="text-white/40 text-sm text-center py-8">Không thể tải nhật ký</p>
         ) : logs.length === 0 ? (
           <p className="text-white/40 text-sm text-center py-8">Không có log lỗi. Hệ thống hoạt động bình thường.</p>
         ) : (

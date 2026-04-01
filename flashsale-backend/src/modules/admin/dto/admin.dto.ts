@@ -258,3 +258,55 @@ export class UpdatePaymentGatewayConfigDto {
   @IsObject()
   config?: Record<string, unknown> | null
 }
+
+export class CampaignMonitorQueryDto {
+  @ApiProperty({ required: false, description: 'ID campaign để lọc monitor' })
+  @IsOptional()
+  @IsString()
+  campaignId?: string
+
+  @ApiProperty({
+    required: false,
+    description: 'Khoảng thời gian lùi lại (phút)',
+    default: 60
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(5)
+  minutes?: number
+}
+
+export class CampaignMonitorTimelineQueryDto extends CampaignMonitorQueryDto {
+  @ApiProperty({
+    required: false,
+    description: 'Kích thước bucket theo phút',
+    default: 5
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  bucketMinutes?: number
+}
+
+export class CampaignMonitorOverviewDto {
+  @ApiProperty({ example: 1240 }) visits: number
+  @ApiProperty({ example: 621 }) uniqueVisitors: number
+  @ApiProperty({ example: 284 }) reservations: number
+  @ApiProperty({ example: 132 }) successfulPayments: number
+  @ApiProperty({ example: 46.48 }) reservationToPaymentRatePct: number
+  @ApiProperty({ example: 3.27 }) avgCheckoutLatencySeconds: number
+  @ApiProperty({ example: 2.1 }) peakActionsPerSecond: number
+  @ApiProperty({ example: 18.5 }) volatilityIndex: number
+  @ApiProperty({ example: 12 }) queueDepth: number
+  @ApiProperty({ example: 3 }) failedJobsLastHour: number
+}
+
+export class CampaignMonitorTimelineItemDto {
+  @ApiProperty({ example: '2026-04-01T15:30:00.000Z' }) bucket: string
+  @ApiProperty({ example: 130 }) visits: number
+  @ApiProperty({ example: 42 }) reservations: number
+  @ApiProperty({ example: 19 }) successfulPayments: number
+  @ApiProperty({ example: 45.23 }) successRatePct: number
+}

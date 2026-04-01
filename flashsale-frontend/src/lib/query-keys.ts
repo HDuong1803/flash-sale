@@ -58,6 +58,10 @@ export const queryKeys = {
     financeTrend: () => ['admin', 'finance', 'trend'] as const,
     financeByCategory: () => ['admin', 'finance', 'by-category'] as const,
     paymentGateways: () => ['admin', 'payments', 'gateways'] as const,
+    campaignMonitorOverview: (params?: object) =>
+      ['admin', 'campaign-monitor', 'overview', params] as const,
+    campaignMonitorTimeline: (params?: object) =>
+      ['admin', 'campaign-monitor', 'timeline', params] as const,
   },
   checkout: {
     paymentMethods: () => ['checkout', 'payment-methods'] as const,

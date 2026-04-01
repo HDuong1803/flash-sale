@@ -5,6 +5,7 @@ import type {
   RevenueTrend, KycStatus, CampaignStatus, UserRole,
   AdminMerchantProfile, UserActionLog, OutboxEvent, FinanceDashboardSummary,
   FinanceTrendItem, CommissionCategoryBreakdown, PaymentGatewayConfig, PaymentMethod,
+  CampaignMonitorOverview, CampaignMonitorTimelineItem,
 } from '@/types'
 
 class AdminService {
@@ -107,6 +108,21 @@ class AdminService {
     data: Partial<Pick<PaymentGatewayConfig, 'enabled' | 'isDefault' | 'displayName' | 'config'>>
   ): Promise<PaymentGatewayConfig> {
     return apiClient.patch(`/admin/payments/gateways/${gateway}`, data)
+  }
+
+  getCampaignMonitorOverview(params?: {
+    campaignId?: string
+    minutes?: number
+  }): Promise<CampaignMonitorOverview> {
+    return withRetry(() => apiClient.get('/admin/campaign-monitor/overview', { params }))
+  }
+
+  getCampaignMonitorTimeline(params?: {
+    campaignId?: string
+    minutes?: number
+    bucketMinutes?: number
+  }): Promise<CampaignMonitorTimelineItem[]> {
+    return withRetry(() => apiClient.get('/admin/campaign-monitor/timeline', { params }))
   }
 }
 

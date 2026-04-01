@@ -8,9 +8,7 @@ import {
   CampaignStatus,
   KycStatus,
   NotificationType,
-  OrderStatus,
   PaymentStatus,
-  ProductStatus,
   RescheduleRequestStatus,
   RescheduleRequestType,
   UserRole,
@@ -23,7 +21,12 @@ import { RescheduleRequestRepository } from '@modules/campaign/repositories/resc
 import { NotificationService } from '@modules/notification/services/notification.service'
 import { EmailService } from '@common/providers/email.service'
 import { AdminRepository } from '../repositories/admin.repository'
-import { ForceRescheduleDto, RescheduleRequestQueryDto } from '../dto/admin.dto'
+import {
+  CampaignMonitorQueryDto,
+  CampaignMonitorTimelineQueryDto,
+  ForceRescheduleDto,
+  RescheduleRequestQueryDto
+} from '../dto/admin.dto'
 import { PaymentGatewayConfigService } from '@modules/payment/services/payment-gateway-config.service'
 import { PaymentMethod } from '@prisma/client'
 
@@ -284,22 +287,10 @@ export class AdminService {
     return logs.map(l => JSON.parse(l) as object)
   }
 
-  // ─── Orders ─────────────────────────────────────────────────────────
-
-  async getAdminOrders(status?: OrderStatus) {
-    return this.adminRepository.findOrders(status)
-  }
-
   // ─── Payments ────────────────────────────────────────────────────────
 
   async getAdminPayments(status?: PaymentStatus) {
     return this.adminRepository.findPayments(status)
-  }
-
-  // ─── Products ────────────────────────────────────────────────────────
-
-  async getAdminProducts(status?: ProductStatus) {
-    return this.adminRepository.findProducts(status)
   }
 
   // ─── Customer Profiles ───────────────────────────────────────────────
@@ -368,6 +359,25 @@ export class AdminService {
     }
   ) {
     return this.paymentGatewayConfigService.updateGatewayConfig(gateway, data)
+  }
+
+  async getCampaignMonitorOverview(query: CampaignMonitorQueryDto) {
+    const minutes = query.minutes ?? 60
+    const since = new Date(Date.now() - minutes * 60 * 1000)
+    return this.adminRepository.getCampaignMonitorOverview({
+      campaignId: query.campaignId,
+      since
+    })
+  }
+
+  async getCampaignMonitorTimeline(query: CampaignMonitorTimelineQueryDto) {
+    const minutes = query.minutes ?? 60
+    const since = new Date(Date.now() - minutes * 60 * 1000)
+    return this.adminRepository.getCampaignMonitorTimeline({
+      campaignId: query.campaignId,
+      since,
+      bucketMinutes: query.bucketMinutes ?? 5
+    })
   }
 
   // ─── Campaign Reschedule ─────────────────────────────────────────────────────

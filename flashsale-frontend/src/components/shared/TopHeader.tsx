@@ -92,7 +92,7 @@ export function TopHeader() {
             type="text"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
-            placeholder="Tìm kiếm flash sale..."
+            placeholder="Tìm kiếm chiến dịch..."
             className="input-glass pl-9 pr-8 text-sm h-9 py-0"
           />
           {searchValue && (

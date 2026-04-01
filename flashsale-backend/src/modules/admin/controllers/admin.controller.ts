@@ -23,9 +23,7 @@ import {
 import {
   PaymentMethod,
   KycStatus,
-  OrderStatus,
-  PaymentStatus,
-  ProductStatus
+  PaymentStatus
 } from '@prisma/client'
 import { ResponseInterceptor } from '@common/interceptors'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
@@ -49,6 +47,10 @@ import {
   FinanceDashboardSummaryDto,
   FinanceTrendItemDto,
   CommissionCategoryBreakdownDto,
+  CampaignMonitorOverviewDto,
+  CampaignMonitorQueryDto,
+  CampaignMonitorTimelineItemDto,
+  CampaignMonitorTimelineQueryDto,
   PaymentGatewayConfigDto,
   UpdatePaymentGatewayConfigDto
 } from '../dto/admin.dto'
@@ -423,16 +425,6 @@ export class AdminController {
     return this.adminService.getSystemLogs()
   }
 
-  // ─── Orders (admin) ─────────────────────────────────────────────────
-
-  @ApiOperation({ summary: 'Lấy danh sách đơn hàng (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách đơn hàng' })
-  @Get('orders')
-  @HttpCode(HttpStatus.OK)
-  async getAdminOrders(@Query('status') status?: string): Promise<unknown[]> {
-    return this.adminService.getAdminOrders(status as OrderStatus | undefined)
-  }
-
   // ─── Payments (admin) ────────────────────────────────────────────────
 
   @ApiOperation({ summary: 'Lấy danh sách thanh toán (admin)' })
@@ -477,6 +469,30 @@ export class AdminController {
     return this.adminService.getPaymentGatewayConfigs() as unknown as PaymentGatewayConfigDto[]
   }
 
+  @ApiOperation({ summary: 'Tổng quan monitor campaign theo cửa sổ thời gian' })
+  @ApiResponse({ status: HttpStatus.OK, type: CampaignMonitorOverviewDto })
+  @Get('campaign-monitor/overview')
+  @HttpCode(HttpStatus.OK)
+  async getCampaignMonitorOverview(
+    @Query() query: CampaignMonitorQueryDto
+  ): Promise<CampaignMonitorOverviewDto> {
+    return this.adminService.getCampaignMonitorOverview(
+      query
+    ) as unknown as CampaignMonitorOverviewDto
+  }
+
+  @ApiOperation({ summary: 'Timeline monitor campaign theo bucket thời gian' })
+  @ApiResponse({ status: HttpStatus.OK, type: [CampaignMonitorTimelineItemDto] })
+  @Get('campaign-monitor/timeline')
+  @HttpCode(HttpStatus.OK)
+  async getCampaignMonitorTimeline(
+    @Query() query: CampaignMonitorTimelineQueryDto
+  ): Promise<CampaignMonitorTimelineItemDto[]> {
+    return this.adminService.getCampaignMonitorTimeline(
+      query
+    ) as unknown as CampaignMonitorTimelineItemDto[]
+  }
+
   @ApiOperation({ summary: 'Cập nhật cấu hình 1 cổng thanh toán' })
   @ApiParam({ name: 'gateway', enum: PaymentMethod })
   @ApiBody({ type: UpdatePaymentGatewayConfigDto })
@@ -491,18 +507,6 @@ export class AdminController {
       gateway as PaymentMethod,
       dto
     ) as unknown as PaymentGatewayConfigDto
-  }
-
-  // ─── Products (admin) ────────────────────────────────────────────────
-
-  @ApiOperation({ summary: 'Lấy danh sách sản phẩm (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách sản phẩm' })
-  @Get('products')
-  @HttpCode(HttpStatus.OK)
-  async getAdminProducts(@Query('status') status?: string): Promise<unknown[]> {
-    return this.adminService.getAdminProducts(
-      status as ProductStatus | undefined
-    )
   }
 
   // ─── Customer Profiles (admin) ───────────────────────────────────────

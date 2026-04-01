@@ -34,7 +34,7 @@ export default function AdminOutboxEventsPage() {
 
   const { data: events, loading, error, refetch } = useOutboxEvents()
 
-  // Filter events
+  // Lọc sự kiện
   const filteredEvents = useMemo(() => {
     let result = events
     
@@ -60,7 +60,7 @@ export default function AdminOutboxEventsPage() {
     return result
   }, [events, statusFilter, typeFilter, searchQuery])
 
-  // Stats
+  // Thống kê
   const stats = useMemo(() => {
     const typeCounts: Record<string, number> = {}
     events.forEach(e => {
@@ -77,13 +77,13 @@ export default function AdminOutboxEventsPage() {
 
   const handleExportCSV = () => {
     const csv = [
-      ['Thời gian', 'Event Type', 'Aggregate ID', 'Processed', 'Processed At', 'Event ID'].join(','),
+      ['Thời gian', 'Loại sự kiện', 'Mã đối tượng tổng hợp', 'Đã xử lý', 'Thời điểm xử lý', 'Mã sự kiện'].join(','),
       ...filteredEvents.map(e => [
         new Date(e.createdAt).toLocaleString('vi-VN'),
         e.type,
         e.aggregateId,
-        e.processed ? 'Yes' : 'No',
-        e.processedAt ? new Date(e.processedAt).toLocaleString('vi-VN') : 'N/A',
+        e.processed ? 'Có' : 'Không',
+        e.processedAt ? new Date(e.processedAt).toLocaleString('vi-VN') : 'Không có',
         e.id,
       ].join(','))
     ].join('\n')
@@ -118,7 +118,7 @@ export default function AdminOutboxEventsPage() {
     )
   }
 
-  // Get unique event types from data
+  // Lấy danh sách loại sự kiện duy nhất
   const uniqueTypes = useMemo(() => {
     return Array.from(new Set(events.map(e => e.type)))
   }, [events])
@@ -130,9 +130,9 @@ export default function AdminOutboxEventsPage() {
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
             <Radio className="text-indigo-400" size={28} />
-            Sự kiện Outbox
+            Sự kiện outbox
           </h1>
-          <p className="text-white/50 text-sm mt-1">Theo dõi message queue và event processing</p>
+          <p className="text-white/50 text-sm mt-1">Theo dõi hàng đợi tin nhắn và tiến trình xử lý sự kiện</p>
         </div>
         <AutoRefreshTimer onRefresh={refetch} />
       </div>
@@ -142,7 +142,7 @@ export default function AdminOutboxEventsPage() {
         <GlassCard className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/60 text-xs font-medium uppercase">Tổng events</p>
+              <p className="text-white/60 text-xs font-medium uppercase">Tổng sự kiện</p>
               <p className="text-2xl font-bold text-white mt-1">{stats.total}</p>
             </div>
             <Radio className="text-white/30" size={32} />
@@ -169,7 +169,7 @@ export default function AdminOutboxEventsPage() {
         <GlassCard className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-white/60 text-xs font-medium uppercase">Loại events</p>
+              <p className="text-white/60 text-xs font-medium uppercase">Loại sự kiện</p>
               <p className="text-2xl font-bold text-purple-400 mt-1">{stats.types}</p>
             </div>
             <Code2 className="text-purple-400/30" size={32} />
@@ -183,7 +183,7 @@ export default function AdminOutboxEventsPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
             <Input
-              placeholder="Tìm theo type, aggregate ID..."
+              placeholder="Tìm theo loại sự kiện, mã đối tượng..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="input-glass pl-10"
@@ -204,7 +204,7 @@ export default function AdminOutboxEventsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="glass-strong border-white/10">
-              <SelectItem value="ALL">Tất cả event types</SelectItem>
+              <SelectItem value="ALL">Tất cả loại sự kiện</SelectItem>
               {uniqueTypes.map(type => (
                 <SelectItem key={type} value={type}>{EVENT_TYPES[type]?.label || type}</SelectItem>
               ))}
@@ -235,7 +235,7 @@ export default function AdminOutboxEventsPage() {
       ) : filteredEvents.length === 0 ? (
         <GlassCard className="p-12 text-center">
           <Radio className="mx-auto mb-4 text-white/20" size={48} />
-          <p className="text-white/60">Không tìm thấy event nào</p>
+          <p className="text-white/60">Không tìm thấy sự kiện nào</p>
         </GlassCard>
       ) : (
         <GlassCard className="overflow-hidden">
@@ -244,8 +244,8 @@ export default function AdminOutboxEventsPage() {
               <thead>
                 <tr className="border-b border-white/10">
                   <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Thời gian</th>
-                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Event Type</th>
-                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Aggregate ID</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Loại sự kiện</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Mã đối tượng</th>
                   <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Trạng thái</th>
                   <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Xử lý lúc</th>
                   <th className="text-right p-4 text-xs font-semibold text-white/60 uppercase">Chi tiết</th>
@@ -302,7 +302,7 @@ export default function AdminOutboxEventsPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-3">
               <Radio className="text-indigo-400" size={24} />
-              Chi tiết Outbox Event
+              Chi tiết sự kiện outbox
             </DialogTitle>
           </DialogHeader>
           {selectedEvent && (
@@ -313,28 +313,28 @@ export default function AdminOutboxEventsPage() {
                   {getStatusBadge(selectedEvent.processed)}
                 </div>
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">Event Type</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Loại sự kiện</p>
                   {getEventTypeBadge(selectedEvent.type)}
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">Event ID</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Mã sự kiện</p>
                   <p className="text-white/90 font-mono text-sm break-all">{selectedEvent.id}</p>
                 </div>
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">Aggregate ID</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Mã đối tượng</p>
                   <p className="text-white/90 font-mono text-sm break-all">{selectedEvent.aggregateId}</p>
                 </div>
                 <div>
-                  <p className="text-white/50 text-xs uppercase mb-1">Event Type (Raw)</p>
+                  <p className="text-white/50 text-xs uppercase mb-1">Loại sự kiện (raw)</p>
                   <p className="text-white/90 font-mono text-sm">{selectedEvent.type}</p>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-white/10">
-                <p className="text-white/50 text-xs uppercase mb-2">Payload (JSON)</p>
+                <p className="text-white/50 text-xs uppercase mb-2">Dữ liệu sự kiện (JSON)</p>
                 <ScrollArea className="h-64 glass rounded-lg p-3">
                   <pre className="text-xs text-white/80 font-mono whitespace-pre-wrap break-all">
                     {JSON.stringify(selectedEvent.payload, null, 2)}

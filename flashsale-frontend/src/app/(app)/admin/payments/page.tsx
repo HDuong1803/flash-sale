@@ -35,7 +35,7 @@ export default function AdminPaymentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Dashboard Tài chính Hoa hồng</h1>
+        <h1 className="text-2xl font-bold text-white">Quản lý tài chính</h1>
         <AutoRefreshTimer onRefresh={refetchAll} />
       </div>
 
@@ -124,7 +124,7 @@ export default function AdminPaymentsPage() {
               <thead>
                 <tr className="border-b border-white/10 text-white/50">
                   <th className="text-left py-2 px-3">Danh mục</th>
-                  <th className="text-right py-2 px-3">Rate mặc định</th>
+                  <th className="text-right py-2 px-3">Tỷ lệ mặc định</th>
                   <th className="text-right py-2 px-3">Đơn hàng</th>
                   <th className="text-right py-2 px-3">Doanh thu gộp</th>
                   <th className="text-right py-2 px-3">Hoa hồng</th>

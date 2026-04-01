@@ -47,9 +47,7 @@ export type Permission =
   | 'admin_dashboard'
   | 'admin_merchants'
   | 'admin_campaigns'
-  | 'admin_orders'
   | 'admin_finance'
-  | 'admin_products'
   | 'admin_users'
   | 'admin_profiles'
   | 'admin_notifications'
@@ -410,4 +408,25 @@ export interface OutboxEvent {
   processed: boolean
   processedAt?: string
   createdAt: string
+}
+
+export interface CampaignMonitorOverview {
+  visits: number
+  uniqueVisitors: number
+  reservations: number
+  successfulPayments: number
+  reservationToPaymentRatePct: number
+  avgCheckoutLatencySeconds: number
+  peakActionsPerSecond: number
+  volatilityIndex: number
+  queueDepth: number
+  failedJobsLastHour: number
+}
+
+export interface CampaignMonitorTimelineItem {
+  bucket: string
+  visits: number
+  reservations: number
+  successfulPayments: number
+  successRatePct: number
 }

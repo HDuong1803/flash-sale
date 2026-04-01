@@ -304,7 +304,7 @@ export default function AdminCampaignsPage() {
 
       <ConfirmDialog
         open={!!confirmForceStart}
-        title="Force Start chiến dịch?"
+        title="Bắt đầu chiến dịch ngay lập tức?"
         description="Chiến dịch sẽ chuyển sang ACTIVE ngay lập tức, bỏ qua thời gian đã lên lịch. Thông báo sẽ được gửi đến người đăng ký. Hành động này chỉ dùng cho debug/testing."
         confirmLabel="Bắt đầu ngay"
         cancelLabel="Hủy"
@@ -315,7 +315,7 @@ export default function AdminCampaignsPage() {
 
       <ConfirmDialog
         open={!!confirmForceStop}
-        title="Force Stop chiến dịch?"
+        title="Dừng chiến dịch ngay lập tức?"
         description="Chiến dịch sẽ chuyển sang ENDED ngay lập tức. Stock còn lại sẽ được sync về database. Hành động này chỉ dùng cho debug/testing."
         confirmLabel="Dừng ngay"
         cancelLabel="Hủy"

@@ -7,7 +7,7 @@ import {
   Zap, ShoppingBag, Bell, LayoutGrid, LayoutDashboard,
   Megaphone, Package, ClipboardList, BarChart2, Store,
   CreditCard, Users, Building2, UserCheck, BellRing,
-  ClipboardCheck, AlertTriangle, ScrollText, Radio, Server,
+  ClipboardCheck, AlertTriangle, ScrollText, Radio, Server, Activity,
   Sparkles, ChevronLeft,
 } from 'lucide-react'
 import { useAuthContext } from '@/contexts/auth-context'
@@ -25,7 +25,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Zap, ShoppingBag, Bell, LayoutGrid, LayoutDashboard,
   Megaphone, Package, ClipboardList, BarChart2, Store,
   CreditCard, Users, Building2, UserCheck, BellRing,
-  ClipboardCheck, AlertTriangle, ScrollText, Radio, Server,
+  ClipboardCheck, AlertTriangle, ScrollText, Radio, Server, Activity,
 }
 
 type NavItemWithBadge = NavItem & { badge?: number }

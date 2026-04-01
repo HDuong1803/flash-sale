@@ -4,7 +4,6 @@ import {
   KycStatus,
   OrderStatus,
   PaymentStatus,
-  ProductStatus,
   UserRole,
   UserStatus
 } from '@prisma/client'
@@ -246,21 +245,6 @@ export class AdminRepository {
     await this.prisma.deadLetterJob.delete({ where: { id } })
   }
 
-  // ─── Orders ─────────────────────────────────────────────────────────
-
-  async findOrders(status?: OrderStatus) {
-    return this.prisma.order.findMany({
-      where: status ? { status } : undefined,
-      include: {
-        customer: { select: { fullName: true, email: true } },
-        merchant: { select: { businessName: true } },
-        items: { select: { productId: true, quantity: true, unitPrice: true } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100
-    })
-  }
-
   // ─── Payments ────────────────────────────────────────────────────────
 
   async findPayments(status?: PaymentStatus) {
@@ -268,19 +252,6 @@ export class AdminRepository {
       where: status ? { status } : undefined,
       include: {
         reservation: { select: { customerId: true, campaignProductId: true } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100
-    })
-  }
-
-  // ─── Products ────────────────────────────────────────────────────────
-
-  async findProducts(status?: ProductStatus) {
-    return this.prisma.product.findMany({
-      where: status ? { status } : undefined,
-      include: {
-        merchant: { select: { businessName: true } }
       },
       orderBy: { createdAt: 'desc' },
       take: 100
@@ -436,5 +407,179 @@ export class AdminRepository {
     return Array.from(grouped.values()).sort(
       (a, b) => b.commissionRevenue - a.commissionRevenue
     )
+  }
+
+  async getCampaignMonitorOverview(params: {
+    campaignId?: string
+    since: Date
+  }) {
+    const since = params.since
+    const campaignFilter = params.campaignId
+      ? { campaignProduct: { campaignId: params.campaignId } }
+      : {}
+    const paymentCampaignFilter = params.campaignId
+      ? { reservation: { campaignProduct: { campaignId: params.campaignId } } }
+      : {}
+
+    const [actionLogs, reservations, successfulPayments, failedJobs] =
+      await Promise.all([
+        this.prisma.userActionLog.findMany({
+          where: {
+            createdAt: { gte: since },
+            ...(params.campaignId ? { targetId: params.campaignId } : {})
+          },
+          select: { userId: true, ip: true, action: true, createdAt: true }
+        }),
+        this.prisma.reservation.findMany({
+          where: { createdAt: { gte: since }, ...campaignFilter },
+          select: { customerId: true, createdAt: true }
+        }),
+        this.prisma.payment.findMany({
+          where: {
+            status: PaymentStatus.SUCCESS,
+            paidAt: { gte: since },
+            ...paymentCampaignFilter
+          },
+          select: { createdAt: true, paidAt: true }
+        }),
+        this.prisma.deadLetterJob.count({
+          where: { failedAt: { gte: since } }
+        })
+      ])
+
+    const visits = actionLogs.length
+    const uniqueVisitors = new Set(
+      actionLogs.map(log => log.userId ?? log.ip).filter(Boolean)
+    ).size
+    const reservationCount = reservations.length
+    const paymentCount = successfulPayments.length
+    const reservationToPaymentRatePct =
+      reservationCount > 0 ? (paymentCount / reservationCount) * 100 : 0
+
+    const checkoutLatencies = successfulPayments
+      .map(p => {
+        if (!p.paidAt) return null
+        return (p.paidAt.getTime() - p.createdAt.getTime()) / 1000
+      })
+      .filter((v): v is number => v !== null && v >= 0)
+    const avgCheckoutLatencySeconds =
+      checkoutLatencies.length > 0
+        ? checkoutLatencies.reduce((acc, v) => acc + v, 0) / checkoutLatencies.length
+        : 0
+
+    const secondBuckets = new Map<number, number>()
+    for (const log of actionLogs) {
+      const sec = Math.floor(log.createdAt.getTime() / 1000)
+      secondBuckets.set(sec, (secondBuckets.get(sec) ?? 0) + 1)
+    }
+    const peakActionsPerSecond =
+      secondBuckets.size > 0 ? Math.max(...Array.from(secondBuckets.values())) : 0
+
+    const minuteBuckets = new Map<number, number>()
+    for (const log of actionLogs) {
+      const minute = Math.floor(log.createdAt.getTime() / 60000)
+      minuteBuckets.set(minute, (minuteBuckets.get(minute) ?? 0) + 1)
+    }
+    const minuteValues = Array.from(minuteBuckets.values())
+    const mean =
+      minuteValues.length > 0
+        ? minuteValues.reduce((a, b) => a + b, 0) / minuteValues.length
+        : 0
+    const variance =
+      minuteValues.length > 1
+        ? minuteValues.reduce((a, v) => a + (v - mean) ** 2, 0) / minuteValues.length
+        : 0
+    const volatilityIndex = Math.sqrt(variance)
+
+    return {
+      visits,
+      uniqueVisitors,
+      reservations: reservationCount,
+      successfulPayments: paymentCount,
+      reservationToPaymentRatePct,
+      avgCheckoutLatencySeconds,
+      peakActionsPerSecond,
+      volatilityIndex,
+      queueDepth: failedJobs,
+      failedJobsLastHour: failedJobs
+    }
+  }
+
+  async getCampaignMonitorTimeline(params: {
+    campaignId?: string
+    since: Date
+    bucketMinutes: number
+  }) {
+    const bucketMs = params.bucketMinutes * 60 * 1000
+    const campaignFilter = params.campaignId
+      ? { campaignProduct: { campaignId: params.campaignId } }
+      : {}
+    const paymentCampaignFilter = params.campaignId
+      ? { reservation: { campaignProduct: { campaignId: params.campaignId } } }
+      : {}
+
+    const [actions, reservations, payments] = await Promise.all([
+      this.prisma.userActionLog.findMany({
+        where: {
+          createdAt: { gte: params.since },
+          ...(params.campaignId ? { targetId: params.campaignId } : {})
+        },
+        select: { createdAt: true }
+      }),
+      this.prisma.reservation.findMany({
+        where: { createdAt: { gte: params.since }, ...campaignFilter },
+        select: { createdAt: true }
+      }),
+      this.prisma.payment.findMany({
+        where: {
+          status: PaymentStatus.SUCCESS,
+          paidAt: { gte: params.since },
+          ...paymentCampaignFilter
+        },
+        select: { paidAt: true }
+      })
+    ])
+
+    const rows = new Map<
+      number,
+      { bucket: string; visits: number; reservations: number; successfulPayments: number; successRatePct: number }
+    >()
+
+    const getBucketTs = (date: Date) =>
+      Math.floor(date.getTime() / bucketMs) * bucketMs
+
+    const ensure = (ts: number) => {
+      const existing = rows.get(ts)
+      if (existing) return existing
+      const created = {
+        bucket: new Date(ts).toISOString(),
+        visits: 0,
+        reservations: 0,
+        successfulPayments: 0,
+        successRatePct: 0
+      }
+      rows.set(ts, created)
+      return created
+    }
+
+    for (const item of actions) {
+      ensure(getBucketTs(item.createdAt)).visits += 1
+    }
+    for (const item of reservations) {
+      ensure(getBucketTs(item.createdAt)).reservations += 1
+    }
+    for (const item of payments) {
+      if (item.paidAt) ensure(getBucketTs(item.paidAt)).successfulPayments += 1
+    }
+
+    return Array.from(rows.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([, row]) => ({
+        ...row,
+        successRatePct:
+          row.reservations > 0
+            ? Math.round((row.successfulPayments / row.reservations) * 10000) / 100
+            : 0
+      }))
   }
 }

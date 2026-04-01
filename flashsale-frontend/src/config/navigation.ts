@@ -109,10 +109,10 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
   },
   {
-    label: 'Đơn hàng',
-    href: '/admin/orders',
-    iconName: 'ShoppingBag',
-    permission: 'admin_orders',
+    label: 'Giám sát chiến dịch',
+    href: '/admin/campaign-monitor',
+    iconName: 'Activity',
+    permission: 'admin_campaigns',
     section: 'admin',
   },
   {
@@ -120,13 +120,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: '/admin/payments',
     iconName: 'CreditCard',
     permission: 'admin_finance',
-    section: 'admin',
-  },
-  {
-    label: 'Sản phẩm',
-    href: '/admin/products',
-    iconName: 'Package',
-    permission: 'admin_products',
     section: 'admin',
   },
   {
