@@ -24,6 +24,8 @@ import { NotificationService } from '@modules/notification/services/notification
 import { EmailService } from '@common/providers/email.service'
 import { AdminRepository } from '../repositories/admin.repository'
 import { ForceRescheduleDto, RescheduleRequestQueryDto } from '../dto/admin.dto'
+import { PaymentGatewayConfigService } from '@modules/payment/services/payment-gateway-config.service'
+import { PaymentMethod } from '@prisma/client'
 
 @Injectable()
 export class AdminService {
@@ -36,7 +38,8 @@ export class AdminService {
     private readonly campaignRepository: CampaignRepository,
     private readonly rescheduleRequestRepository: RescheduleRequestRepository,
     private readonly notificationService: NotificationService,
-    private readonly emailService: EmailService
+    private readonly emailService: EmailService,
+    private readonly paymentGatewayConfigService: PaymentGatewayConfigService
   ) {}
 
   // ─── Merchants ──────────────────────────────────────────────────────
@@ -327,6 +330,44 @@ export class AdminService {
 
   async getOutboxEvents() {
     return this.adminRepository.findOutboxEvents()
+  }
+
+  // ─── Finance / Commission ─────────────────────────────────────────────
+
+  async getFinanceSummary() {
+    return this.adminRepository.getFinanceSummary()
+  }
+
+  async getFinanceTrend() {
+    const rows = await this.adminRepository.getFinanceTrend()
+    return rows.map(({ dayStart, commissionRevenue, grossRevenue }) => ({
+      date: dayStart.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit'
+      }),
+      commissionRevenue,
+      grossRevenue
+    }))
+  }
+
+  async getFinanceCategoryBreakdown() {
+    return this.adminRepository.getFinanceCategoryBreakdown()
+  }
+
+  async getPaymentGatewayConfigs() {
+    return this.paymentGatewayConfigService.listAll()
+  }
+
+  async updatePaymentGatewayConfig(
+    gateway: PaymentMethod,
+    data: {
+      enabled?: boolean
+      isDefault?: boolean
+      displayName?: string
+      config?: Record<string, unknown> | null
+    }
+  ) {
+    return this.paymentGatewayConfigService.updateGatewayConfig(gateway, data)
   }
 
   // ─── Campaign Reschedule ─────────────────────────────────────────────────────

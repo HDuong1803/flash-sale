@@ -12,6 +12,8 @@ import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { formatCurrency } from '@/lib/utils'
 import type { CheckoutDto } from '@/services/checkout.service'
+import { useCheckoutPaymentMethods } from '@/hooks/queries/useCheckoutPaymentMethods'
+import type { PaymentMethod } from '@/types'
 
 const PROVINCES = ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'An Giang', 'Bình Dương', 'Đồng Nai', 'Khánh Hòa', 'Lâm Đồng']
 
@@ -24,17 +26,14 @@ const schema = z.object({
 
 type CheckoutForm = z.infer<typeof schema>
 
-const PAYMENT_METHODS = [
-  { id: 'SEPAY' as const, icon: Building2, title: 'Chuyển khoản ngân hàng', subtitle: 'Quét mã QR — hỗ trợ mọi ngân hàng' },
-]
-
 function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reservationId = searchParams.get('reservationId')
   const { user } = useAuthContext()
   const { checkout, loading } = useCheckout()
-  const [selectedMethod, setSelectedMethod] = useState<'SEPAY'>('SEPAY')
+  const { data: methods, loading: methodsLoading } = useCheckoutPaymentMethods()
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [expiredDialog, setExpiredDialog] = useState(false)
   const [amount, setAmount] = useState(0)
   const [expiredAt, setExpiredAt] = useState<string | null>(null)
@@ -50,13 +49,21 @@ function CheckoutContent() {
     if (amountParam) setAmount(Number(amountParam))
   }, [searchParams])
 
+  useEffect(() => {
+    if (methods.length === 0) return
+    if (!selectedMethod || !methods.some(m => m.method === selectedMethod)) {
+      const defaultMethod = methods.find(m => m.isDefault)?.method ?? methods[0]?.method ?? null
+      setSelectedMethod(defaultMethod)
+    }
+  }, [methods, selectedMethod])
+
   const { register, handleSubmit, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(schema),
     defaultValues: { fullName: user?.fullName ?? '' },
   })
 
   const onSubmit = async (formData: CheckoutForm) => {
-    if (!reservationId) return
+    if (!reservationId || !selectedMethod) return
     try {
       const { paymentUrl } = await checkout({
         reservationId,
@@ -107,27 +114,43 @@ function CheckoutContent() {
             <div className="glass rounded-2xl p-6 space-y-4 mt-4">
               <h2 className="text-white font-semibold">Phương thức thanh toán</h2>
               <div className="space-y-3">
-                {PAYMENT_METHODS.map((method) => (
-                  <button
-                    key={method.id}
-                    type="button"
-                    onClick={() => setSelectedMethod(method.id)}
-                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
-                      selectedMethod === method.id
-                        ? 'border-indigo-500/60 bg-indigo-500/10'
-                        : 'border-white/10 glass hover:border-white/20'
-                    }`}
-                  >
-                    <method.icon size={24} className={selectedMethod === method.id ? 'text-indigo-300' : 'text-white/50'} />
-                    <div className="text-left">
-                      <p className={`font-medium text-sm ${selectedMethod === method.id ? 'text-indigo-300' : 'text-white'}`}>
-                        {method.title}
-                      </p>
-                      {method.subtitle && <p className="text-white/40 text-xs">{method.subtitle}</p>}
-                    </div>
-                    <div className={`ml-auto w-4 h-4 rounded-full border-2 ${selectedMethod === method.id ? 'border-indigo-400 bg-indigo-400' : 'border-white/30'}`} />
-                  </button>
-                ))}
+                {methodsLoading ? (
+                  <div className="space-y-2 animate-pulse">
+                    <div className="h-16 rounded-xl bg-white/8" />
+                    <div className="h-16 rounded-xl bg-white/8" />
+                  </div>
+                ) : methods.length === 0 ? (
+                  <p className="text-sm text-red-300">
+                    Hiện không có cổng thanh toán khả dụng. Vui lòng thử lại sau.
+                  </p>
+                ) : (
+                  methods.map((method) => (
+                    <button
+                      key={method.method}
+                      type="button"
+                      onClick={() => setSelectedMethod(method.method)}
+                      className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                        selectedMethod === method.method
+                          ? 'border-indigo-500/60 bg-indigo-500/10'
+                          : 'border-white/10 glass hover:border-white/20'
+                      }`}
+                    >
+                      <Building2 size={24} className={selectedMethod === method.method ? 'text-indigo-300' : 'text-white/50'} />
+                      <div className="text-left">
+                        <p className={`font-medium text-sm ${selectedMethod === method.method ? 'text-indigo-300' : 'text-white'}`}>
+                          {method.displayName}
+                        </p>
+                        <p className="text-white/40 text-xs">{method.method}</p>
+                      </div>
+                      {method.isDefault && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Mặc định
+                        </span>
+                      )}
+                      <div className={`ml-auto w-4 h-4 rounded-full border-2 ${selectedMethod === method.method ? 'border-indigo-400 bg-indigo-400' : 'border-white/30'}`} />
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </form>
@@ -167,7 +190,7 @@ function CheckoutContent() {
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading}
+              disabled={loading || methodsLoading || !selectedMethod || methods.length === 0}
               className="btn-primary w-full disabled:opacity-50"
             >
               {loading ? (

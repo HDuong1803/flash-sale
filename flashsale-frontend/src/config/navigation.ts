@@ -144,27 +144,6 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
   },
   {
-    label: 'Hồ sơ khách hàng',
-    href: '/admin/customer-profiles',
-    iconName: 'UserCheck',
-    permission: 'admin_profiles',
-    section: 'admin',
-  },
-  {
-    label: 'Thông báo',
-    href: '/admin/notifications',
-    iconName: 'BellRing',
-    permission: 'admin_notifications',
-    section: 'admin',
-  },
-  {
-    label: 'Kiểm kê tồn kho',
-    href: '/admin/stock-audit-logs',
-    iconName: 'ClipboardCheck',
-    permission: 'admin_stock_audit',
-    section: 'admin',
-  },
-  {
     label: 'Hàng đợi lỗi',
     href: '/admin/dead-letter-queue',
     iconName: 'AlertTriangle',

@@ -1,5 +1,5 @@
 import apiClient from '@/lib/api-client'
-import type { PaymentMethod } from '@/types'
+import type { CheckoutPaymentMethod, PaymentMethod } from '@/types'
 
 export interface CheckoutDto {
   reservationId: string
@@ -9,12 +9,16 @@ export interface CheckoutDto {
 
 export interface CheckoutResponse {
   paymentUrl: string
-  orderId: string
+  paymentId: string
 }
 
 class CheckoutService {
   initiate(data: CheckoutDto): Promise<CheckoutResponse> {
     return apiClient.post('/checkout', data)
+  }
+
+  getPaymentMethods(): Promise<CheckoutPaymentMethod[]> {
+    return apiClient.get('/checkout/payment-methods')
   }
 }
 

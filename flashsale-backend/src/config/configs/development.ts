@@ -123,6 +123,11 @@ export const config = {
     SEPAY_SANDBOX: process.env.SEPAY_SANDBOX
   },
 
+  stripe: {
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
+  },
+
   timeouts: {
     WEBHOOK_TIMEOUT_MS: Number(process.env.WEBHOOK_TIMEOUT_MS),
     SLOW_REQUEST_THRESHOLD_MS: Number(process.env.SLOW_REQUEST_THRESHOLD_MS),

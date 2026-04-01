@@ -72,6 +72,11 @@ export const config = {
     SEPAY_SANDBOX: 'false'
   },
 
+  stripe: {
+    STRIPE_SECRET_KEY: '',
+    STRIPE_WEBHOOK_SECRET: ''
+  },
+
   timeouts: {
     WEBHOOK_TIMEOUT_MS: 30_000,
     SLOW_REQUEST_THRESHOLD_MS: 1000,

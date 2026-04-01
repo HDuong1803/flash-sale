@@ -6,10 +6,13 @@ import {
   IsEnum,
   IsISO8601,
   Min,
-  MaxLength
+  MaxLength,
+  IsBoolean,
+  IsObject
 } from 'class-validator'
 import { Type } from 'class-transformer'
 import { CampaignStatus, KycStatus, UserRole } from '@common/enums/prisma-enums'
+import { PaymentMethod } from '@prisma/client'
 
 export class AdminMerchantQueryDto {
   @ApiProperty({
@@ -179,4 +182,79 @@ export class RescheduleRequestQueryDto {
   @IsString()
   @IsOptional()
   campaignId?: string
+}
+
+export class FinanceDashboardSummaryDto {
+  @ApiProperty({ example: 125000000, description: 'Tổng doanh thu gộp của các đơn có hoa hồng' })
+  grossRevenue: number
+  @ApiProperty({ example: 9800000, description: 'Tổng doanh thu hoa hồng admin thu được' })
+  commissionRevenue: number
+  @ApiProperty({ example: 115200000, description: 'Tổng tiền ròng thuộc merchant' })
+  merchantNetRevenue: number
+  @ApiProperty({ example: 7.84, description: 'Tỷ lệ hoa hồng trung bình (%)' })
+  averageCommissionRatePct: number
+  @ApiProperty({ example: 242, description: 'Số đơn đã ghi nhận hoa hồng' })
+  totalCommissionOrders: number
+}
+
+export class FinanceTrendItemDto {
+  @ApiProperty({ example: '01/04' }) date: string
+  @ApiProperty({ example: 1500000 }) commissionRevenue: number
+  @ApiProperty({ example: 22000000 }) grossRevenue: number
+}
+
+export class CommissionCategoryBreakdownDto {
+  @ApiProperty({ example: 'cmcat_electronics' }) categoryId: string
+  @ApiProperty({ example: 'ELECTRONICS' }) code: string
+  @ApiProperty({ example: 'Điện tử' }) name: string
+  @ApiProperty({ example: 0.06 }) defaultRate: number
+  @ApiProperty({ example: 3200000 }) commissionRevenue: number
+  @ApiProperty({ example: 54000000 }) grossRevenue: number
+  @ApiProperty({ example: 69 }) orders: number
+}
+
+export class PaymentGatewayConfigDto {
+  @ApiProperty({ enum: PaymentMethod, example: PaymentMethod.SEPAY })
+  gateway: PaymentMethod
+
+  @ApiProperty({ example: 'SePay QR Transfer' })
+  displayName: string
+
+  @ApiProperty({ example: true })
+  enabled: boolean
+
+  @ApiProperty({ example: true })
+  isDefault: boolean
+
+  @ApiProperty({
+    required: false,
+    example: { bankCode: 'MB', bankAccount: '123456789', accountName: 'FLASH SALE' }
+  })
+  config: Record<string, unknown> | null
+}
+
+export class UpdatePaymentGatewayConfigDto {
+  @ApiProperty({ required: false, example: true })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean
+
+  @ApiProperty({ required: false, example: false })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean
+
+  @ApiProperty({ required: false, example: 'Stripe Checkout' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  displayName?: string
+
+  @ApiProperty({
+    required: false,
+    example: { stripeSecretKey: 'sk_test_***' }
+  })
+  @IsOptional()
+  @IsObject()
+  config?: Record<string, unknown> | null
 }

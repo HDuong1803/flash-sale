@@ -5,7 +5,10 @@ import { Server, Database, Layers, MessageSquare, AlertCircle, RotateCcw } from 
 import { useSystemHealth } from '@/hooks/queries/useSystemHealth'
 import { useQueueStats } from '@/hooks/queries/useQueueStats'
 import { useSystemLogs } from '@/hooks/queries/useSystemLogs'
+import { usePaymentGatewayConfigs } from '@/hooks/queries/usePaymentGatewayConfigs'
+import { useUpdatePaymentGatewayConfig } from '@/hooks/mutations/useUpdatePaymentGatewayConfig'
 import { formatDate } from '@/lib/utils'
+import type { PaymentGatewayConfig } from '@/types'
 
 const SERVICE_CONFIG = [
   { key: 'postgres' as const, label: 'PostgreSQL', icon: Database, desc: 'Cơ sở dữ liệu chính' },
@@ -30,7 +33,10 @@ export default function AdminSystemPage() {
   const { data: health, loading, error, refetch } = useSystemHealth()
   const { data: queueStats, loading: queueLoading, error: queueError, refetch: refetchQueue } = useQueueStats()
   const { data: logs, loading: logsLoading, error: logsError, refetch: refetchLogs } = useSystemLogs()
+  const { data: gateways, loading: gatewayLoading } = usePaymentGatewayConfigs()
+  const { updateGateway, loading: updatingGateway } = useUpdatePaymentGatewayConfig()
   const [lastRefresh, setLastRefresh] = useState(Date.now())
+  const [displayNames, setDisplayNames] = useState<Record<string, string>>({})
 
   const doRefresh = useCallback(() => {
     refetch()
@@ -50,7 +56,27 @@ export default function AdminSystemPage() {
     return () => clearInterval(interval)
   }, [refetchQueue])
 
+  useEffect(() => {
+    const initialNames: Record<string, string> = {}
+    for (const item of gateways) initialNames[item.gateway] = item.displayName
+    setDisplayNames(initialNames)
+  }, [gateways])
+
   void lastRefresh
+
+  const onToggleEnabled = async (gateway: PaymentGatewayConfig) => {
+    await updateGateway(gateway.gateway, { enabled: !gateway.enabled })
+  }
+
+  const onSetDefault = async (gateway: PaymentGatewayConfig) => {
+    await updateGateway(gateway.gateway, { isDefault: true, enabled: true })
+  }
+
+  const onSaveDisplayName = async (gateway: PaymentGatewayConfig) => {
+    const next = displayNames[gateway.gateway]?.trim()
+    if (!next || next === gateway.displayName) return
+    await updateGateway(gateway.gateway, { displayName: next })
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -142,6 +168,77 @@ export default function AdminSystemPage() {
                     className={`h-full rounded-full transition-all ${queueColor(value)}`}
                     style={{ width: `${Math.min((value / 1000) * 100, 100)}%` }}
                   />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Payment gateway configs */}
+      <div className="glass rounded-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-white font-semibold">Cấu hình cổng thanh toán</h2>
+          <p className="text-white/40 text-xs">Áp dụng ngay cho luồng checkout</p>
+        </div>
+        {gatewayLoading ? (
+          <div className="space-y-2 animate-pulse">
+            <div className="h-16 rounded-xl bg-white/8" />
+            <div className="h-16 rounded-xl bg-white/8" />
+          </div>
+        ) : gateways.length === 0 ? (
+          <p className="text-sm text-white/50">Chưa có cấu hình cổng thanh toán.</p>
+        ) : (
+          <div className="space-y-3">
+            {gateways.map((gateway) => (
+              <div key={gateway.gateway} className="glass rounded-xl p-4 border border-white/10 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-white font-medium">{gateway.gateway}</p>
+                    <p className="text-white/40 text-xs">{gateway.displayName}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {gateway.isDefault && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Mặc định
+                      </span>
+                    )}
+                    <button
+                      onClick={() => onToggleEnabled(gateway)}
+                      disabled={updatingGateway}
+                      className={`px-3 py-1.5 rounded-lg text-xs border ${
+                        gateway.enabled
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          : 'bg-white/5 text-white/70 border-white/20'
+                      }`}
+                    >
+                      {gateway.enabled ? 'Đang bật' : 'Đang tắt'}
+                    </button>
+                    <button
+                      onClick={() => onSetDefault(gateway)}
+                      disabled={updatingGateway || !gateway.enabled}
+                      className="btn-glass text-xs px-3 py-1.5 disabled:opacity-50"
+                    >
+                      Đặt mặc định
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={displayNames[gateway.gateway] ?? gateway.displayName}
+                    onChange={(e) =>
+                      setDisplayNames((prev) => ({ ...prev, [gateway.gateway]: e.target.value }))
+                    }
+                    className="input-glass text-sm"
+                    placeholder="Tên hiển thị cổng thanh toán"
+                  />
+                  <button
+                    onClick={() => onSaveDisplayName(gateway)}
+                    disabled={updatingGateway}
+                    className="btn-glass text-xs px-3 py-2"
+                  >
+                    Lưu
+                  </button>
                 </div>
               </div>
             ))}

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -21,6 +22,7 @@ import { Roles } from '@common/decorators/roles.decorator'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { CheckoutService } from '../services/checkout.service'
 import { CheckoutDto, CheckoutResponseDto } from '../dto/checkout.dto'
+import { Public } from '@common/decorators/public.decorator'
 
 const moduleName = 'checkout'
 
@@ -29,6 +31,20 @@ const moduleName = 'checkout'
 @UseInterceptors(ResponseInterceptor)
 export class CheckoutController {
   constructor(private readonly checkoutService: CheckoutService) {}
+
+  @ApiOperation({ summary: 'Lấy danh sách cổng thanh toán đang bật cho checkout' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách phương thức thanh toán khả dụng'
+  })
+  @Get('payment-methods')
+  @HttpCode(HttpStatus.OK)
+  @Public()
+  async getPaymentMethods(): Promise<
+    Array<{ method: string; displayName: string; isDefault: boolean }>
+  > {
+    return this.checkoutService.getPaymentMethods()
+  }
 
   @ApiOperation({ summary: 'Khởi tạo thanh toán cho reservation đang HOLDING' })
   @ApiBody({ type: CheckoutDto })

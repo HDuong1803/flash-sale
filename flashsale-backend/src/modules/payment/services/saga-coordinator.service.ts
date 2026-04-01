@@ -111,7 +111,10 @@ export class SagaCoordinatorService {
         unitPrice: Number(resv.campaignProduct.salePrice),
         originalPrice: Number(resv.campaignProduct.product.originalPrice),
         paymentId,
-        idempotencyKey: paymentId
+        idempotencyKey: paymentId,
+        campaignId: resv.campaignProduct.campaign.id,
+        commissionRate: Number(resv.campaignProduct.campaign.commissionRate),
+        commissionCategoryId: resv.campaignProduct.campaign.commissionCategoryId
       })
 
       // Bước 3: Giải phóng reservation trong Redis

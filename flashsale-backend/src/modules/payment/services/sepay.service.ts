@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { PaymentMethod } from '@prisma/client'
 import * as crypto from 'crypto'
+import type { CreatePaymentLinkInput, PaymentGatewayProvider } from './payment-gateway.types'
 
 // ─── Custom exception ──────────────────────────────────────────────────────────
 
@@ -35,7 +37,8 @@ export interface SepayPaymentLinkResult {
 // ─── Service ───────────────────────────────────────────────────────────────────
 
 @Injectable()
-export class SepayService implements OnModuleInit {
+export class SepayService implements OnModuleInit, PaymentGatewayProvider {
+  readonly method = PaymentMethod.SEPAY
   private readonly logger = new Logger(SepayService.name)
 
   constructor(private readonly configService: ConfigService) {}
@@ -122,14 +125,46 @@ export class SepayService implements OnModuleInit {
    * Không cần SDK hay API call — chỉ cần tạo URL đúng format VietQR.
    */
   async createPaymentLink(
-    params: SepayPaymentLinkParams
-  ): Promise<SepayPaymentLinkResult> {
+    params: CreatePaymentLinkInput,
+    gatewayConfig?: Record<string, unknown> | null
+  ): Promise<string> {
+    const bankCode = (gatewayConfig?.bankCode as string | undefined) || this.bankCode
+    const bankAccount = (gatewayConfig?.bankAccount as string | undefined) || this.bankAccount
+    const accountName = (gatewayConfig?.accountName as string | undefined) || this.accountName
+
     const transferContent = this.buildTransferContent(params.paymentId)
-    const qrCodeUrl = this.buildVietQrUrl(params.amount, transferContent)
+    const qrCodeUrl = this.buildVietQrUrl(params.amount, transferContent, bankCode, bankAccount, accountName)
     const paymentUrl = this.buildPaymentPageUrl(
       params,
       qrCodeUrl,
-      transferContent
+      transferContent,
+      bankCode,
+      bankAccount,
+      accountName
+    )
+
+    this.logger.log({
+      event: 'sepay_payment_link_created',
+      paymentId: params.paymentId,
+      amount: params.amount,
+      bank: `${bankCode}:****${bankAccount.slice(-4)}`
+    })
+
+    return paymentUrl
+  }
+
+  async createLegacyPaymentLink(
+    params: SepayPaymentLinkParams
+  ): Promise<SepayPaymentLinkResult> {
+    const transferContent = this.buildTransferContent(params.paymentId)
+    const qrCodeUrl = this.buildVietQrUrl(params.amount, transferContent, this.bankCode, this.bankAccount, this.accountName)
+    const paymentUrl = this.buildPaymentPageUrl(
+      params,
+      qrCodeUrl,
+      transferContent,
+      this.bankCode,
+      this.bankAccount,
+      this.accountName
     )
 
     this.logger.log({
@@ -238,16 +273,18 @@ export class SepayService implements OnModuleInit {
     return `FlashSale ${paymentId}`
   }
 
-  /**
-   * Tạo URL ảnh QR theo chuẩn VietQR (https://vietqr.io).
-   * API này miễn phí, không cần auth, hỗ trợ tất cả ngân hàng Việt Nam.
-   */
-  private buildVietQrUrl(amount: number, transferContent: string): string {
-    const base = `https://img.vietqr.io/image/${this.bankCode}-${this.bankAccount}-compact2.png`
+  private buildVietQrUrl(
+    amount: number,
+    transferContent: string,
+    bankCode: string,
+    bankAccount: string,
+    accountName: string
+  ): string {
+    const base = `https://img.vietqr.io/image/${bankCode}-${bankAccount}-compact2.png`
     const query = new URLSearchParams({
       amount: String(amount),
       addInfo: transferContent,
-      accountName: this.accountName
+      accountName
     })
     return `${base}?${query}`
   }
@@ -259,7 +296,10 @@ export class SepayService implements OnModuleInit {
   private buildPaymentPageUrl(
     params: SepayPaymentLinkParams,
     qrCodeUrl: string,
-    transferContent: string
+    transferContent: string,
+    bankCode: string,
+    bankAccount: string,
+    accountName: string
   ): string {
     const frontendUrl = this.configService.get<string>(
       'frontend.FRONTEND_URL',
@@ -270,9 +310,9 @@ export class SepayService implements OnModuleInit {
       amount: String(params.amount),
       qr: qrCodeUrl,
       content: transferContent,
-      bank: this.bankCode,
-      account: this.bankAccount,
-      accountName: this.accountName
+      bank: bankCode,
+      account: bankAccount,
+      accountName
     })
     return `${frontendUrl}/payment/pending?${query}`
   }

@@ -7,6 +7,7 @@ export const queryKeys = {
     list: (params?: object) => ['campaigns', 'list', params] as const,
     detail: (id: string) => ['campaigns', 'detail', id] as const,
     my: () => ['campaigns', 'my'] as const,
+    commissionCategories: () => ['campaigns', 'commission-categories'] as const,
   },
   merchants: {
     all: ['merchants'] as const,
@@ -50,5 +51,15 @@ export const queryKeys = {
     activity: () => ['admin', 'activity'] as const,
     revenueTrend: () => ['admin', 'revenue-trend'] as const,
     ordersByTime: (start: string, end: string) => ['admin', 'orders-by-time', start, end] as const,
+    merchantProfiles: (params?: object) => ['admin', 'merchant-profiles', params] as const,
+    userActionLogs: (params?: object) => ['admin', 'user-action-logs', params] as const,
+    outboxEvents: (params?: object) => ['admin', 'outbox-events', params] as const,
+    financeSummary: () => ['admin', 'finance', 'summary'] as const,
+    financeTrend: () => ['admin', 'finance', 'trend'] as const,
+    financeByCategory: () => ['admin', 'finance', 'by-category'] as const,
+    paymentGateways: () => ['admin', 'payments', 'gateways'] as const,
+  },
+  checkout: {
+    paymentMethods: () => ['checkout', 'payment-methods'] as const,
   },
 } as const

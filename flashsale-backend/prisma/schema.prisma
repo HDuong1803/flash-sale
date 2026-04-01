@@ -93,6 +93,7 @@ model MerchantProfile {
   campaigns Campaign[]
   orders    Order[]
   products  Product[]
+  commissionLedgers CommissionLedger[]
 
   @@index([kycStatus]) // Admin query WHERE kycStatus = 'PENDING'
   @@map("merchant_profiles")
@@ -174,6 +175,8 @@ model Campaign {
   endTime         DateTime       @map("end_time") @db.Timestamp(6)
   status          CampaignStatus @default(DRAFT) @map("status")
   rejectionReason String?        @map("rejection_reason") @db.Text // Admin ghi lý do từ chối, merchant xem được
+  commissionCategoryId String?   @map("commission_category_id") @db.VarChar(36)
+  commissionRate    Decimal      @default(0) @map("commission_rate") @db.Decimal(5, 4) // Snapshot % hoa hồng tại thời điểm tạo campaign
   approvedAt      DateTime?      @map("approved_at") @db.Timestamp(6) // Thời điểm được admin duyệt
   approvedBy      String?        @map("approved_by") @db.VarChar(36) // ID của admin đã duyệt (audit trail)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamp(6) // Soft delete — admin xóa campaign vi phạm
@@ -181,12 +184,15 @@ model Campaign {
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamp(6)
 
   merchant             MerchantProfile             @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  commissionCategory   CommissionCategory?         @relation(fields: [commissionCategoryId], references: [id], onDelete: SetNull)
   campaignProducts     CampaignProduct[]
   preRegistrations     PreRegistration[]
   rescheduleRequests   CampaignRescheduleRequest[]
+  commissionLedgers    CommissionLedger[]
 
   @@index([status, startTime])
   @@index([merchantId])
+  @@index([commissionCategoryId])
   @@index([startTime]) // Scheduler query campaigns sắp bắt đầu
   @@index([endTime]) // Scheduler query WHERE endTime <= NOW() để đóng campaign
   @@map("campaigns")
@@ -300,6 +306,7 @@ model Order {
   reservation Reservation     @relation(fields: [reservationId], references: [id], onDelete: Restrict)
   items       OrderItem[]
   payment     Payment?
+  commissionLedger CommissionLedger?
 
   @@index([customerId, createdAt(sort: Desc)])
   @@index([merchantId, createdAt(sort: Desc)])
@@ -340,12 +347,71 @@ model Payment {
   reservation  Reservation        @relation(fields: [reservationId], references: [id], onDelete: Restrict)
   order        Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
   webhookLogs  PaymentWebhookLog[]
+  commissionLedgers CommissionLedger[]
 
   @@index([idempotencyKey])
   @@index([transactionId])
   @@index([status]) // Admin báo cáo payment failed
   @@index([reservationId, status]) // Worker lookup payment của reservation
   @@map("payments")
+}
+
+model PaymentGatewayConfig {
+  id          String        @id @default(cuid()) @map("id") @db.VarChar(36)
+  gateway     PaymentMethod @unique @map("gateway")
+  displayName String        @map("display_name") @db.VarChar(100)
+  enabled     Boolean       @default(false) @map("enabled")
+  isDefault   Boolean       @default(false) @map("is_default")
+  config      Json?         @map("config")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([enabled, isDefault])
+  @@map("payment_gateway_configs")
+}
+
+model CommissionCategory {
+  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  code        String   @unique @map("code") @db.VarChar(50)
+  name        String   @map("name") @db.VarChar(150)
+  description String?  @map("description") @db.Text
+  defaultRate Decimal  @map("default_rate") @db.Decimal(5, 4) // Ví dụ 0.0850 = 8.5%
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  campaigns         Campaign[]
+  commissionLedgers CommissionLedger[]
+
+  @@index([isActive, sortOrder])
+  @@map("commission_categories")
+}
+
+model CommissionLedger {
+  id                   String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  orderId              String   @unique @map("order_id") @db.VarChar(36)
+  paymentId            String?  @map("payment_id") @db.VarChar(36)
+  campaignId           String   @map("campaign_id") @db.VarChar(36)
+  merchantId           String   @map("merchant_id") @db.VarChar(36)
+  commissionCategoryId String?  @map("commission_category_id") @db.VarChar(36)
+  commissionRate       Decimal  @map("commission_rate") @db.Decimal(5, 4) // Snapshot tại thời điểm order
+  grossAmount          Decimal  @map("gross_amount") @db.Decimal(12, 2)
+  commissionAmount     Decimal  @map("commission_amount") @db.Decimal(12, 2)
+  netAmount            Decimal  @map("net_amount") @db.Decimal(12, 2)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  order              Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payment            Payment?            @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  campaign           Campaign            @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  merchant           MerchantProfile     @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  commissionCategory CommissionCategory? @relation(fields: [commissionCategoryId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, createdAt(sort: Desc)])
+  @@index([merchantId, createdAt(sort: Desc)])
+  @@index([commissionCategoryId])
+  @@index([createdAt(sort: Desc)])
+  @@map("commission_ledgers")
 }
 
 model StockAuditLog {

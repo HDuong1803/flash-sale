@@ -1,43 +1,322 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { AlertCircle } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { ScrollText, Search, Download, Calendar, User, Activity, AlertCircle, RefreshCcw, Eye } from 'lucide-react'
 import { GlassCard } from '@/components/shared/GlassCard'
-import apiClient, { ApiError } from '@/lib/api-client'
+import { AutoRefreshTimer } from '@/components/shared/AutoRefreshTimer'
+import { useUserActionLogs } from '@/hooks/queries/useUserActionLogs'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '@/components/ui/badge'
+import type { UserActionLog } from '@/types'
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic'
+
+const ACTION_LABELS: Record<string, { label: string; color: string }> = {
+  reserve: { label: 'Đặt chỗ', color: 'bg-blue-500/20 text-blue-300' },
+  checkout: { label: 'Thanh toán', color: 'bg-purple-500/20 text-purple-300' },
+  purchase: { label: 'Mua hàng', color: 'bg-green-500/20 text-green-300' },
+  login: { label: 'Đăng nhập', color: 'bg-cyan-500/20 text-cyan-300' },
+  logout: { label: 'Đăng xuất', color: 'bg-gray-500/20 text-gray-300' },
+  register: { label: 'Đăng ký', color: 'bg-indigo-500/20 text-indigo-300' },
+}
 
 export default function AdminUserActionLogsPage() {
-  const [data, setData] = useState<unknown[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [actionFilter, setActionFilter] = useState<string>('ALL')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedLog, setSelectedLog] = useState<UserActionLog | null>(null)
 
-  useEffect(() => {
-    setLoading(true)
-    apiClient.get('/admin/user-action-logs')
-      .then((res) => setData(res as unknown as unknown[]))
-      .catch((err) => setError(err instanceof ApiError ? err.message : 'Không thể tải dữ liệu'))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data: logs, loading, error, refetch } = useUserActionLogs()
+
+  // Filter logs
+  const filteredLogs = useMemo(() => {
+    let result = logs
+    
+    if (actionFilter !== 'ALL') {
+      result = result.filter(log => log.action === actionFilter)
+    }
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(log =>
+        log.action.toLowerCase().includes(query) ||
+        log.id.toLowerCase().includes(query) ||
+        log.userId?.toLowerCase().includes(query) ||
+        log.ip?.includes(query) ||
+        log.targetId?.toLowerCase().includes(query)
+      )
+    }
+    
+    return result
+  }, [logs, actionFilter, searchQuery])
+
+  // Stats
+  const stats = useMemo(() => {
+    const actionCounts: Record<string, number> = {}
+    logs.forEach(log => {
+      actionCounts[log.action] = (actionCounts[log.action] || 0) + 1
+    })
+    
+    return {
+      total: logs.length,
+      uniqueIPs: new Set(logs.filter(l => l.ip).map(l => l.ip)).size,
+      uniqueUsers: new Set(logs.filter(l => l.userId).map(l => l.userId)).size,
+      topAction: Object.entries(actionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A',
+    }
+  }, [logs])
+
+  const handleExportCSV = () => {
+    const csv = [
+      ['Thời gian', 'Hành động', 'User ID', 'IP', 'Target ID', 'ID Log'].join(','),
+      ...filteredLogs.map(log => [
+        new Date(log.createdAt).toLocaleString('vi-VN'),
+        log.action,
+        log.userId || 'Guest',
+        log.ip || 'N/A',
+        log.targetId || 'N/A',
+        log.id,
+      ].join(','))
+    ].join('\n')
+    
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = `user-action-logs-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+  }
+
+  const getActionBadge = (action: string) => {
+    const config = ACTION_LABELS[action] || { label: action, color: 'bg-white/10 text-white/70' }
+    return (
+      <Badge className={`${config.color} border-0 font-medium`}>
+        {config.label}
+      </Badge>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Quản lý User Action Log</h1>
-      {loading && (
-        <div className="space-y-2">
-          {[...Array(5)].map((_, i) => <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />)}
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <ScrollText className="text-indigo-400" size={28} />
+            Nhật ký thao tác người dùng
+          </h1>
+          <p className="text-white/50 text-sm mt-1">Theo dõi hoạt động và hành vi người dùng trên hệ thống</p>
         </div>
-      )}
-      {error && (
-        <div className="glass rounded-2xl p-8 text-center">
-          <AlertCircle className="mx-auto mb-3 text-red-400" size={32} />
-          <p className="text-white/60 text-sm">{error}</p>
-        </div>
-      )}
-      {!loading && !error && (
+        <AutoRefreshTimer onRefresh={refetch} />
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <GlassCard className="p-4">
-          <p className="text-white/50 text-sm">{data.length} mục</p>
-          <pre className="text-xs text-white/30 mt-2 overflow-auto max-h-96">{JSON.stringify(data.slice(0, 3), null, 2)}</pre>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/60 text-xs font-medium uppercase">Tổng số logs</p>
+              <p className="text-2xl font-bold text-white mt-1">{stats.total}</p>
+            </div>
+            <ScrollText className="text-white/30" size={32} />
+          </div>
+        </GlassCard>
+        <GlassCard className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/60 text-xs font-medium uppercase">IP duy nhất</p>
+              <p className="text-2xl font-bold text-cyan-400 mt-1">{stats.uniqueIPs}</p>
+            </div>
+            <Activity className="text-cyan-400/30" size={32} />
+          </div>
+        </GlassCard>
+        <GlassCard className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/60 text-xs font-medium uppercase">Users hoạt động</p>
+              <p className="text-2xl font-bold text-purple-400 mt-1">{stats.uniqueUsers}</p>
+            </div>
+            <User className="text-purple-400/30" size={32} />
+          </div>
+        </GlassCard>
+        <GlassCard className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-white/60 text-xs font-medium uppercase">Action phổ biến</p>
+              <p className="text-base font-bold text-indigo-400 mt-1">{ACTION_LABELS[stats.topAction]?.label || stats.topAction}</p>
+            </div>
+            <Calendar className="text-indigo-400/30" size={32} />
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Filters */}
+      <GlassCard className="p-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
+            <Input
+              placeholder="Tìm theo action, user ID, IP..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-glass pl-10"
+            />
+          </div>
+          <Select value={actionFilter} onValueChange={(v) => v && setActionFilter(v)}>
+            <SelectTrigger className="w-full sm:w-48 glass border-white/10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="glass-strong border-white/10">
+              <SelectItem value="ALL">Tất cả actions</SelectItem>
+              {Object.entries(ACTION_LABELS).map(([key, val]) => (
+                <SelectItem key={key} value={key}>{val.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleExportCSV} variant="outline" className="btn-glass gap-2" disabled={filteredLogs.length === 0}>
+            <Download size={16} />
+            Xuất CSV
+          </Button>
+        </div>
+      </GlassCard>
+
+      {/* Table */}
+      {loading ? (
+        <div className="space-y-2">
+          {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-14 bg-white/5" />)}
+        </div>
+      ) : error ? (
+        <GlassCard className="p-12 text-center">
+          <AlertCircle className="mx-auto mb-4 text-red-400" size={48} />
+          <p className="text-white/80 font-medium mb-2">Không thể tải dữ liệu</p>
+          <p className="text-white/50 text-sm mb-4">{error}</p>
+          <Button onClick={refetch} variant="outline" className="btn-glass gap-2">
+            <RefreshCcw size={16} />
+            Thử lại
+          </Button>
+        </GlassCard>
+      ) : filteredLogs.length === 0 ? (
+        <GlassCard className="p-12 text-center">
+          <ScrollText className="mx-auto mb-4 text-white/20" size={48} />
+          <p className="text-white/60">Không tìm thấy log nào</p>
+        </GlassCard>
+      ) : (
+        <GlassCard className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Thời gian</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Hành động</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">User</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">IP Address</th>
+                  <th className="text-left p-4 text-xs font-semibold text-white/60 uppercase">Target</th>
+                  <th className="text-right p-4 text-xs font-semibold text-white/60 uppercase">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredLogs.map((log) => (
+                  <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <td className="p-4">
+                      <p className="text-white/80 text-sm">{new Date(log.createdAt).toLocaleDateString('vi-VN')}</p>
+                      <p className="text-white/50 text-xs">{new Date(log.createdAt).toLocaleTimeString('vi-VN')}</p>
+                    </td>
+                    <td className="p-4">
+                      {getActionBadge(log.action)}
+                    </td>
+                    <td className="p-4">
+                      {log.userId ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                            <User className="text-white" size={14} />
+                          </div>
+                          <p className="text-white/80 text-sm font-mono">{log.userId.slice(0, 8)}</p>
+                        </div>
+                      ) : (
+                        <Badge className="bg-white/5 text-white/40 border-0">Guest</Badge>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <p className="text-white/70 font-mono text-sm">{log.ip || 'N/A'}</p>
+                    </td>
+                    <td className="p-4">
+                      {log.targetId ? (
+                        <p className="text-white/70 font-mono text-sm">{log.targetId.slice(0, 12)}...</p>
+                      ) : (
+                        <p className="text-white/30 text-sm">—</p>
+                      )}
+                    </td>
+                    <td className="p-4 text-right">
+                      <Button
+                        onClick={() => setSelectedLog(log)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                      >
+                        <Eye size={16} />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </GlassCard>
       )}
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
+        <DialogContent className="glass-strong border border-white/20 max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-3">
+              <ScrollText className="text-indigo-400" size={24} />
+              Chi tiết log
+            </DialogTitle>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-white/50 text-xs uppercase mb-1">ID Log</p>
+                  <p className="text-white/90 font-mono text-sm">{selectedLog.id}</p>
+                </div>
+                <div>
+                  <p className="text-white/50 text-xs uppercase mb-1">Hành động</p>
+                  {getActionBadge(selectedLog.action)}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-white/50 text-xs uppercase mb-1">User ID</p>
+                  <p className="text-white/90 font-mono text-sm">{selectedLog.userId || 'Guest'}</p>
+                </div>
+                <div>
+                  <p className="text-white/50 text-xs uppercase mb-1">IP Address</p>
+                  <p className="text-white/90 font-mono text-sm">{selectedLog.ip || 'N/A'}</p>
+                </div>
+              </div>
+
+              {selectedLog.targetId && (
+                <div>
+                  <p className="text-white/50 text-xs uppercase mb-1">Target ID</p>
+                  <p className="text-white/90 font-mono text-sm break-all">{selectedLog.targetId}</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-white/50 text-xs uppercase mb-1">Thời gian</p>
+                <p className="text-white/90">{new Date(selectedLog.createdAt).toLocaleString('vi-VN', { 
+                  dateStyle: 'full', 
+                  timeStyle: 'medium' 
+                })}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

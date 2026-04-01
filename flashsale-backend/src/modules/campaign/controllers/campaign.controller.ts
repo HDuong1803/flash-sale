@@ -35,6 +35,7 @@ import { CampaignService } from '../services/campaign.service'
 import {
   AddCampaignProductDto,
   CampaignProductResponseDto,
+  CommissionCategoryResponseDto,
   CampaignQueryDto,
   CampaignReportResponseDto,
   CampaignResponseDto,
@@ -83,6 +84,15 @@ export class CampaignController {
       user.userId,
       dto
     ) as unknown as CampaignResponseDto
+  }
+
+  @ApiOperation({ summary: 'Lấy danh sách danh mục hoa hồng đang áp dụng' })
+  @ApiResponse({ status: HttpStatus.OK, type: [CommissionCategoryResponseDto] })
+  @Get('commission-categories')
+  @HttpCode(HttpStatus.OK)
+  @Public()
+  async getCommissionCategories(): Promise<CommissionCategoryResponseDto[]> {
+    return this.campaignService.getCommissionCategories() as unknown as CommissionCategoryResponseDto[]
   }
 
   @ApiOperation({ summary: 'Lấy danh sách chiến dịch (công khai)' })

@@ -1,5 +1,5 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Campaign, CampaignProduct, CampaignStatus, CampaignReport } from '@/types'
+import type { Campaign, CampaignProduct, CampaignStatus, CampaignReport, CommissionCategory } from '@/types'
 
 export interface CampaignFilters {
   status?: CampaignStatus
@@ -13,6 +13,7 @@ export interface CreateCampaignDto {
   description?: string
   startTime: string
   endTime: string
+  commissionCategoryId: string
 }
 
 export interface AddCampaignProductDto {
@@ -31,6 +32,9 @@ class CampaignService {
   }
   create(data: CreateCampaignDto): Promise<Campaign> {
     return apiClient.post('/campaigns', data)
+  }
+  getCommissionCategories(): Promise<CommissionCategory[]> {
+    return withRetry(() => apiClient.get('/campaigns/commission-categories'))
   }
   update(id: string, data: Partial<CreateCampaignDto>): Promise<Campaign> {
     return apiClient.put(`/campaigns/${id}`, data)

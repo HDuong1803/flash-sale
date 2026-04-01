@@ -21,6 +21,7 @@ import {
   ApiTags
 } from '@nestjs/swagger'
 import {
+  PaymentMethod,
   KycStatus,
   OrderStatus,
   PaymentStatus,
@@ -44,7 +45,12 @@ import {
   RejectReasonDto,
   RescheduleRequestQueryDto,
   RevenueTrendItemDto,
-  SystemHealthResponseDto
+  SystemHealthResponseDto,
+  FinanceDashboardSummaryDto,
+  FinanceTrendItemDto,
+  CommissionCategoryBreakdownDto,
+  PaymentGatewayConfigDto,
+  UpdatePaymentGatewayConfigDto
 } from '../dto/admin.dto'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 
@@ -437,6 +443,54 @@ export class AdminController {
     return this.adminService.getAdminPayments(
       status as PaymentStatus | undefined
     )
+  }
+
+  @ApiOperation({ summary: 'Dashboard tài chính hoa hồng (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, type: FinanceDashboardSummaryDto })
+  @Get('finance/summary')
+  @HttpCode(HttpStatus.OK)
+  async getFinanceSummary(): Promise<FinanceDashboardSummaryDto> {
+    return this.adminService.getFinanceSummary() as unknown as FinanceDashboardSummaryDto
+  }
+
+  @ApiOperation({ summary: 'Xu hướng doanh thu hoa hồng theo ngày (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, type: [FinanceTrendItemDto] })
+  @Get('finance/trend')
+  @HttpCode(HttpStatus.OK)
+  async getFinanceTrend(): Promise<FinanceTrendItemDto[]> {
+    return this.adminService.getFinanceTrend() as unknown as FinanceTrendItemDto[]
+  }
+
+  @ApiOperation({ summary: 'Phân rã doanh thu hoa hồng theo danh mục (admin)' })
+  @ApiResponse({ status: HttpStatus.OK, type: [CommissionCategoryBreakdownDto] })
+  @Get('finance/by-category')
+  @HttpCode(HttpStatus.OK)
+  async getFinanceByCategory(): Promise<CommissionCategoryBreakdownDto[]> {
+    return this.adminService.getFinanceCategoryBreakdown() as unknown as CommissionCategoryBreakdownDto[]
+  }
+
+  @ApiOperation({ summary: 'Lấy cấu hình các cổng thanh toán của hệ thống' })
+  @ApiResponse({ status: HttpStatus.OK, type: [PaymentGatewayConfigDto] })
+  @Get('payments/gateways')
+  @HttpCode(HttpStatus.OK)
+  async getPaymentGatewayConfigs(): Promise<PaymentGatewayConfigDto[]> {
+    return this.adminService.getPaymentGatewayConfigs() as unknown as PaymentGatewayConfigDto[]
+  }
+
+  @ApiOperation({ summary: 'Cập nhật cấu hình 1 cổng thanh toán' })
+  @ApiParam({ name: 'gateway', enum: PaymentMethod })
+  @ApiBody({ type: UpdatePaymentGatewayConfigDto })
+  @ApiResponse({ status: HttpStatus.OK, type: PaymentGatewayConfigDto })
+  @Patch('payments/gateways/:gateway')
+  @HttpCode(HttpStatus.OK)
+  async updatePaymentGatewayConfig(
+    @Param('gateway') gateway: string,
+    @Body() dto: UpdatePaymentGatewayConfigDto
+  ): Promise<PaymentGatewayConfigDto> {
+    return this.adminService.updatePaymentGatewayConfig(
+      gateway as PaymentMethod,
+      dto
+    ) as unknown as PaymentGatewayConfigDto
   }
 
   // ─── Products (admin) ────────────────────────────────────────────────

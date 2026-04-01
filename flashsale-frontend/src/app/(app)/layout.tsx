@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useAuthContext } from '@/contexts/auth-context'
 import { useUiContext } from '@/contexts/ui-context'
 import { TopHeader } from '@/components/shared/TopHeader'
@@ -40,7 +40,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <AnimatedBackground />
-      <TopHeader />
+      <Suspense fallback={<div className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/10 h-16" />}>
+        <TopHeader />
+      </Suspense>
       {isAuthenticated && <AppSidebar />}
 
       {/* Mobile overlay backdrop — shown when sidebar is open on mobile */}

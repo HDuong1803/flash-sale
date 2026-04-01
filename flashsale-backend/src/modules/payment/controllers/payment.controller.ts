@@ -2,12 +2,14 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
   Post,
   Query,
   Redirect,
+  Req,
   UseGuards,
   UseInterceptors
 } from '@nestjs/common'
@@ -35,6 +37,7 @@ import {
   PaymentStatusResponseDto
 } from '../dto/sepay-webhook.dto'
 import { SepayWebhookGuard } from '../guards/sepay-webhook.guard'
+import type { Request } from 'express'
 
 const moduleName = 'payments'
 
@@ -78,6 +81,20 @@ export class PaymentController {
     @Body() dto: SepayWebhookDto
   ): Promise<SepayWebhookResponseDto> {
     return this.paymentService.handleSepayWebhook(dto)
+  }
+
+  @ApiOperation({ summary: 'Stripe webhook — xử lý checkout session completed' })
+  @ApiResponse({ status: HttpStatus.OK, type: WebhookResponseDto })
+  @Post('webhook/stripe')
+  @HttpCode(HttpStatus.OK)
+  @Public()
+  async handleStripeWebhook(
+    @Req() req: Request & { rawBody?: Buffer },
+    @Headers('stripe-signature') stripeSignature?: string
+  ): Promise<WebhookResponseDto> {
+    const payload = req.rawBody
+    if (!payload) return { received: false }
+    return this.paymentService.handleStripeWebhook(payload, stripeSignature)
   }
 
   // ─── Payment status (dành cho frontend polling) ────────────────────────────

@@ -9,14 +9,16 @@ import { PaymentMethod } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { CheckoutRepository } from '../repositories/checkout.repository'
 import { CheckoutDto } from '../dto/checkout.dto'
-import { SepayService } from '@modules/payment/services/sepay.service'
+import { PaymentGatewayRegistry } from '@modules/payment/services/payment-gateway.registry'
+import { PaymentGatewayConfigService } from '@modules/payment/services/payment-gateway-config.service'
 
 @Injectable()
 export class CheckoutService {
   constructor(
     private readonly checkoutRepository: CheckoutRepository,
     private readonly redis: RedisService,
-    private readonly sepayService: SepayService,
+    private readonly paymentGatewayRegistry: PaymentGatewayRegistry,
+    private readonly paymentGatewayConfigService: PaymentGatewayConfigService,
     private readonly configService: ConfigService
   ) {}
 
@@ -41,11 +43,16 @@ export class CheckoutService {
     const existingPayment =
       await this.checkoutRepository.findPaymentByIdempotencyKey(idempotencyKey)
     if (existingPayment) {
+      const gatewayConfig =
+        await this.paymentGatewayConfigService.ensureGatewayEnabled(
+          existingPayment.method
+        )
       return {
         paymentUrl: await this.buildPaymentUrl(
           existingPayment.id,
-          dto.paymentMethod,
-          Number(existingPayment.amount)
+          existingPayment.method,
+          Number(existingPayment.amount),
+          gatewayConfig.config as Record<string, unknown> | null
         ),
         paymentId: existingPayment.id
       }
@@ -77,7 +84,9 @@ export class CheckoutService {
       paymentUrl: await this.buildPaymentUrl(
         payment.id,
         dto.paymentMethod,
-        amount
+        amount,
+        (await this.paymentGatewayConfigService.ensureGatewayEnabled(dto.paymentMethod))
+          .config as Record<string, unknown> | null
       ),
       paymentId: payment.id
     }
@@ -85,8 +94,9 @@ export class CheckoutService {
 
   private async buildPaymentUrl(
     paymentId: string,
-    method: string,
-    amount: number
+    method: PaymentMethod,
+    amount: number,
+    gatewayConfig?: Record<string, unknown> | null
   ): Promise<string> {
     const frontendUrl = this.configService.get<string>(
       'frontend.FRONTEND_URL',
@@ -94,18 +104,25 @@ export class CheckoutService {
     )
     const returnUrl = `${frontendUrl}/payment/return`
     const cancelUrl = `${frontendUrl}/payment/cancel`
-
-    if (method === PaymentMethod.SEPAY) {
-      const result = await this.sepayService.createPaymentLink({
+    return this.paymentGatewayRegistry.createPaymentLink(
+      method,
+      {
         paymentId,
         amount,
         description: `FlashSale ${paymentId}`,
         returnUrl,
         cancelUrl
-      })
-      return result.paymentUrl
-    }
+      },
+      gatewayConfig
+    )
+  }
 
-    return `${returnUrl}?paymentId=${paymentId}&method=${method}`
+  async getPaymentMethods() {
+    const gateways = await this.paymentGatewayConfigService.listEnabled()
+    return gateways.map(g => ({
+      method: g.gateway,
+      displayName: g.displayName,
+      isDefault: g.isDefault
+    }))
   }
 }

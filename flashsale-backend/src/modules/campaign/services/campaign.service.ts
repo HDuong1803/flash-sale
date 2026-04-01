@@ -62,13 +62,27 @@ export class CampaignService {
         'Thời gian kết thúc phải sau bắt đầu ít nhất 30 phút'
       )
 
+    const commissionCategory =
+      await this.campaignRepository.findCommissionCategoryById(
+        dto.commissionCategoryId
+      )
+    if (!commissionCategory || !commissionCategory.isActive) {
+      throw new BadRequestException('Danh mục hoa hồng không hợp lệ')
+    }
+
     return this.campaignRepository.create({
       merchantId: merchant.id,
       name: dto.name,
       description: dto.description,
       startTime: start,
-      endTime: end
+      endTime: end,
+      commissionCategoryId: commissionCategory.id,
+      commissionRate: Number(commissionCategory.defaultRate)
     })
+  }
+
+  async getCommissionCategories() {
+    return this.campaignRepository.findActiveCommissionCategories()
   }
 
   async findAll(query: CampaignQueryDto) {

@@ -3,6 +3,8 @@ import type {
   Merchant, Campaign, User, DeadLetterJob, SystemHealth,
   AdminStats, QueueStats, SystemLog, ActivityLog, OrdersByHour,
   RevenueTrend, KycStatus, CampaignStatus, UserRole,
+  AdminMerchantProfile, UserActionLog, OutboxEvent, FinanceDashboardSummary,
+  FinanceTrendItem, CommissionCategoryBreakdown, PaymentGatewayConfig, PaymentMethod,
 } from '@/types'
 
 class AdminService {
@@ -68,6 +70,43 @@ class AdminService {
   }
   getSystemLogs(): Promise<SystemLog[]> {
     return withRetry(() => apiClient.get('/admin/system/logs'))
+  }
+  
+  // ─── Monitoring & Audit ───────────────────────────────────────────────
+  
+  getMerchantProfiles(status?: KycStatus): Promise<AdminMerchantProfile[]> {
+    return withRetry(() => apiClient.get('/admin/merchant-profiles', { params: { status } }))
+  }
+  
+  getUserActionLogs(): Promise<UserActionLog[]> {
+    return withRetry(() => apiClient.get('/admin/user-action-logs'))
+  }
+  
+  getOutboxEvents(): Promise<OutboxEvent[]> {
+    return withRetry(() => apiClient.get('/admin/outbox-events'))
+  }
+
+  getFinanceSummary(): Promise<FinanceDashboardSummary> {
+    return withRetry(() => apiClient.get('/admin/finance/summary'))
+  }
+
+  getFinanceTrend(): Promise<FinanceTrendItem[]> {
+    return withRetry(() => apiClient.get('/admin/finance/trend'))
+  }
+
+  getFinanceByCategory(): Promise<CommissionCategoryBreakdown[]> {
+    return withRetry(() => apiClient.get('/admin/finance/by-category'))
+  }
+
+  getPaymentGatewayConfigs(): Promise<PaymentGatewayConfig[]> {
+    return withRetry(() => apiClient.get('/admin/payments/gateways'))
+  }
+
+  updatePaymentGatewayConfig(
+    gateway: PaymentMethod,
+    data: Partial<Pick<PaymentGatewayConfig, 'enabled' | 'isDefault' | 'displayName' | 'config'>>
+  ): Promise<PaymentGatewayConfig> {
+    return apiClient.patch(`/admin/payments/gateways/${gateway}`, data)
   }
 }
 

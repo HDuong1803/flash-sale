@@ -3,6 +3,9 @@ import { PaymentController } from './controllers/payment.controller'
 import { PaymentService } from './services/payment.service'
 import { SagaCoordinatorService } from './services/saga-coordinator.service'
 import { SepayService } from './services/sepay.service'
+import { StripeService } from './services/stripe.service'
+import { PaymentGatewayRegistry } from './services/payment-gateway.registry'
+import { PaymentGatewayConfigService } from './services/payment-gateway-config.service'
 import { PaymentRecoveryService } from './services/payment-recovery.service'
 import { SepayWebhookGuard } from './guards/sepay-webhook.guard'
 import { PaymentRepository } from './repositories/payment.repository'
@@ -16,11 +19,20 @@ import { NotificationModule } from '@modules/notification/notification.module'
     PaymentService,
     SagaCoordinatorService,
     SepayService,
+    StripeService,
+    PaymentGatewayRegistry,
+    PaymentGatewayConfigService,
     SepayWebhookGuard,
     PaymentRepository,
     PaymentRecoveryService
   ],
   // Export để SchedulerModule inject PaymentRecoveryService vào recovery cron job
-  exports: [SepayService, PaymentRecoveryService]
+  exports: [
+    SepayService,
+    StripeService,
+    PaymentGatewayRegistry,
+    PaymentGatewayConfigService,
+    PaymentRecoveryService
+  ]
 })
 export class PaymentModule {}

@@ -337,4 +337,104 @@ export class AdminRepository {
       take: 100
     })
   }
+
+  // ─── Finance / Commission Dashboard ───────────────────────────────────
+
+  async getFinanceSummary() {
+    const [agg, orders] = await Promise.all([
+      this.prisma.commissionLedger.aggregate({
+        _sum: {
+          grossAmount: true,
+          commissionAmount: true,
+          netAmount: true
+        },
+        _count: { _all: true }
+      }),
+      this.prisma.commissionLedger.findMany({
+        select: { commissionRate: true }
+      })
+    ])
+
+    const avgRate =
+      orders.length > 0
+        ? orders.reduce((acc, item) => acc + Number(item.commissionRate), 0) / orders.length
+        : 0
+
+    return {
+      grossRevenue: Number(agg._sum.grossAmount ?? 0),
+      commissionRevenue: Number(agg._sum.commissionAmount ?? 0),
+      merchantNetRevenue: Number(agg._sum.netAmount ?? 0),
+      averageCommissionRatePct: Math.round(avgRate * 10000) / 100,
+      totalCommissionOrders: agg._count._all
+    }
+  }
+
+  async getFinanceTrend(days = 7) {
+    const dayStarts = Array.from({ length: days }, (_, i) => {
+      const d = new Date()
+      d.setDate(d.getDate() - (days - 1 - i))
+      d.setHours(0, 0, 0, 0)
+      return d
+    })
+
+    return Promise.all(
+      dayStarts.map(async dayStart => {
+        const dayEnd = new Date(dayStart)
+        dayEnd.setDate(dayEnd.getDate() + 1)
+        const result = await this.prisma.commissionLedger.aggregate({
+          where: { createdAt: { gte: dayStart, lt: dayEnd } },
+          _sum: { commissionAmount: true, grossAmount: true }
+        })
+        return {
+          dayStart,
+          commissionRevenue: Number(result._sum.commissionAmount ?? 0),
+          grossRevenue: Number(result._sum.grossAmount ?? 0)
+        }
+      })
+    )
+  }
+
+  async getFinanceCategoryBreakdown() {
+    const ledgers = await this.prisma.commissionLedger.findMany({
+      include: { commissionCategory: true }
+    })
+
+    const grouped = new Map<
+      string,
+      {
+        categoryId: string
+        code: string
+        name: string
+        defaultRate: number
+        commissionRevenue: number
+        grossRevenue: number
+        orders: number
+      }
+    >()
+
+    for (const item of ledgers) {
+      const category = item.commissionCategory
+      const key = category?.id ?? 'uncategorized'
+      const current = grouped.get(key)
+      if (current) {
+        current.commissionRevenue += Number(item.commissionAmount)
+        current.grossRevenue += Number(item.grossAmount)
+        current.orders += 1
+      } else {
+        grouped.set(key, {
+          categoryId: category?.id ?? 'uncategorized',
+          code: category?.code ?? 'UNCATEGORIZED',
+          name: category?.name ?? 'Chưa phân loại',
+          defaultRate: Number(category?.defaultRate ?? 0),
+          commissionRevenue: Number(item.commissionAmount),
+          grossRevenue: Number(item.grossAmount),
+          orders: 1
+        })
+      }
+    }
+
+    return Array.from(grouped.values()).sort(
+      (a, b) => b.commissionRevenue - a.commissionRevenue
+    )
+  }
 }

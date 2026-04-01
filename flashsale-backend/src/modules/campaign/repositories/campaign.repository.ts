@@ -179,8 +179,21 @@ export class CampaignRepository {
     description?: string
     startTime: Date
     endTime: Date
+    commissionCategoryId: string
+    commissionRate: number
   }): Promise<Campaign> {
     return this.prisma.campaign.create({ data })
+  }
+
+  async findActiveCommissionCategories() {
+    return this.prisma.commissionCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }]
+    })
+  }
+
+  async findCommissionCategoryById(id: string) {
+    return this.prisma.commissionCategory.findUnique({ where: { id } })
   }
 
   async update(

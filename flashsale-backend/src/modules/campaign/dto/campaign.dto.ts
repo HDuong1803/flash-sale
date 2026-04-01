@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsInt,
   IsISO8601,
-  IsUUID,
   IsEnum,
   Min,
   MaxLength
@@ -48,6 +47,14 @@ export class CreateCampaignDto {
   })
   @IsISO8601()
   endTime: string
+
+  @ApiProperty({
+    description: 'ID danh mục hoa hồng áp dụng cho campaign',
+    example: 'cmcat_electronics'
+  })
+  @IsString()
+  @IsNotEmpty()
+  commissionCategoryId: string
 }
 
 export class UpdateCampaignDto {
@@ -134,10 +141,31 @@ export class CampaignResponseDto {
   @ApiProperty({ required: false, nullable: true }) description: string | null
   @ApiProperty({ example: 'DRAFT', enum: CampaignStatus })
   status: CampaignStatus
+  @ApiProperty({ example: 0.08, description: 'Tỷ lệ hoa hồng snapshot (0-1)' })
+  commissionRate: number
+  @ApiProperty({ required: false, nullable: true })
+  commissionCategoryId: string | null
   @ApiProperty({ example: '2026-04-01T20:00:00Z' }) startTime: Date
   @ApiProperty({ example: '2026-04-01T22:00:00Z' }) endTime: Date
   @ApiProperty() createdAt: Date
   @ApiProperty() updatedAt: Date
+}
+
+export class CommissionCategoryResponseDto {
+  @ApiProperty({ example: 'cmcat_electronics' })
+  id: string
+  @ApiProperty({ example: 'ELECTRONICS' })
+  code: string
+  @ApiProperty({ example: 'Điện tử' })
+  name: string
+  @ApiProperty({ required: false, nullable: true })
+  description: string | null
+  @ApiProperty({ example: 0.06 })
+  defaultRate: number
+  @ApiProperty({ example: true })
+  isActive: boolean
+  @ApiProperty({ example: 30 })
+  sortOrder: number
 }
 
 export class CampaignProductResponseDto {

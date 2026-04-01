@@ -40,6 +40,13 @@ export class PaymentRepository {
           include: {
             product: {
               select: { merchantId: true, id: true, originalPrice: true }
+            },
+            campaign: {
+              select: {
+                id: true,
+                commissionRate: true,
+                commissionCategoryId: true
+              }
             }
           }
         }
@@ -172,6 +179,9 @@ export class PaymentRepository {
     originalPrice: number
     paymentId: string
     idempotencyKey: string
+    campaignId: string
+    commissionRate: number
+    commissionCategoryId?: string | null
   }) {
     return this.prisma.$transaction(async tx => {
       // Idempotency: nếu order đã tồn tại với idempotencyKey này → trả về luôn
@@ -210,6 +220,25 @@ export class PaymentRepository {
       await tx.payment.update({
         where: { id: data.paymentId },
         data: { orderId: order.id }
+      })
+
+      // Write commission ledger snapshot for finance dashboard
+      const commissionAmount =
+        Math.round(data.totalAmount * data.commissionRate * 100) / 100
+      const netAmount = Math.round((data.totalAmount - commissionAmount) * 100) / 100
+
+      await tx.commissionLedger.create({
+        data: {
+          orderId: order.id,
+          paymentId: data.paymentId,
+          campaignId: data.campaignId,
+          merchantId: data.merchantId,
+          commissionCategoryId: data.commissionCategoryId ?? null,
+          commissionRate: data.commissionRate,
+          grossAmount: data.totalAmount,
+          commissionAmount,
+          netAmount
+        }
       })
 
       // Deduct physical inventory

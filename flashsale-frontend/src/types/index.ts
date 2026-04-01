@@ -79,6 +79,8 @@ export interface Campaign {
   name: string
   description: string | null
   status: CampaignStatus
+  commissionCategoryId?: string | null
+  commissionRate?: number
   startTime: string
   endTime: string
   campaignProducts: CampaignProduct[]
@@ -97,6 +99,30 @@ export interface CampaignProduct {
   saleQuantity: number
   remainingQuantity: number
   perUserLimit: number
+}
+
+export interface CommissionCategory {
+  id: string
+  code: string
+  name: string
+  description?: string | null
+  defaultRate: number
+  isActive: boolean
+  sortOrder: number
+}
+
+export interface CheckoutPaymentMethod {
+  method: PaymentMethod
+  displayName: string
+  isDefault: boolean
+}
+
+export interface PaymentGatewayConfig {
+  gateway: PaymentMethod
+  displayName: string
+  enabled: boolean
+  isDefault: boolean
+  config: Record<string, unknown> | null
 }
 
 export interface ProductImage {
@@ -263,6 +289,30 @@ export interface AdminStats {
   failedJobs: number
 }
 
+export interface FinanceDashboardSummary {
+  grossRevenue: number
+  commissionRevenue: number
+  merchantNetRevenue: number
+  averageCommissionRatePct: number
+  totalCommissionOrders: number
+}
+
+export interface FinanceTrendItem {
+  date: string
+  commissionRevenue: number
+  grossRevenue: number
+}
+
+export interface CommissionCategoryBreakdown {
+  categoryId: string
+  code: string
+  name: string
+  defaultRate: number
+  commissionRevenue: number
+  grossRevenue: number
+  orders: number
+}
+
 export interface QueueStats { high: number; normal: number }
 export interface SystemLog { level: string; message: string; timestamp: string }
 export interface ActivityLog { type: string; message: string; createdAt: string }
@@ -322,4 +372,42 @@ export interface MerchantRevenue {
   topProducts: MerchantRevenueTopProduct[]
 }
 
+// ─── Admin Monitoring Types ──────────────────────────────────────────────────
 
+export interface AdminMerchantProfile {
+  id: string
+  userId: string
+  businessName: string
+  taxCode: string
+  businessAddress: string
+  businessPhone: string
+  businessEmail: string
+  kycStatus: KycStatus
+  rejectionReason?: string
+  createdAt: string
+  updatedAt: string
+  user: {
+    fullName: string
+    email: string
+    status: UserStatus
+  }
+}
+
+export interface UserActionLog {
+  id: string
+  userId?: string
+  ip?: string
+  action: string
+  targetId?: string
+  createdAt: string
+}
+
+export interface OutboxEvent {
+  id: string
+  type: string
+  aggregateId: string
+  payload: Record<string, unknown>
+  processed: boolean
+  processedAt?: string
+  createdAt: string
+}

@@ -12,6 +12,7 @@ import { useSubmitCampaign } from '@/hooks/mutations/useSubmitCampaign'
 import { useUpdateCampaign } from '@/hooks/mutations/useUpdateCampaign'
 import { useMyProducts } from '@/hooks/queries/useMyProducts'
 import { useCampaign } from '@/hooks/queries/useCampaign'
+import { useCommissionCategories } from '@/hooks/queries/useCommissionCategories'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { formatCurrency, calculateDiscount } from '@/lib/utils'
 import type { Product } from '@/types'
@@ -46,6 +47,7 @@ const step1Schema = z.object({
     'Phải sau hiện tại ít nhất 1 giờ (giờ Việt Nam)'
   ),
   endTime: z.string(),
+  commissionCategoryId: z.string().min(1, 'Vui lòng chọn ngành hàng'),
 }).refine(
   (d) => new Date(fromVNInput(d.endTime)).getTime() > new Date(fromVNInput(d.startTime)).getTime() + 1800000,
   { message: 'Phải sau thời gian bắt đầu ít nhất 30 phút', path: ['endTime'] }
@@ -116,6 +118,9 @@ function CreateCampaignPage() {
 
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<Step1Form>({
     resolver: zodResolver(step1Schema),
+    defaultValues: {
+      commissionCategoryId: '',
+    },
   })
 
   const watchedStartTime = watch('startTime')
@@ -127,6 +132,7 @@ function CreateCampaignPage() {
         description: editCampaign.description ?? '',
         startTime: toVNInput(editCampaign.startTime),
         endTime: toVNInput(editCampaign.endTime),
+        commissionCategoryId: editCampaign.commissionCategoryId ?? '',
       })
     }
   }, [editCampaign, editId, reset])
@@ -205,7 +211,7 @@ function CreateCampaignPage() {
             <label className="text-white/60 text-sm mb-1 block">Mô tả</label>
             <textarea {...register('description')} className="input-glass resize-none" rows={3} placeholder="Mô tả về chiến dịch..." />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-white/60 text-sm mb-1 block">
                 Thời gian bắt đầu * <span className="text-white/30">(GMT+7)</span>
@@ -234,6 +240,7 @@ function CreateCampaignPage() {
               />
               {errors.endTime && <p className="text-red-400 text-xs mt-1">{errors.endTime.message}</p>}
             </div>
+            <CommissionCategoryField register={register} error={errors.commissionCategoryId?.message} />
           </div>
           <div className="flex justify-end">
             <button type="submit" className="btn-primary">Tiếp theo →</button>
@@ -433,6 +440,38 @@ function Step2({ state, dispatch }: { state: WizardState; dispatch: React.Dispat
           Tiếp theo →
         </button>
       </div>
+    </div>
+  )
+}
+
+function CommissionCategoryField({
+  register,
+  error
+}: {
+  register: ReturnType<typeof useForm<Step1Form>>['register']
+  error?: string
+}) {
+  const { data: categories, loading } = useCommissionCategories()
+
+  return (
+    <div>
+      <label className="text-white/60 text-sm mb-1 block">Ngành hàng & tỷ lệ hoa hồng *</label>
+      <select
+        {...register('commissionCategoryId')}
+        className="input-glass w-full"
+        disabled={loading}
+      >
+        <option value="">Chọn ngành hàng</option>
+        {categories.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.name} - {(c.defaultRate * 100).toFixed(2)}%
+          </option>
+        ))}
+      </select>
+      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+      <p className="text-white/40 text-xs mt-1">
+        Tỷ lệ hoa hồng sẽ được snapshot theo campaign tại thời điểm tạo.
+      </p>
     </div>
   )
 }
