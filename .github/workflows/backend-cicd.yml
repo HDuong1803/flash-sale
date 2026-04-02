@@ -26,6 +26,9 @@ jobs:
     name: Quality Gate (lint, format, build)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CI: true
+      HUSKY: 0
     defaults:
       run:
         working-directory: flashsale-backend
@@ -47,7 +50,10 @@ jobs:
           cache-dependency-path: flashsale-backend/pnpm-lock.yaml
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
 
       - name: Lint check
         run: pnpm exec eslint "{src,apps,libs}/**/*.ts" --max-warnings=0
