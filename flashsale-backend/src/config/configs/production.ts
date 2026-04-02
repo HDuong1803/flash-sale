@@ -5,10 +5,11 @@ export const config = {
     HOST: process.env.HOST,
     ENV: 'production',
     isProd: true,
-    CLIENT_URL: process.env.CLIENT_URL,
-    SERVER_URL: process.env.SERVER_URL,
     NODE_ENV: process.env.NODE_ENV,
-    CLIENT_API_HOST: process.env.CLIENT_API_HOST
+    CLIENT_URL_SERVER: process.env.CLIENT_URL_SERVER,
+    BACKEND_URL_SERVER: process.env.BACKEND_URL_SERVER,
+    CLIENT_URL_LOCAL: process.env.CLIENT_URL_LOCAL,
+    BACKEND_URL_LOCAL: process.env.BACKEND_URL_LOCAL
   },
 
   database: {
@@ -157,10 +158,6 @@ export const config = {
 
   logo: {
     LOGO_URL: process.env.LOGO_URL
-  },
-
-  frontend: {
-    FRONTEND_URL: process.env.FRONTEND_URL
   },
 
   admin: {
