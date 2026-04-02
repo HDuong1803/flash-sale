@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Campaign, CampaignStatus, PreRegistration } from '@prisma/client'
+import { Campaign, CampaignStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 export type CampaignWithActivationData = Campaign & {

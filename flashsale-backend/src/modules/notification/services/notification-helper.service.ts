@@ -45,10 +45,15 @@ export class NotificationHelperService {
     _channels: string[] = ['DATABASE', 'SOCKET', 'EMAIL'],
     _context: NotificationContext = {}
   ): Promise<string[]> {
+    void _payload
+    void _recipients
+    void _channels
+    void _context
     return Promise.resolve([])
   }
 
   async getNotifyUserIds(_context: NotificationContext): Promise<string[]> {
+    void _context
     return Promise.resolve([])
   }
 }

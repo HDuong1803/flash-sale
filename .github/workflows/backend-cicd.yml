@@ -56,10 +56,10 @@ jobs:
         run: pnpm prisma:generate
 
       - name: Lint check
-        run: pnpm exec eslint "{src,apps,libs}/**/*.ts" --max-warnings=0
+        run: pnpm lint:check
 
       - name: Format check
-        run: pnpm exec prettier --check "src/**/*.ts" "test/**/*.ts"
+        run: pnpm format:check
 
       - name: Build check
         run: pnpm build

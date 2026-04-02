@@ -54,7 +54,11 @@ export class DashboardController {
   stream(@Param('campaignId') campaignId: string): Observable<MessageEvent> {
     return new Observable(observer => {
       const subscriber = this.redis.client.duplicate()
-      let heartbeatTimer: NodeJS.Timeout
+      const heartbeatTimer = setInterval(() => {
+        observer.next({
+          data: JSON.stringify({ type: 'heartbeat' })
+        } as MessageEvent)
+      }, 30_000)
 
       subscriber.subscribe(`dashboard:${campaignId}`, err => {
         if (err) {
@@ -66,13 +70,6 @@ export class DashboardController {
       subscriber.on('message', (_channel: string, message: string) => {
         observer.next({ data: message } as MessageEvent)
       })
-
-      // Heartbeat every 30s to keep SSE connection alive
-      heartbeatTimer = setInterval(() => {
-        observer.next({
-          data: JSON.stringify({ type: 'heartbeat' })
-        } as MessageEvent)
-      }, 30_000)
 
       // Send initial snapshot when client connects
       void this.getInitialSnapshot(campaignId).then(snapshot => {
