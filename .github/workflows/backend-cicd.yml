@@ -4,9 +4,15 @@ on:
   pull_request:
     branches:
       - develop
+    paths:
+      - 'flashsale-backend/**'
+      - '.github/workflows/backend-cicd.yml'
   push:
     branches:
       - develop
+    paths:
+      - 'flashsale-backend/**'
+      - '.github/workflows/backend-cicd.yml'
 
 permissions:
   contents: read
@@ -20,6 +26,9 @@ jobs:
     name: Quality Gate (lint, format, build)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: flashsale-backend
 
     steps:
       - name: Checkout
@@ -35,6 +44,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+          cache-dependency-path: flashsale-backend/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
