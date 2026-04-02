@@ -61,6 +61,11 @@ async function bootstrap() {
     })
   )
 
+  const extraCorsOrigins = (process.env.CORS_ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean)
+
   app.enableCors({
     origin: (origin, callback) => {
       const allowedOrigins = [
@@ -69,7 +74,10 @@ async function bootstrap() {
           'http://localhost:3000'
         ),
         configService.get<string>('application.CLIENT_URL'),
-        configService.get<string>('application.SERVER_URL')
+        configService.get<string>('application.SERVER_URL'),
+        configService.get<string>('frontend.FRONTEND_URL'),
+        'https://flash-sale-one.vercel.app',
+        ...extraCorsOrigins
       ].filter(Boolean)
 
       if (!origin) {
