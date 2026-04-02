@@ -6,10 +6,10 @@ import type { PaymentStatus } from '@/types'
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
 /** Khoảng thời gian giữa 2 lần poll (ms) */
-const POLL_INTERVAL_MS = 3_000
+const DEFAULT_POLL_INTERVAL_MS = 3_000
 
 /** Thời gian tối đa chờ thanh toán trước khi báo timeout (ms) = 10 phút */
-const PAYMENT_TIMEOUT_MS = 10 * 60 * 1_000
+const DEFAULT_PAYMENT_TIMEOUT_MS = 10 * 60 * 1_000
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -33,6 +33,11 @@ export interface UsePaymentStatusResult {
   elapsedSeconds: number
 }
 
+export interface UsePaymentStatusOptions {
+  pollIntervalMs?: number
+  timeoutMs?: number
+}
+
 // ─── Hook ───────────────────────────────────────────────────────────────────────
 
 /**
@@ -50,8 +55,12 @@ export interface UsePaymentStatusResult {
  */
 export function usePaymentStatus(
   paymentId: string | null,
-  enabled = true
+  enabled = true,
+  options: UsePaymentStatusOptions = {}
 ): UsePaymentStatusResult {
+  const pollIntervalMs = options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS
+  const timeoutMs = options.timeoutMs ?? DEFAULT_PAYMENT_TIMEOUT_MS
+
   const [pollingState, setPollingState] = useState<PaymentPollingState>('waiting')
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null)
   const [orderId, setOrderId] = useState<string | null>(null)
@@ -147,19 +156,19 @@ export function usePaymentStatus(
     void poll()
 
     // Sau đó poll định kỳ mỗi POLL_INTERVAL_MS
-    pollingRef.current = setInterval(() => void poll(), POLL_INTERVAL_MS)
+    pollingRef.current = setInterval(() => void poll(), pollIntervalMs)
 
-    // Timeout tổng: sau PAYMENT_TIMEOUT_MS → báo timeout
+    // Timeout tổng: sau timeoutMs → báo timeout
     timeoutRef.current = setTimeout(() => {
       if (!isStoppedRef.current) {
         setPollingState('timeout')
         stopPolling()
       }
-    }, PAYMENT_TIMEOUT_MS)
+    }, timeoutMs)
 
     // Cleanup khi component unmount hoặc paymentId thay đổi
     return () => stopPolling()
-  }, [paymentId, enabled, poll, stopPolling])
+  }, [paymentId, enabled, poll, stopPolling, pollIntervalMs, timeoutMs])
 
   return { pollingState, paymentStatus, orderId, error, elapsedSeconds }
 }

@@ -328,7 +328,8 @@ export class AdminRepository {
 
     const avgRate =
       orders.length > 0
-        ? orders.reduce((acc, item) => acc + Number(item.commissionRate), 0) / orders.length
+        ? orders.reduce((acc, item) => acc + Number(item.commissionRate), 0) /
+          orders.length
         : 0
 
     return {
@@ -464,7 +465,8 @@ export class AdminRepository {
       .filter((v): v is number => v !== null && v >= 0)
     const avgCheckoutLatencySeconds =
       checkoutLatencies.length > 0
-        ? checkoutLatencies.reduce((acc, v) => acc + v, 0) / checkoutLatencies.length
+        ? checkoutLatencies.reduce((acc, v) => acc + v, 0) /
+          checkoutLatencies.length
         : 0
 
     const secondBuckets = new Map<number, number>()
@@ -473,7 +475,9 @@ export class AdminRepository {
       secondBuckets.set(sec, (secondBuckets.get(sec) ?? 0) + 1)
     }
     const peakActionsPerSecond =
-      secondBuckets.size > 0 ? Math.max(...Array.from(secondBuckets.values())) : 0
+      secondBuckets.size > 0
+        ? Math.max(...Array.from(secondBuckets.values()))
+        : 0
 
     const minuteBuckets = new Map<number, number>()
     for (const log of actionLogs) {
@@ -487,7 +491,8 @@ export class AdminRepository {
         : 0
     const variance =
       minuteValues.length > 1
-        ? minuteValues.reduce((a, v) => a + (v - mean) ** 2, 0) / minuteValues.length
+        ? minuteValues.reduce((a, v) => a + (v - mean) ** 2, 0) /
+          minuteValues.length
         : 0
     const volatilityIndex = Math.sqrt(variance)
 
@@ -542,7 +547,13 @@ export class AdminRepository {
 
     const rows = new Map<
       number,
-      { bucket: string; visits: number; reservations: number; successfulPayments: number; successRatePct: number }
+      {
+        bucket: string
+        visits: number
+        reservations: number
+        successfulPayments: number
+        successRatePct: number
+      }
     >()
 
     const getBucketTs = (date: Date) =>
@@ -578,7 +589,8 @@ export class AdminRepository {
         ...row,
         successRatePct:
           row.reservations > 0
-            ? Math.round((row.successfulPayments / row.reservations) * 10000) / 100
+            ? Math.round((row.successfulPayments / row.reservations) * 10000) /
+              100
             : 0
       }))
   }

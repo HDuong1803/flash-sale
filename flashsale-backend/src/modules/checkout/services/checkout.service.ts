@@ -37,40 +37,32 @@ export class CheckoutService {
     if (!cp) throw new NotFoundException('Sản phẩm không tồn tại')
 
     const amount = Number(cp.salePrice) * parseInt(resv.quantity)
-
-    // 3. Idempotency — return existing payment if already created for this reservation
-    const idempotencyKey = `checkout:${dto.reservationId}`
-    const existingPayment =
-      await this.checkoutRepository.findPaymentByIdempotencyKey(idempotencyKey)
-    if (existingPayment) {
-      const gatewayConfig =
-        await this.paymentGatewayConfigService.ensureGatewayEnabled(
-          existingPayment.method
-        )
-      return {
-        paymentUrl: await this.buildPaymentUrl(
-          existingPayment.id,
-          existingPayment.method,
-          Number(existingPayment.amount),
-          gatewayConfig.config as Record<string, unknown> | null
-        ),
-        paymentId: existingPayment.id
-      }
+    const shippingAddress = dto.shippingAddress.trim()
+    if (!shippingAddress) {
+      throw new BadRequestException('Địa chỉ giao hàng không hợp lệ')
     }
 
-    // 4. Create Payment (PENDING)
-    const payment = await this.checkoutRepository.createPayment({
-      reservationId: dto.reservationId,
-      amount,
-      method: dto.paymentMethod,
-      idempotencyKey
-    })
+    // 3. Idempotency + DB-first shipping persistence in one transaction
+    const idempotencyKey = `checkout:${dto.reservationId}`
+    const payment =
+      await this.checkoutRepository.createOrReusePaymentWithReservationUpdate({
+        reservationId: dto.reservationId,
+        amount,
+        method: dto.paymentMethod,
+        idempotencyKey,
+        shippingAddress
+      })
 
-    // 5. Store shipping address in Redis for Saga to use during webhook
+    const gatewayConfig =
+      await this.paymentGatewayConfigService.ensureGatewayEnabled(
+        payment.method
+      )
+
+    // 4. Keep a Redis fallback copy for recovery scenarios.
     await this.redis.client.set(
       `checkout:addr:${dto.reservationId}`,
       JSON.stringify({
-        shippingAddress: dto.shippingAddress,
+        shippingAddress,
         paymentId: payment.id
       }),
       'EX',
@@ -83,10 +75,9 @@ export class CheckoutService {
     return {
       paymentUrl: await this.buildPaymentUrl(
         payment.id,
-        dto.paymentMethod,
-        amount,
-        (await this.paymentGatewayConfigService.ensureGatewayEnabled(dto.paymentMethod))
-          .config as Record<string, unknown> | null
+        payment.method,
+        Number(payment.amount),
+        gatewayConfig.config as Record<string, unknown> | null
       ),
       paymentId: payment.id
     }

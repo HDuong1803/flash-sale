@@ -27,14 +27,51 @@ export class OrderRepository {
   }
 
   async findById(id: string): Promise<Order | null> {
-    return this.prisma.order.findUnique({
+    const order = await this.prisma.order.findUnique({
       where: { id },
       include: {
-        items: { include: { product: true } },
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true,
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                }
+              }
+            }
+          }
+        },
         payment: true,
-        reservation: true
+        reservation: {
+          select: {
+            campaignProduct: {
+              select: {
+                campaignId: true,
+                campaign: { select: { name: true } }
+              }
+            }
+          }
+        }
       }
-    }) as unknown as Order | null
+    })
+
+    if (!order) return null
+
+    return {
+      ...order,
+      campaignId: order.reservation.campaignProduct.campaignId,
+      campaignName: order.reservation.campaignProduct.campaign.name,
+      reservation: undefined,
+      items: order.items.map(item => ({
+        ...item,
+        productName: item.product.name,
+        imageUrl: item.product.images[0]?.photo.url ?? null,
+        product: undefined
+      }))
+    } as unknown as Order
   }
 
   async findMerchantByUserIdAndOrderMerchantId(
@@ -50,31 +87,109 @@ export class OrderRepository {
     customerId: string,
     filters: { status?: OrderStatus; page: number; limit: number }
   ): Promise<Order[]> {
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: {
         customerId,
         ...(filters.status ? { status: filters.status } : {})
       },
-      include: { items: { include: { product: true } }, payment: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true,
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                }
+              }
+            }
+          }
+        },
+        payment: true,
+        reservation: {
+          select: {
+            campaignProduct: {
+              select: {
+                campaignId: true,
+                campaign: { select: { name: true } }
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
       skip: (filters.page - 1) * filters.limit,
       take: filters.limit
-    }) as unknown as Order[]
+    })
+
+    return orders.map(order => ({
+      ...order,
+      campaignId: order.reservation.campaignProduct.campaignId,
+      campaignName: order.reservation.campaignProduct.campaign.name,
+      reservation: undefined,
+      items: order.items.map(item => ({
+        ...item,
+        productName: item.product.name,
+        imageUrl: item.product.images[0]?.photo.url ?? null,
+        product: undefined
+      }))
+    })) as unknown as Order[]
   }
 
   async findAllForMerchant(
     merchantUserId: string,
     filters: { status?: OrderStatus; page: number; limit: number }
   ): Promise<Order[]> {
-    return this.prisma.order.findMany({
+    const orders = await this.prisma.order.findMany({
       where: {
         merchant: { userId: merchantUserId },
         ...(filters.status ? { status: filters.status } : {})
       },
-      include: { items: { include: { product: true } }, payment: true },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true,
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                }
+              }
+            }
+          }
+        },
+        payment: true,
+        reservation: {
+          select: {
+            campaignProduct: {
+              select: {
+                campaignId: true,
+                campaign: { select: { name: true } }
+              }
+            }
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
       skip: (filters.page - 1) * filters.limit,
       take: filters.limit
-    }) as unknown as Order[]
+    })
+
+    return orders.map(order => ({
+      ...order,
+      campaignId: order.reservation.campaignProduct.campaignId,
+      campaignName: order.reservation.campaignProduct.campaign.name,
+      reservation: undefined,
+      items: order.items.map(item => ({
+        ...item,
+        productName: item.product.name,
+        imageUrl: item.product.images[0]?.photo.url ?? null,
+        product: undefined
+      }))
+    })) as unknown as Order[]
   }
 }

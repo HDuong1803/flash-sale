@@ -33,18 +33,23 @@ export class AdminStreamController {
     status: HttpStatus.OK,
     description: 'SSE stream — dữ liệu JSON với trường `type` và `data`'
   })
-  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Chưa đăng nhập' })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Chỉ ADMIN' })
   @Get('stream')
   @Sse()
   stream(): Observable<MessageEvent> {
     const emit = (type: string, data: unknown): MessageEvent =>
-      ({ data: JSON.stringify({ type, data }) } as MessageEvent)
+      ({ data: JSON.stringify({ type, data }) }) as MessageEvent
 
     // System health — 15s: đủ nhanh phát hiện service down, không spam DB
     const health$ = timer(0, 15_000).pipe(
       switchMap(() =>
-        from(this.adminService.getSystemHealth()).pipe(catchError(() => of(null)))
+        from(this.adminService.getSystemHealth()).pipe(
+          catchError(() => of(null))
+        )
       ),
       filter((v): v is NonNullable<typeof v> => v !== null),
       map(data => emit('system_health', data))

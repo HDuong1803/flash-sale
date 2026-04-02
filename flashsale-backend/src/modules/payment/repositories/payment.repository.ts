@@ -68,6 +68,16 @@ export class PaymentRepository {
     })
   }
 
+  async updateReservationShippingAddress(
+    reservationId: string,
+    shippingAddress: string
+  ): Promise<void> {
+    await this.prisma.reservation.update({
+      where: { id: reservationId },
+      data: { shippingAddress }
+    })
+  }
+
   /**
    * Tìm các payment bị kẹt ở trạng thái PROCESSING mà không có orderId.
    *
@@ -225,7 +235,8 @@ export class PaymentRepository {
       // Write commission ledger snapshot for finance dashboard
       const commissionAmount =
         Math.round(data.totalAmount * data.commissionRate * 100) / 100
-      const netAmount = Math.round((data.totalAmount - commissionAmount) * 100) / 100
+      const netAmount =
+        Math.round((data.totalAmount - commissionAmount) * 100) / 100
 
       await tx.commissionLedger.create({
         data: {

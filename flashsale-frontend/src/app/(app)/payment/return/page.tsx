@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import { useOrder } from '@/hooks/queries/useOrder'
+import { usePaymentStatus } from '@/hooks/queries/usePaymentStatus'
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
@@ -97,11 +98,17 @@ function OrderSummary({ orderId }: { orderId: string }) {
 function SuccessScreen({
   orderId,
   onViewOrder,
-  onContinue
+  onViewOrders,
+  onContinue,
+  syncState,
+  elapsedSeconds
 }: {
   orderId: string | null
   onViewOrder: () => void
+  onViewOrders: () => void
   onContinue: () => void
+  syncState: 'resolving' | 'pending' | 'error' | null
+  elapsedSeconds: number
 }) {
   return (
     <div className="glass rounded-2xl p-8 max-w-md w-full text-center space-y-6 animate-slide-up">
@@ -121,6 +128,33 @@ function SuccessScreen({
       {/* Chi tiết đơn hàng */}
       {orderId && <OrderSummary orderId={orderId} />}
 
+      {syncState === 'resolving' && (
+        <div className="glass rounded-xl p-3 flex items-center gap-2 text-left">
+          <Loader2 size={14} className="text-indigo-400 animate-spin flex-shrink-0" />
+          <p className="text-white/60 text-xs">
+            Đang đồng bộ đơn hàng từ thanh toán ({elapsedSeconds}s). Vui lòng đợi thêm ít giây.
+          </p>
+        </div>
+      )}
+
+      {syncState === 'pending' && (
+        <div className="glass rounded-xl p-3 flex items-start gap-2 text-left">
+          <AlertTriangle size={14} className="text-yellow-400 flex-shrink-0 mt-0.5" />
+          <p className="text-white/60 text-xs">
+            Thanh toán đã ghi nhận nhưng đơn hàng chưa xuất hiện ngay. Hệ thống sẽ tiếp tục đồng bộ nền.
+          </p>
+        </div>
+      )}
+
+      {syncState === 'error' && (
+        <div className="glass rounded-xl p-3 flex items-start gap-2 text-left">
+          <AlertTriangle size={14} className="text-red-400 flex-shrink-0 mt-0.5" />
+          <p className="text-white/60 text-xs">
+            Không thể tự động lấy mã đơn lúc này. Bạn vẫn có thể kiểm tra trong danh sách đơn hàng.
+          </p>
+        </div>
+      )}
+
       {/* Buttons */}
       <div className="flex flex-col gap-3">
         {orderId && (
@@ -129,6 +163,15 @@ function SuccessScreen({
             className="btn-primary flex items-center justify-center gap-2"
           >
             Xem đơn hàng
+            <ArrowRight size={16} />
+          </button>
+        )}
+        {!orderId && (
+          <button
+            onClick={onViewOrders}
+            className="btn-primary flex items-center justify-center gap-2"
+          >
+            Xem danh sách đơn hàng
             <ArrowRight size={16} />
           </button>
         )}
@@ -190,15 +233,41 @@ function ReturnContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const orderId = searchParams.get('orderId')
+  const orderIdFromQuery = searchParams.get('orderId')
+  const paymentId = searchParams.get('paymentId')
   const status = searchParams.get('status') // 'success' | 'failed' | 'cancelled'
+
+  const shouldResolveOrderId =
+    status === 'success' && !orderIdFromQuery && !!paymentId
+
+  const {
+    pollingState,
+    orderId: resolvedOrderId,
+    elapsedSeconds
+  } = usePaymentStatus(paymentId, shouldResolveOrderId, {
+    pollIntervalMs: 2_000,
+    timeoutMs: 45_000
+  })
+
+  const orderId = orderIdFromQuery ?? resolvedOrderId
+
+  const successSyncState: 'resolving' | 'pending' | 'error' | null =
+    status !== 'success' || orderId
+      ? null
+      : shouldResolveOrderId
+      ? pollingState === 'waiting'
+        ? 'resolving'
+        : pollingState === 'error'
+        ? 'error'
+        : 'pending'
+      : 'pending'
 
   // Không có params hợp lệ → không phải redirect từ gateway → về trang chính
   useEffect(() => {
-    if (!orderId && !status) router.replace('/campaigns')
-  }, [orderId, status, router])
+    if (!orderIdFromQuery && !status && !paymentId) router.replace('/campaigns')
+  }, [orderIdFromQuery, status, paymentId, router])
 
-  if (!orderId && !status) return null
+  if (!orderIdFromQuery && !status && !paymentId) return null
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -206,7 +275,10 @@ function ReturnContent() {
         <SuccessScreen
           orderId={orderId}
           onViewOrder={() => router.push(`/orders/${orderId}`)}
+          onViewOrders={() => router.push('/orders')}
           onContinue={() => router.push('/campaigns')}
+          syncState={successSyncState}
+          elapsedSeconds={elapsedSeconds}
         />
       )}
       {status === 'failed' && (

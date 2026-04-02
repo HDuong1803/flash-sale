@@ -25,10 +25,35 @@ export default function OrdersPage() {
   const { data: orders, loading, error, refetch } = useMyOrders(
     activeTab !== 'ALL' ? { status: activeTab } : undefined
   )
+  const totalOrders = orders.length
+  const completedOrders = orders.filter((o) => o.status === 'DONE').length
+  const pendingOrders = orders.filter((o) => o.status === 'PENDING' || o.status === 'CONFIRMED').length
+  const totalSpent = orders.reduce((sum, o) => sum + o.totalAmount, 0)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <h1 className="text-white text-2xl font-bold">Đơn hàng của tôi</h1>
+
+      {!loading && !error && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="glass rounded-xl p-3">
+            <p className="text-white/45 text-xs">Tổng đơn</p>
+            <p className="text-white font-bold text-lg">{totalOrders}</p>
+          </div>
+          <div className="glass rounded-xl p-3">
+            <p className="text-white/45 text-xs">Đơn hoàn thành</p>
+            <p className="text-emerald-300 font-bold text-lg">{completedOrders}</p>
+          </div>
+          <div className="glass rounded-xl p-3">
+            <p className="text-white/45 text-xs">Đang xử lý</p>
+            <p className="text-indigo-300 font-bold text-lg">{pendingOrders}</p>
+          </div>
+          <div className="glass rounded-xl p-3">
+            <p className="text-white/45 text-xs">Tổng chi tiêu</p>
+            <p className="text-white font-bold text-lg">{formatCurrency(totalSpent)}</p>
+          </div>
+        </div>
+      )}
 
       {/* Status tabs */}
       <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 scrollbar-hide">

@@ -1,42 +1,42 @@
-# Multi-stage build for optimized image
 FROM node:20-bookworm-slim AS base
 
-# Install LibreOffice and fonts for document conversion
-RUN apt-get update && apt-get install -y \
-    libreoffice \
-    libreoffice-writer \
-    libreoffice-calc \
-    fonts-liberation \
-    fonts-liberation2 \
-    fonts-noto-core \
-    fonts-dejavu-core \
-    openssl \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# Set working directory
 WORKDIR /usr/src/app
 
-# Enable pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
+RUN corepack enable && corepack prepare pnpm@10.10.0 --activate
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+FROM base AS build
 
-# Copy source code
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+RUN pnpm prisma:generate && pnpm build
 
-# Build project
-RUN pnpm build
+FROM base AS prod-deps
 
-# Expose port
-EXPOSE 8080
+ENV NODE_ENV=production
+ENV HUSKY=0
 
-# Start application
-CMD ["pnpm", "start"]
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+COPY prisma ./prisma
+RUN pnpm prisma:generate
+
+FROM base AS runtime
+
+ENV NODE_ENV=production
+
+COPY --from=build /usr/src/app/package.json ./package.json
+COPY --from=prod-deps /usr/src/app/node_modules ./node_modules
+COPY --from=build /usr/src/app/prisma ./prisma
+COPY --from=build /usr/src/app/dist ./dist
+
+EXPOSE 5686
+
+CMD ["node", "dist/main.js"]

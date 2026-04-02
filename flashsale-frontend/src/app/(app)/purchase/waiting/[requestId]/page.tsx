@@ -4,6 +4,7 @@ import { use, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { usePurchaseResult } from '@/hooks/queries/usePurchaseResult'
 import { useCampaigns } from '@/hooks/queries/useCampaigns'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
@@ -13,10 +14,10 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
   const { requestId } = use(params)
   const router = useRouter()
 
-  const { data, error, attemptCount, stop } = usePurchaseResult(requestId)
+  const { data, error, errorCode, attemptCount, stop } = usePurchaseResult(requestId)
 
   const { data: campaigns } = useCampaigns()
-  const otherCampaigns = campaigns.filter((c) => c.status === 'ACTIVE').slice(0, 3)
+  const otherCampaigns = (campaigns ?? []).filter((c) => c.status === 'ACTIVE').slice(0, 3)
 
   const isProcessing = !data || data.status === 'PROCESSING'
   const isReserved = data?.status === 'RESERVED'
@@ -26,6 +27,13 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
   useEffect(() => {
     if (isTimeout) stop()
   }, [isTimeout, stop])
+
+  useEffect(() => {
+    if (errorCode === 'UNAUTHORIZED') {
+      toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+      router.push('/campaigns')
+    }
+  }, [errorCode, router])
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-4">
@@ -42,8 +50,15 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
               <h2 className="text-white text-xl font-bold mb-2">Đang đặt chỗ sản phẩm cho bạn...</h2>
               <p className="text-white/50 text-sm">Hệ thống đang xử lý hàng nghìn yêu cầu đồng thời</p>
             </div>
+            <div className="glass rounded-xl p-3 text-left space-y-2">
+              <p className="text-white/40 text-xs uppercase">Tiến trình</p>
+              <p className="text-white/70 text-sm">1. Xếp hàng yêu cầu mua</p>
+              <p className="text-white/70 text-sm">2. Khóa tồn kho an toàn</p>
+              <p className="text-white/70 text-sm">3. Tạo giữ chỗ để thanh toán</p>
+            </div>
             <div className="glass rounded-xl p-3">
               <p className="text-white/40 text-xs">Lần thử: {attemptCount}/30</p>
+              <p className="text-white/30 text-[11px] mt-1 font-mono">Mã yêu cầu: {requestId.slice(0, 12)}...</p>
             </div>
           </>
         )}
@@ -79,11 +94,16 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
               <h2 className="text-white text-xl font-bold mb-1">Đặt hàng thành công!</h2>
               <p className="text-white/50 text-sm">Hoàn tất thanh toán trong:</p>
             </div>
+            <div className="glass rounded-xl p-3 text-left">
+              <p className="text-white/40 text-xs uppercase mb-1">Thông tin giữ chỗ</p>
+              <p className="text-white/70 text-sm font-mono">Reservation: {data.reservationId?.slice(0, 16)}...</p>
+              <p className="text-white/50 text-xs">Giữ chỗ chỉ có hiệu lực trong thời gian đếm ngược bên dưới.</p>
+            </div>
             <CountdownTimer
               targetDate={data.expiredAt}
               size="lg"
               onExpire={() => {
-                alert('Giữ chỗ đã hết hạn')
+                toast.error('Giữ chỗ đã hết hạn')
                 router.push('/campaigns')
               }}
             />
@@ -127,9 +147,21 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
 
         {/* Error state */}
         {error && !isTimeout && (
-          <div>
-            <p className="text-red-400 text-sm mb-3">{error}</p>
-            <button onClick={() => window.location.reload()} className="btn-glass">Thử lại</button>
+          <div className="space-y-3">
+            <p className="text-red-400 text-sm">
+              {errorCode === 'FORBIDDEN'
+                ? 'Yêu cầu mua hàng này không thuộc tài khoản hiện tại.'
+                : errorCode === 'NOT_FOUND'
+                ? 'Không tìm thấy yêu cầu mua hàng. Có thể phiên đã hết hạn.'
+                : errorCode === 'TIMEOUT'
+                ? 'Hệ thống đang bận, vui lòng kiểm tra lại đơn hàng của bạn.'
+                : error}
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <Link href="/orders" className="btn-primary block">Kiểm tra đơn hàng</Link>
+              <button onClick={() => window.location.reload()} className="btn-glass">Thử lại</button>
+            </div>
           </div>
         )}
       </div>

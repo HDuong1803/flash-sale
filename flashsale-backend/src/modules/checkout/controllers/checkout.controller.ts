@@ -32,7 +32,9 @@ const moduleName = 'checkout'
 export class CheckoutController {
   constructor(private readonly checkoutService: CheckoutService) {}
 
-  @ApiOperation({ summary: 'Lấy danh sách cổng thanh toán đang bật cho checkout' })
+  @ApiOperation({
+    summary: 'Lấy danh sách cổng thanh toán đang bật cho checkout'
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Danh sách phương thức thanh toán khả dụng'

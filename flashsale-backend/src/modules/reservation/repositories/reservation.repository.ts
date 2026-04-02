@@ -62,4 +62,32 @@ export class ReservationRepository {
       select: { campaignId: true, saleQuantity: true }
     })
   }
+
+  async findDetailByIdForCustomer(reservationId: string, customerId: string) {
+    return this.prisma.reservation.findFirst({
+      where: { id: reservationId, customerId },
+      select: {
+        id: true,
+        status: true,
+        quantity: true,
+        expiredAt: true,
+        shippingAddress: true,
+        campaignProduct: {
+          select: {
+            salePrice: true,
+            product: {
+              select: {
+                name: true,
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+  }
 }

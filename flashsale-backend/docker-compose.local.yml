@@ -5,7 +5,7 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     ports:
-      - '8080:8080'
+      - '5432:5432'
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
@@ -48,11 +48,12 @@ services:
     container_name: flashsale_pgbouncer
     image: pgbouncer/pgbouncer:latest
     restart: unless-stopped
+    profiles: ['pooling']
     ports:
       - '6432:6432'
     environment:
       DATABASES_HOST: postgres
-      DATABASES_PORT: 8080
+      DATABASES_PORT: 5432
       DATABASES_USER: ${DB_USER:-postgres}
       DATABASES_PASSWORD: ${DB_PASSWORD:-postgres}
       DATABASES_DBNAME: ${DB_NAME:-decot}

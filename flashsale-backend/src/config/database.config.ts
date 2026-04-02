@@ -1,6 +1,6 @@
 // Database Configuration for Connection Pooling
 export interface DatabaseConfig {
-  // Primary database URL (through pgbouncer/pgpool)
+  // Primary database URL (direct Postgres or through a single pooler)
   url: string
 
   // Direct database URL (bypass connection pooler for migrations)

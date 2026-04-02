@@ -19,6 +19,36 @@ export class CheckoutRepository {
     return this.prisma.payment.findUnique({ where: { idempotencyKey } })
   }
 
+  async createOrReusePaymentWithReservationUpdate(data: {
+    reservationId: string
+    amount: number
+    method: PaymentMethod
+    idempotencyKey: string
+    shippingAddress: string
+  }): Promise<Payment> {
+    return this.prisma.$transaction(async tx => {
+      await tx.reservation.update({
+        where: { id: data.reservationId },
+        data: { shippingAddress: data.shippingAddress }
+      })
+
+      const existingPayment = await tx.payment.findUnique({
+        where: { idempotencyKey: data.idempotencyKey }
+      })
+      if (existingPayment) return existingPayment
+
+      return tx.payment.create({
+        data: {
+          reservationId: data.reservationId,
+          amount: data.amount,
+          method: data.method,
+          status: PaymentStatus.PENDING,
+          idempotencyKey: data.idempotencyKey
+        }
+      })
+    })
+  }
+
   async createPayment(data: {
     reservationId: string
     amount: number

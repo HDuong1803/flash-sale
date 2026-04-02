@@ -114,7 +114,7 @@ export class OrderWorker implements OnModuleInit {
     result: object
   ): Promise<void> {
     await this.redis.setPurchaseResult(requestId, result)
-    await this.redis.setIdempotencyKey(idempotencyKey, JSON.stringify(result))
+    await this.redis.setPurchaseFinalResultByIdempotency(idempotencyKey, result)
   }
 
   private async publishDashboardUpdate(

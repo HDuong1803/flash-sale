@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import * as Sentry from '@sentry/nestjs'
+import { RedisService } from '@infrastructure/redis/redis.service'
 import { PaymentRepository } from '../repositories/payment.repository'
 import {
   SagaCoordinatorService,
@@ -41,7 +42,8 @@ export class PaymentRecoveryService {
 
   constructor(
     private readonly paymentRepository: PaymentRepository,
-    private readonly saga: SagaCoordinatorService
+    private readonly saga: SagaCoordinatorService,
+    private readonly redis: RedisService
   ) {}
 
   /**
@@ -55,6 +57,11 @@ export class PaymentRecoveryService {
       )
 
     if (stuckPayments.length === 0) return
+
+    await this.redis.incrementMetricCounter(
+      'payment_stuck_count',
+      stuckPayments.length
+    )
 
     this.logger.warn({
       event: 'recovery_scan_found_stuck',
@@ -122,6 +129,8 @@ export class PaymentRecoveryService {
 
       // Đánh dấu webhook log đã xử lý thành công
       await this.paymentRepository.markWebhookLogProcessed(webhookLog.id)
+
+      await this.redis.incrementMetricCounter('recovery_success_rate')
 
       this.logger.log({
         event: 'recovery_success',

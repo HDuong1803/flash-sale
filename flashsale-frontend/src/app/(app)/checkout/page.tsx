@@ -1,11 +1,12 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Building2, Loader2 } from 'lucide-react'
+import { AlertCircle, Building2, Loader2 } from 'lucide-react'
 import { useCheckout } from '@/hooks/mutations/useCheckout'
 import { useAuthContext } from '@/contexts/auth-context'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
@@ -14,6 +15,7 @@ import { formatCurrency } from '@/lib/utils'
 import type { CheckoutDto } from '@/services/checkout.service'
 import { useCheckoutPaymentMethods } from '@/hooks/queries/useCheckoutPaymentMethods'
 import type { PaymentMethod } from '@/types'
+import { useReservationDetail } from '@/hooks/queries/useReservationDetail'
 
 const PROVINCES = ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'An Giang', 'Bình Dương', 'Đồng Nai', 'Khánh Hòa', 'Lâm Đồng']
 
@@ -33,10 +35,16 @@ function CheckoutContent() {
   const { user } = useAuthContext()
   const { checkout, loading } = useCheckout()
   const { data: methods, loading: methodsLoading } = useCheckoutPaymentMethods()
+  const {
+    data: reservation,
+    loading: reservationLoading,
+    error: reservationError,
+    refetch: refetchReservation,
+  } = useReservationDetail(reservationId)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [expiredDialog, setExpiredDialog] = useState(false)
-  const [amount, setAmount] = useState(0)
   const [expiredAt, setExpiredAt] = useState<string | null>(null)
+  const [fallbackExpiredAt, setFallbackExpiredAt] = useState<string | null>(null)
 
   useEffect(() => {
     if (!reservationId) router.replace('/campaigns')
@@ -44,10 +52,18 @@ function CheckoutContent() {
 
   useEffect(() => {
     const expiredAtParam = searchParams.get('expiredAt')
-    const amountParam = searchParams.get('amount')
     if (expiredAtParam) setExpiredAt(expiredAtParam)
-    if (amountParam) setAmount(Number(amountParam))
   }, [searchParams])
+
+  useEffect(() => {
+    if (reservation?.expiredAt) setExpiredAt(reservation.expiredAt)
+  }, [reservation?.expiredAt])
+
+  useEffect(() => {
+    if (!fallbackExpiredAt) {
+      setFallbackExpiredAt(new Date(Date.now() + 15 * 60 * 1000).toISOString())
+    }
+  }, [fallbackExpiredAt])
 
   useEffect(() => {
     if (methods.length === 0) return
@@ -63,18 +79,48 @@ function CheckoutContent() {
   })
 
   const onSubmit = async (formData: CheckoutForm) => {
-    if (!reservationId || !selectedMethod) return
+    if (!reservationId || !selectedMethod || reservation?.status !== 'HOLDING') return
     try {
       const { paymentUrl } = await checkout({
         reservationId,
         shippingAddress: `${formData.address}, ${formData.city}`,
         paymentMethod: selectedMethod,
       } as CheckoutDto)
-      window.location.href = paymentUrl
+      window.location.assign(paymentUrl)
     } catch { /* handled by hook */ }
   }
 
   if (!reservationId) return null
+
+  if (reservationError) {
+    return (
+      <div className="max-w-2xl mx-auto mt-8">
+        <div className="glass rounded-2xl p-8 text-center">
+          <AlertCircle className="mx-auto mb-3 text-red-400" size={32} />
+          <p className="text-white/70 text-sm mb-4">{reservationError}</p>
+          <button onClick={refetchReservation} className="btn-glass text-sm px-4 py-2">Thử lại</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!reservationLoading && reservation && reservation.status !== 'HOLDING') {
+    return (
+      <div className="max-w-2xl mx-auto mt-8">
+        <div className="glass rounded-2xl p-8 text-center">
+          <AlertCircle className="mx-auto mb-3 text-orange-400" size={32} />
+          <h2 className="text-white font-semibold mb-2">Giữ chỗ không còn hiệu lực</h2>
+          <p className="text-white/60 text-sm mb-4">
+            Trạng thái hiện tại: <span className="text-white font-medium">{reservation.status}</span>
+          </p>
+          <button onClick={() => router.push('/campaigns')} className="btn-primary text-sm px-4 py-2">Về trang Flash Sale</button>
+        </div>
+      </div>
+    )
+  }
+
+  const totalAmount = reservation?.totalAmount ?? 0
+  const targetExpiredAt = expiredAt ?? fallbackExpiredAt
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -161,21 +207,50 @@ function CheckoutContent() {
           <div className="glass rounded-2xl p-6 space-y-4 lg:sticky lg:top-24">
             <h2 className="text-white font-semibold">Tóm tắt đơn hàng</h2>
 
+            {reservationLoading ? (
+              <div className="animate-pulse space-y-2">
+                <div className="h-20 rounded-xl bg-white/8" />
+                <div className="h-4 rounded bg-white/8 w-1/2" />
+              </div>
+            ) : reservation ? (
+              <div className="glass rounded-xl p-3 flex items-center gap-3">
+                <div className="w-14 h-14 rounded-lg overflow-hidden bg-white/5 flex-shrink-0 relative">
+                  {reservation.campaignProduct.product.imageUrl ? (
+                    <Image
+                      src={reservation.campaignProduct.product.imageUrl}
+                      alt={reservation.campaignProduct.product.name}
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                    />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-sm font-medium truncate">{reservation.campaignProduct.product.name}</p>
+                  <p className="text-white/50 text-xs">x{reservation.quantity} • {formatCurrency(reservation.campaignProduct.salePrice)}</p>
+                </div>
+              </div>
+            ) : null}
+
             {/* Countdown */}
             <div className="glass-brand rounded-xl p-3">
               <p className="text-white/60 text-xs mb-2">Giữ chỗ hết hạn sau</p>
-              <CountdownTimer
-                targetDate={expiredAt ?? new Date(Date.now() + 15 * 60 * 1000).toISOString()}
-                size="sm"
-                onExpire={() => setExpiredDialog(true)}
-              />
+              {targetExpiredAt ? (
+                <CountdownTimer
+                  targetDate={targetExpiredAt}
+                  size="sm"
+                  onExpire={() => setExpiredDialog(true)}
+                />
+              ) : (
+                <p className="text-white/60 text-sm">Đang tải thời gian giữ chỗ...</p>
+              )}
             </div>
 
             {/* Summary rows */}
             <div className="space-y-2 py-3 border-y border-white/10">
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Tạm tính</span>
-                <span className="text-white">{formatCurrency(amount)}</span>
+                <span className="text-white">{formatCurrency(totalAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-white/60">Phí vận chuyển</span>
@@ -184,13 +259,13 @@ function CheckoutContent() {
             </div>
             <div className="flex justify-between">
               <span className="text-white font-semibold">Tổng cộng</span>
-              <span className="text-indigo-300 text-xl font-bold">{formatCurrency(amount)}</span>
+              <span className="text-indigo-300 text-xl font-bold">{formatCurrency(totalAmount)}</span>
             </div>
 
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading || methodsLoading || !selectedMethod || methods.length === 0}
+              disabled={loading || methodsLoading || reservationLoading || !selectedMethod || methods.length === 0 || reservation?.status !== 'HOLDING'}
               className="btn-primary w-full disabled:opacity-50"
             >
               {loading ? (
@@ -198,7 +273,7 @@ function CheckoutContent() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Đang xử lý...
                 </span>
-              ) : `Hoàn tất thanh toán — ${formatCurrency(amount)}`}
+              ) : `Hoàn tất thanh toán — ${formatCurrency(totalAmount)}`}
             </button>
           </div>
         </div>

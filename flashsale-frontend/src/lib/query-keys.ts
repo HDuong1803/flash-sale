@@ -21,6 +21,7 @@ export const queryKeys = {
     all: ['orders'] as const,
     list: (params?: object) => ['orders', 'list', params] as const,
     detail: (id: string) => ['orders', 'detail', id] as const,
+    reservation: (id: string) => ['orders', 'reservation', id] as const,
     merchant: (params?: object) => ['orders', 'merchant', params] as const,
   },
   products: {

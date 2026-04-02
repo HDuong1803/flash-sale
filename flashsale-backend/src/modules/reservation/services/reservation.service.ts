@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { ReservationStatus } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { ReservationRepository } from '../repositories/reservation.repository'
@@ -78,11 +78,45 @@ export class ReservationService {
       ReservationStatus.EXPIRED,
       reason
     )
+
+    if (reason.toUpperCase().includes('EXPIRE')) {
+      await this.redis.incrementMetricCounter('reservation_expire_rate')
+    }
   }
 
   async markAsPaid(reservationId: string): Promise<void> {
     await this.redis.deleteReservation(reservationId)
     await this.redis.removeReservationExpiry(reservationId)
     await this.reservationRepository.markAsPaid(reservationId)
+  }
+
+  async getDetailForCustomer(reservationId: string, customerId: string) {
+    const reservation =
+      await this.reservationRepository.findDetailByIdForCustomer(
+        reservationId,
+        customerId
+      )
+
+    if (!reservation) {
+      throw new NotFoundException('Không tìm thấy giữ chỗ')
+    }
+
+    const salePrice = Number(reservation.campaignProduct.salePrice)
+    return {
+      id: reservation.id,
+      status: reservation.status,
+      quantity: reservation.quantity,
+      expiredAt: reservation.expiredAt,
+      shippingAddress: reservation.shippingAddress,
+      totalAmount: salePrice * reservation.quantity,
+      campaignProduct: {
+        salePrice,
+        product: {
+          name: reservation.campaignProduct.product.name,
+          imageUrl:
+            reservation.campaignProduct.product.images[0]?.photo.url ?? null
+        }
+      }
+    }
   }
 }

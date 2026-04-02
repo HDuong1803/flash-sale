@@ -185,11 +185,20 @@ export class RescheduleRequestQueryDto {
 }
 
 export class FinanceDashboardSummaryDto {
-  @ApiProperty({ example: 125000000, description: 'Tổng doanh thu gộp của các đơn có hoa hồng' })
+  @ApiProperty({
+    example: 125000000,
+    description: 'Tổng doanh thu gộp của các đơn có hoa hồng'
+  })
   grossRevenue: number
-  @ApiProperty({ example: 9800000, description: 'Tổng doanh thu hoa hồng admin thu được' })
+  @ApiProperty({
+    example: 9800000,
+    description: 'Tổng doanh thu hoa hồng admin thu được'
+  })
   commissionRevenue: number
-  @ApiProperty({ example: 115200000, description: 'Tổng tiền ròng thuộc merchant' })
+  @ApiProperty({
+    example: 115200000,
+    description: 'Tổng tiền ròng thuộc merchant'
+  })
   merchantNetRevenue: number
   @ApiProperty({ example: 7.84, description: 'Tỷ lệ hoa hồng trung bình (%)' })
   averageCommissionRatePct: number
@@ -228,7 +237,11 @@ export class PaymentGatewayConfigDto {
 
   @ApiProperty({
     required: false,
-    example: { bankCode: 'MB', bankAccount: '123456789', accountName: 'FLASH SALE' }
+    example: {
+      bankCode: 'MB',
+      bankAccount: '123456789',
+      accountName: 'FLASH SALE'
+    }
   })
   config: Record<string, unknown> | null
 }

@@ -48,49 +48,73 @@ export class SagaCoordinatorService {
   ): Promise<void> {
     const payment = await this.paymentRepository.findById(paymentId)
     if (!payment) throw new NotFoundException('Payment không tồn tại')
-    if (payment.status !== PaymentStatus.PENDING) {
+
+    if (
+      payment.status === PaymentStatus.SUCCESS ||
+      payment.status === PaymentStatus.FAILED ||
+      payment.status === PaymentStatus.CANCELLED ||
+      payment.status === PaymentStatus.REFUNDED
+    ) {
       this.logger.warn(
         `Payment ${paymentId} already processed: ${payment.status}`
       )
       return
     }
 
+    if (payment.status === PaymentStatus.PENDING) {
+      const claimed = await this.paymentRepository.claimPaymentForProcessing(
+        paymentId
+      )
+      if (!claimed) {
+        this.logger.warn(
+          `Payment ${paymentId} already claimed by another worker`
+        )
+        return
+      }
+    }
+
     const reservationId = payment.reservationId
     if (!reservationId)
       throw new BadRequestException('Payment không liên kết với reservation')
-
-    // Đọc địa chỉ giao hàng từ Redis (được lưu khi user checkout)
-    const checkoutRaw = await this.redis.client.get(
-      `checkout:addr:${reservationId}`
-    )
-
-    if (!checkoutRaw) {
-      // ⚠️ QUAN TRỌNG: Không được rollback ở đây!
-      // Tiền đã được nhận bởi payment gateway — rollback sẽ mất tiền của khách.
-      //
-      // Nguyên nhân: Redis key `checkout:addr:{reservationId}` có TTL 20 phút.
-      // Nếu khách chờ quá lâu rồi mới chuyển khoản, key đã hết hạn.
-      //
-      // Xử lý: throw CheckoutDataExpiredException để báo caller KHÔNG rollback.
-      // Payment ở trạng thái PROCESSING → recovery job sẽ xử lý sau.
-      this.logger.error({
-        event: 'saga_checkout_data_expired',
-        paymentId,
-        reservationId,
-        alert:
-          'CRITICAL — tiền đã nhận nhưng checkout data hết hạn, cần xử lý thủ công'
-      })
-      throw new CheckoutDataExpiredException(paymentId, reservationId)
-    }
-
-    const { shippingAddress } = JSON.parse(checkoutRaw) as {
-      shippingAddress: string
-    }
 
     const resv = await this.paymentRepository.findReservationWithProduct(
       reservationId
     )
     if (!resv) throw new NotFoundException('Giữ chỗ không tồn tại')
+
+    let shippingAddress = (resv.shippingAddress ?? '').trim()
+
+    // Fallback Redis cho dữ liệu cũ/edge-case chưa đồng bộ DB.
+    if (!shippingAddress) {
+      const checkoutRaw = await this.redis.client.get(
+        `checkout:addr:${reservationId}`
+      )
+
+      if (checkoutRaw) {
+        const checkoutData = JSON.parse(checkoutRaw) as {
+          shippingAddress?: string
+        }
+        shippingAddress = checkoutData.shippingAddress?.trim() ?? ''
+
+        if (shippingAddress) {
+          await this.paymentRepository.updateReservationShippingAddress(
+            reservationId,
+            shippingAddress
+          )
+        }
+      }
+    }
+
+    if (!shippingAddress) {
+      this.logger.error({
+        event: 'saga_checkout_data_expired',
+        paymentId,
+        reservationId,
+        alert:
+          'CRITICAL — tiền đã nhận nhưng thiếu địa chỉ giao hàng, cần xử lý thủ công'
+      })
+      throw new CheckoutDataExpiredException(paymentId, reservationId)
+    }
 
     try {
       // Bước 1: Đánh dấu thanh toán thành công

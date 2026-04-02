@@ -2,7 +2,10 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PaymentMethod } from '@prisma/client'
 import axios from 'axios'
-import type { CreatePaymentLinkInput, PaymentGatewayProvider } from './payment-gateway.types'
+import type {
+  CreatePaymentLinkInput,
+  PaymentGatewayProvider
+} from './payment-gateway.types'
 import * as crypto from 'crypto'
 
 @Injectable()
@@ -32,8 +35,14 @@ export class StripeService implements PaymentGatewayProvider {
     form.append('success_url', successUrl)
     form.append('cancel_url', cancelUrl)
     form.append('line_items[0][price_data][currency]', 'vnd')
-    form.append('line_items[0][price_data][product_data][name]', input.description)
-    form.append('line_items[0][price_data][unit_amount]', String(Math.round(input.amount)))
+    form.append(
+      'line_items[0][price_data][product_data][name]',
+      input.description
+    )
+    form.append(
+      'line_items[0][price_data][unit_amount]',
+      String(Math.round(input.amount))
+    )
     form.append('line_items[0][quantity]', '1')
     form.append('metadata[paymentId]', input.paymentId)
     form.append('metadata[gateway]', PaymentMethod.STRIPE)
@@ -62,8 +71,10 @@ export class StripeService implements PaymentGatewayProvider {
   }
 
   verifyWebhookSignature(payload: Buffer, signatureHeader?: string): boolean {
-    const webhookSecret =
-      this.configService.get<string>('stripe.STRIPE_WEBHOOK_SECRET', '')
+    const webhookSecret = this.configService.get<string>(
+      'stripe.STRIPE_WEBHOOK_SECRET',
+      ''
+    )
     if (!webhookSecret || !signatureHeader) return false
 
     const signature = this.extractV1Signature(signatureHeader)
@@ -81,18 +92,30 @@ export class StripeService implements PaymentGatewayProvider {
     if (signatureBuf.length !== expectedBuf.length) return false
 
     return crypto.timingSafeEqual(
-      new Uint8Array(signatureBuf.buffer, signatureBuf.byteOffset, signatureBuf.byteLength),
-      new Uint8Array(expectedBuf.buffer, expectedBuf.byteOffset, expectedBuf.byteLength)
+      new Uint8Array(
+        signatureBuf.buffer,
+        signatureBuf.byteOffset,
+        signatureBuf.byteLength
+      ),
+      new Uint8Array(
+        expectedBuf.buffer,
+        expectedBuf.byteOffset,
+        expectedBuf.byteLength
+      )
     )
   }
 
   private extractTimestamp(signatureHeader: string): string | null {
-    const part = signatureHeader.split(',').find(item => item.trim().startsWith('t='))
+    const part = signatureHeader
+      .split(',')
+      .find(item => item.trim().startsWith('t='))
     return part ? part.split('=')[1] ?? null : null
   }
 
   private extractV1Signature(signatureHeader: string): string | null {
-    const part = signatureHeader.split(',').find(item => item.trim().startsWith('v1='))
+    const part = signatureHeader
+      .split(',')
+      .find(item => item.trim().startsWith('v1='))
     return part ? part.split('=')[1] ?? null : null
   }
 }

@@ -17,7 +17,7 @@ export class PrismaService
 
   constructor(private configService: ConfigService) {
     super({
-      // Connection pooling configuration optimized for pgpool/pgbouncer
+      // Connection URL may be direct Postgres or a single external pooler.
       datasources: {
         db: {
           url: configService.get('DATABASE_URL')

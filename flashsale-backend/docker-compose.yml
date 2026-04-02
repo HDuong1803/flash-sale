@@ -8,7 +8,7 @@ services:
     env_file:
       - .env
     ports:
-      - 8080:8080
+      - 5686:5686
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
@@ -40,6 +40,7 @@ services:
   pgbouncer:
     container_name: flashsale_pgbouncer
     image: edoburu/pgbouncer:latest
+    profiles: ['pooling']
     ports:
       - '6432:6432'
     environment:
@@ -61,36 +62,6 @@ services:
     volumes:
       - ./docker/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
       - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - ${NETWORK}
-    restart: unless-stopped
-
-  pgpool:
-    container_name: flashsale_pgpool
-    image: bitnami/pgpool:latest
-    ports:
-      - '5433:5433'
-    environment:
-      PGPOOL_BACKEND_NODES: 0:postgres:5432
-      PGPOOL_SR_CHECK_USER: ${DB_USER}
-      PGPOOL_SR_CHECK_PASSWORD: ${DB_PASSWORD}
-      PGPOOL_SR_CHECK_DATABASE: ${DB_NAME}
-      PGPOOL_ENABLE_LDAP: 'no'
-      PGPOOL_POSTGRES_USERNAME: ${DB_USER}
-      PGPOOL_POSTGRES_PASSWORD: ${DB_PASSWORD}
-      PGPOOL_ADMIN_USERNAME: ${DB_USER}
-      PGPOOL_ADMIN_PASSWORD: ${DB_PASSWORD}
-      PGPOOL_ENABLE_LOAD_BALANCING: 'yes'
-      PGPOOL_MAX_POOL: 15
-      PGPOOL_CHILD_LIFE_TIME: 300
-      PGPOOL_CONNECTION_LIFE_TIME: 600
-      PGPOOL_CLIENT_IDLE_LIMIT: 0
-      PGPOOL_NUM_INIT_CHILDREN: 10
-    volumes:
-      - ./docker/pgpool/pgpool.conf:/opt/bitnami/pgpool/conf/pgpool.conf
     depends_on:
       postgres:
         condition: service_healthy

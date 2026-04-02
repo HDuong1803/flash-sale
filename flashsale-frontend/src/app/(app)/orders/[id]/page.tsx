@@ -89,6 +89,25 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left */}
         <div className="space-y-4">
+          <div className="glass rounded-2xl p-6 grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-white/45 text-xs">Mã đơn hàng</p>
+              <p className="text-white font-mono text-sm">#{order.id.slice(0, 12)}</p>
+            </div>
+            <div>
+              <p className="text-white/45 text-xs">Ngày tạo</p>
+              <p className="text-white text-sm">{formatDate(order.createdAt)}</p>
+            </div>
+            <div>
+              <p className="text-white/45 text-xs">Số sản phẩm</p>
+              <p className="text-white text-sm">{order.items.length}</p>
+            </div>
+            <div>
+              <p className="text-white/45 text-xs">Tình trạng</p>
+              <p className="text-white text-sm">{isCancelled ? 'Đã huỷ' : 'Đang xử lý giao vận'}</p>
+            </div>
+          </div>
+
           {/* Products */}
           <div className="glass rounded-2xl p-6 space-y-4">
             <h2 className="text-white font-semibold">Sản phẩm</h2>

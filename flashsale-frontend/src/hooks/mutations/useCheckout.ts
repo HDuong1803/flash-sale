@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { checkoutService, type CheckoutDto } from '@/services/checkout.service'
-import { getOrCreateKey, clearKey } from '@/lib/idempotency'
+import { clearKey } from '@/lib/idempotency'
 
 export function useCheckout() {
   const [loading, setLoading] = useState(false)
@@ -9,10 +9,9 @@ export function useCheckout() {
   const checkout = async (data: CheckoutDto) => {
     setLoading(true)
     try {
-      const idempotencyKey = getOrCreateKey(`checkout:${data.reservationId}`)
       const result = await checkoutService.initiate(data)
       clearKey(`checkout:${data.reservationId}`)
-      toast.success('Đặt hàng thành công!')
+      toast.success('Đã tạo phiên thanh toán. Đang chuyển sang cổng thanh toán...')
       return result
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Thanh toán thất bại')

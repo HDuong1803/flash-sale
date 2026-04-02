@@ -95,10 +95,12 @@ export class OrderController {
   @UseGuards(RolesGuard)
   @Roles('CUSTOMER', 'MERCHANT')
   async getResult(
-    @Param('requestId') requestId: string
+    @Param('requestId') requestId: string,
+    @CurrentUser() user: { userId: string }
   ): Promise<PurchaseResultResponseDto> {
     return this.orderGatewayService.getResult(
-      requestId
+      requestId,
+      user.userId
     ) as unknown as PurchaseResultResponseDto
   }
 

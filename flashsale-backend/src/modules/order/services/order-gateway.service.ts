@@ -24,8 +24,10 @@ export class OrderGatewayService {
     idempotencyKey: string
   ): Promise<{ requestId: string }> {
     // 1. Idempotency check — return cached result if already processed
-    const cached = await this.redis.getIdempotencyKey(idempotencyKey)
-    if (cached) return JSON.parse(cached) as { requestId: string }
+    const cachedRequestId = await this.redis.getPurchaseRequestIdempotency(
+      idempotencyKey
+    )
+    if (cachedRequestId) return { requestId: cachedRequestId }
 
     // 2. Validate campaign is ACTIVE
     const cp = await this.orderRepository.findCampaignProductWithCampaign(
@@ -80,16 +82,27 @@ export class OrderGatewayService {
 
     // 6. Cache requestId so duplicate requests return same requestId (5 min TTL)
     const result = { requestId }
-    await this.redis.setIdempotencyKey(
+    await this.redis.setPurchaseRequestIdempotency(
       idempotencyKey,
-      JSON.stringify(result),
+      requestId,
       300
     )
+    await this.redis.setPurchaseRequestOwner(requestId, userId, 86400)
 
     return result
   }
 
-  async getResult(requestId: string): Promise<object> {
+  async getResult(
+    requestId: string,
+    requestingUserId: string
+  ): Promise<object> {
+    const ownerUserId = await this.redis.getPurchaseRequestOwner(requestId)
+    if (ownerUserId && ownerUserId !== requestingUserId) {
+      throw new ForbiddenException(
+        'Không có quyền truy cập yêu cầu mua hàng này'
+      )
+    }
+
     const result = await this.redis.getPurchaseResult(requestId)
     if (!result) return { status: 'PROCESSING' }
     return result

@@ -15,4 +15,3 @@ export interface PaymentGatewayProvider {
     gatewayConfig?: Record<string, unknown> | null
   ): Promise<string>
 }
-

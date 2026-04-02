@@ -100,7 +100,9 @@ export class PaymentService {
       return { received: true }
     }
 
-    const claimed = await this.paymentRepository.claimPaymentForProcessing(paymentId)
+    const claimed = await this.paymentRepository.claimPaymentForProcessing(
+      paymentId
+    )
     if (!claimed) return { received: true }
 
     const webhookLog = await this.paymentRepository.createWebhookLog({
@@ -116,7 +118,10 @@ export class PaymentService {
         this.saga.confirmPayment(paymentId, transactionId),
         new Promise<never>((_, reject) =>
           setTimeout(
-            () => reject(new Error(`Saga timeout sau ${this.webhookTimeoutMs / 1000}s`)),
+            () =>
+              reject(
+                new Error(`Saga timeout sau ${this.webhookTimeoutMs / 1000}s`)
+              ),
             this.webhookTimeoutMs
           )
         )

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common'
 import { PaymentMethod, Prisma } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
@@ -20,14 +24,17 @@ export class PaymentGatewayConfigService {
   }
 
   async getByGateway(gateway: PaymentMethod) {
-    const found = await this.prisma.paymentGatewayConfig.findUnique({ where: { gateway } })
+    const found = await this.prisma.paymentGatewayConfig.findUnique({
+      where: { gateway }
+    })
     if (!found) throw new NotFoundException('Gateway config không tồn tại')
     return found
   }
 
   async ensureGatewayEnabled(gateway: PaymentMethod) {
     const found = await this.getByGateway(gateway)
-    if (!found.enabled) throw new BadRequestException('Cổng thanh toán chưa được bật')
+    if (!found.enabled)
+      throw new BadRequestException('Cổng thanh toán chưa được bật')
     return found
   }
 
@@ -41,7 +48,8 @@ export class PaymentGatewayConfigService {
       where: { enabled: true },
       orderBy: { gateway: 'asc' }
     })
-    if (!firstEnabled) throw new BadRequestException('Chưa có cổng thanh toán nào được bật')
+    if (!firstEnabled)
+      throw new BadRequestException('Chưa có cổng thanh toán nào được bật')
     return firstEnabled
   }
 
@@ -69,7 +77,9 @@ export class PaymentGatewayConfigService {
           where: { enabled: true, gateway: { not: gateway } }
         })
         if (countEnabled === 0) {
-          throw new BadRequestException('Hệ thống phải có ít nhất 1 cổng thanh toán được bật')
+          throw new BadRequestException(
+            'Hệ thống phải có ít nhất 1 cổng thanh toán được bật'
+          )
         }
       }
 
@@ -77,8 +87,12 @@ export class PaymentGatewayConfigService {
         where: { gateway },
         data: {
           ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
-          ...(data.isDefault !== undefined ? { isDefault: data.isDefault } : {}),
-          ...(data.displayName !== undefined ? { displayName: data.displayName } : {}),
+          ...(data.isDefault !== undefined
+            ? { isDefault: data.isDefault }
+            : {}),
+          ...(data.displayName !== undefined
+            ? { displayName: data.displayName }
+            : {}),
           ...(data.config !== undefined
             ? {
                 config:
@@ -91,7 +105,9 @@ export class PaymentGatewayConfigService {
       })
 
       if (updated.isDefault && !updated.enabled) {
-        throw new BadRequestException('Gateway mặc định phải ở trạng thái enabled')
+        throw new BadRequestException(
+          'Gateway mặc định phải ở trạng thái enabled'
+        )
       }
 
       return updated

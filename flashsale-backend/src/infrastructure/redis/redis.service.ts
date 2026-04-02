@@ -114,6 +114,42 @@ export class RedisService {
     return this._redisClient.get(`idem:${key}`)
   }
 
+  async setPurchaseRequestIdempotency(
+    idempotencyKey: string,
+    requestId: string,
+    ttlSeconds = 300
+  ): Promise<void> {
+    await this._redisClient.set(
+      `purchase:req:${idempotencyKey}`,
+      requestId,
+      'EX',
+      ttlSeconds
+    )
+  }
+
+  async getPurchaseRequestIdempotency(
+    idempotencyKey: string
+  ): Promise<string | null> {
+    return this._redisClient.get(`purchase:req:${idempotencyKey}`)
+  }
+
+  async setPurchaseRequestOwner(
+    requestId: string,
+    userId: string,
+    ttlSeconds = 86400
+  ): Promise<void> {
+    await this._redisClient.set(
+      `purchase:owner:${requestId}`,
+      userId,
+      'EX',
+      ttlSeconds
+    )
+  }
+
+  async getPurchaseRequestOwner(requestId: string): Promise<string | null> {
+    return this._redisClient.get(`purchase:owner:${requestId}`)
+  }
+
   // ─── Reservation Expiry Sorted Set ───────────────────────────────────────
 
   async addReservationExpiry(
@@ -171,6 +207,19 @@ export class RedisService {
   async getPurchaseResult(requestId: string): Promise<object | null> {
     const val = await this._redisClient.get(`result:${requestId}`)
     return val ? JSON.parse(val) : null
+  }
+
+  async setPurchaseFinalResultByIdempotency(
+    idempotencyKey: string,
+    result: object,
+    ttlSeconds = 86400
+  ): Promise<void> {
+    await this._redisClient.set(
+      `purchase:final:${idempotencyKey}`,
+      JSON.stringify(result),
+      'EX',
+      ttlSeconds
+    )
   }
 
   // ─── Reservation Hash ─────────────────────────────────────────────────────
@@ -309,5 +358,16 @@ export class RedisService {
     if (current !== null && parseInt(current) > 0) {
       await this._redisClient.decr(key)
     }
+  }
+
+  async incrementMetricCounter(
+    metricName: string,
+    value = 1,
+    ttlSeconds = 90 * 24 * 60 * 60
+  ): Promise<void> {
+    const day = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const key = `metrics:${metricName}:${day}`
+    await this._redisClient.incrby(key, value)
+    await this._redisClient.expire(key, ttlSeconds)
   }
 }

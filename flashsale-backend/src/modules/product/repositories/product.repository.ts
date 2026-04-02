@@ -173,9 +173,7 @@ export class ProductRepository {
     return count > 0
   }
 
-  async getCampaignSummaries(
-    productId: string
-  ): Promise<
+  async getCampaignSummaries(productId: string): Promise<
     Array<{
       id: string
       name: string

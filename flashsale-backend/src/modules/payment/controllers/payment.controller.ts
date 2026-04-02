@@ -60,7 +60,9 @@ export class PaymentController {
     return this.paymentService.handleWebhook(dto)
   }
 
-  @ApiOperation({ summary: 'Stripe webhook — xử lý checkout session completed' })
+  @ApiOperation({
+    summary: 'Stripe webhook — xử lý checkout session completed'
+  })
   @ApiResponse({ status: HttpStatus.OK, type: WebhookResponseDto })
   @Post('webhook/stripe')
   @HttpCode(HttpStatus.OK)

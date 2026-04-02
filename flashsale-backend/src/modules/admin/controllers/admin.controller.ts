@@ -20,11 +20,7 @@ import {
   ApiResponse,
   ApiTags
 } from '@nestjs/swagger'
-import {
-  PaymentMethod,
-  KycStatus,
-  PaymentStatus
-} from '@prisma/client'
+import { PaymentMethod, KycStatus, PaymentStatus } from '@prisma/client'
 import { ResponseInterceptor } from '@common/interceptors'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { AdminGuard } from '@common/guards/admin.guard'
@@ -454,7 +450,10 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Phân rã doanh thu hoa hồng theo danh mục (admin)' })
-  @ApiResponse({ status: HttpStatus.OK, type: [CommissionCategoryBreakdownDto] })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: [CommissionCategoryBreakdownDto]
+  })
   @Get('finance/by-category')
   @HttpCode(HttpStatus.OK)
   async getFinanceByCategory(): Promise<CommissionCategoryBreakdownDto[]> {
@@ -482,7 +481,10 @@ export class AdminController {
   }
 
   @ApiOperation({ summary: 'Timeline monitor campaign theo bucket thời gian' })
-  @ApiResponse({ status: HttpStatus.OK, type: [CampaignMonitorTimelineItemDto] })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    type: [CampaignMonitorTimelineItemDto]
+  })
   @Get('campaign-monitor/timeline')
   @HttpCode(HttpStatus.OK)
   async getCampaignMonitorTimeline(
