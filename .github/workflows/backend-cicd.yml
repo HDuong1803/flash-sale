@@ -119,18 +119,32 @@ jobs:
               "${IMAGE_NAME}:${IMAGE_TAG}"
 
             echo "🔍 Running health check..."
+            HEALTH_URLS=(
+              "http://localhost:5686/api/v1/health"
+              "http://localhost:5686/health"
+              "http://localhost:5686/api/health"
+            )
+            HEALTHCHECK_PASSED=0
+
             for i in $(seq 1 30); do
-              if curl -fsS "http://localhost:5686/health" >/dev/null; then
-                echo "✅ Health check passed"
-                break
-              fi
-              if [ "$i" -eq 30 ]; then
-                echo "❌ Health check failed"
-                docker logs --tail 200 "$CONTAINER_NAME"
-                exit 1
-              fi
+              for url in "${HEALTH_URLS[@]}"; do
+                if curl -fsS "$url" >/dev/null; then
+                  echo "✅ Health check passed: $url"
+                  HEALTHCHECK_PASSED=1
+                  break 2
+                fi
+              done
+
               sleep 2
             done
+
+            if [ "$HEALTHCHECK_PASSED" -ne 1 ]; then
+              echo "❌ Health check failed"
+              echo "Checked URLs: ${HEALTH_URLS[*]}"
+              docker ps -a --filter "name=$CONTAINER_NAME"
+              docker logs --tail 200 "$CONTAINER_NAME"
+              exit 1
+            fi
 
             echo "🧽 Cleaning dangling images..."
             docker image prune -f
