@@ -60,6 +60,18 @@ export class AuthController {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
+  private getCookieSecurityOptions(): {
+    sameSite: 'lax' | 'none'
+    secure: boolean
+  } {
+    // Cross-site HTTPS (frontend domain != backend domain) requires SameSite=None + Secure.
+    if (this.isProd) {
+      return { sameSite: 'none', secure: true }
+    }
+
+    return { sameSite: 'lax', secure: false }
+  }
+
   /**
    * Set access_token + refresh_token as HttpOnly cookies.
    * Also sets a plain user-role cookie (not HttpOnly) for Next.js middleware RBAC checks.
@@ -75,10 +87,12 @@ export class AuthController {
     refreshToken: string,
     role: string
   ): void {
+    const security = this.getCookieSecurityOptions()
+
     const base = {
       httpOnly: true,
-      sameSite: 'lax' as const,
-      secure: this.isProd
+      sameSite: security.sameSite,
+      secure: security.secure
     }
 
     res.cookie('access_token', accessToken, {
@@ -93,17 +107,26 @@ export class AuthController {
     })
     // Not HttpOnly — Next.js middleware reads this for RBAC (role is not a secret)
     res.cookie('user-role', role, {
-      sameSite: 'lax',
-      secure: this.isProd,
+      sameSite: security.sameSite,
+      secure: security.secure,
       maxAge: this.refreshTokenTtl,
       path: '/'
     })
   }
 
   private clearAuthCookies(res: Response): void {
-    const opts = { path: '/' }
+    const security = this.getCookieSecurityOptions()
+    const opts = {
+      path: '/',
+      sameSite: security.sameSite,
+      secure: security.secure
+    }
     res.clearCookie('access_token', opts)
-    res.clearCookie('refresh_token', { path: '/api/v1/auth' })
+    res.clearCookie('refresh_token', {
+      path: '/api/v1/auth',
+      sameSite: security.sameSite,
+      secure: security.secure
+    })
     res.clearCookie('user-role', opts)
   }
 
@@ -209,10 +232,12 @@ export class AuthController {
 
     const { accessToken } = await this.authService.refresh(refreshToken ?? '')
 
+    const security = this.getCookieSecurityOptions()
+
     res.cookie('access_token', accessToken, {
       httpOnly: true,
-      sameSite: 'lax',
-      secure: this.isProd,
+      sameSite: security.sameSite,
+      secure: security.secure,
       maxAge: this.accessTokenTtl,
       path: '/'
     })
