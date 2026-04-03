@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft,
   Building2,
@@ -14,6 +14,19 @@ import {
   TrendingUp,
   User
 } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis
+} from 'recharts'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { GlassCard } from '@/components/shared/GlassCard'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -26,6 +39,22 @@ const RANGE_OPTIONS = [
   { label: '90 ngày', value: 90 },
   { label: '180 ngày', value: 180 }
 ]
+
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: 'Nháp',
+  APPROVED: 'Chờ duyệt',
+  SCHEDULED: 'Đã lên lịch',
+  ACTIVE: 'Đang chạy',
+  ENDED: 'Đã kết thúc'
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  DRAFT: '#64748b',
+  APPROVED: '#f59e0b',
+  SCHEDULED: '#06b6d4',
+  ACTIVE: '#10b981',
+  ENDED: '#ef4444'
+}
 
 function KpiCard({
   label,
@@ -51,6 +80,7 @@ function KpiCard({
 }
 
 export default function AdminMerchantDetailPage() {
+  const router = useRouter()
   const params = useParams<{ id: string }>()
   const merchantId = useMemo(() => {
     if (!params?.id) return ''
@@ -64,6 +94,41 @@ export default function AdminMerchantDetailPage() {
     !!merchantId
   )
 
+  const campaignStatusChartData = useMemo(() => {
+    if (!data) return []
+    return Object.entries(data.metrics.campaignsByStatus)
+      .map(([status, count]) => ({
+        status,
+        label: STATUS_LABELS[status] ?? status,
+        value: count,
+        color: STATUS_COLORS[status] ?? '#a855f7'
+      }))
+      .filter(item => item.value > 0)
+  }, [data])
+
+  const topCampaignRevenueChart = useMemo(() => {
+    if (!data) return []
+    return [...data.campaigns]
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 8)
+      .map(item => ({
+        name:
+          item.name.length > 26 ? `${item.name.slice(0, 26).trim()}...` : item.name,
+        revenue: item.revenue
+      }))
+  }, [data])
+
+  const topProductRevenueChart = useMemo(() => {
+    if (!data) return []
+    return data.topProducts.slice(0, 8).map(item => ({
+      name:
+        item.productName.length > 24
+          ? `${item.productName.slice(0, 24).trim()}...`
+          : item.productName,
+      revenue: item.revenue
+    }))
+  }, [data])
+
   if (!merchantId) {
     return (
       <GlassCard className="p-8 text-center">
@@ -76,9 +141,6 @@ export default function AdminMerchantDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-2">
-          <Link href="/admin/merchant-profiles" className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors text-sm">
-            <ArrowLeft size={14} /> Quay về danh sách merchant
-          </Link>
           <h1 className="text-white text-2xl font-bold flex items-center gap-2">
             <Building2 className="text-indigo-300" size={24} />
             {data?.profile.businessName ?? 'Merchant Overview'}
@@ -106,6 +168,20 @@ export default function AdminMerchantDetailPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => {
+            if (window.history.length > 1) {
+              router.back()
+              return
+            }
+            router.push('/admin/merchant-profiles')
+          }}
+          className="btn-glass text-xs px-3 py-1.5 inline-flex items-center justify-center"
+          aria-label="Quay lại"
+          title="Quay lại"
+        >
+          <ArrowLeft size={14} />
+        </button>
         <Link href="/admin/merchant-profiles" className="btn-glass text-xs px-3 py-1.5">Hồ sơ merchant</Link>
         <Link href={`/admin/campaigns?search=${encodeURIComponent(merchantId)}`} className="btn-glass text-xs px-3 py-1.5">Campaign của merchant</Link>
         <Link href="/admin/orders" className="btn-glass text-xs px-3 py-1.5">Đơn hàng hệ thống</Link>
@@ -176,6 +252,96 @@ export default function AdminMerchantDetailPage() {
               hint="Ẩn khỏi danh sách merchant"
               icon={Store}
             />
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <GlassCard className="p-5 space-y-3">
+              <h2 className="text-white font-semibold">Phân bố trạng thái campaign</h2>
+              {campaignStatusChartData.length === 0 ? (
+                <p className="text-white/50 text-sm">Chưa có dữ liệu campaign để vẽ biểu đồ.</p>
+              ) : (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={campaignStatusChartData}
+                        dataKey="value"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={95}
+                        label
+                      >
+                        {campaignStatusChartData.map((entry) => (
+                          <Cell key={entry.status} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value, name) => [
+                          Number(value ?? 0).toLocaleString(),
+                          String(name)
+                        ]}
+                        contentStyle={{
+                          background: 'rgba(15, 23, 42, 0.95)',
+                          border: '1px solid rgba(255,255,255,0.1)'
+                        }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard className="p-5 space-y-3">
+              <h2 className="text-white font-semibold">Top campaign theo doanh thu</h2>
+              {topCampaignRevenueChart.length === 0 ? (
+                <p className="text-white/50 text-sm">Chưa có dữ liệu doanh thu campaign.</p>
+              ) : (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topCampaignRevenueChart}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.45)" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={58} />
+                      <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(v) => `${Math.round(Number(v) / 1_000_000)}tr`} />
+                      <Tooltip
+                        formatter={(value) => formatCurrency(Number(value ?? 0))}
+                        contentStyle={{
+                          background: 'rgba(15, 23, 42, 0.95)',
+                          border: '1px solid rgba(255,255,255,0.1)'
+                        }}
+                      />
+                      <Bar dataKey="revenue" fill="#60a5fa" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </GlassCard>
+
+            <GlassCard className="p-5 space-y-3">
+              <h2 className="text-white font-semibold">Top sản phẩm theo doanh thu</h2>
+              {topProductRevenueChart.length === 0 ? (
+                <p className="text-white/50 text-sm">Chưa có dữ liệu doanh thu sản phẩm.</p>
+              ) : (
+                <div className="h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topProductRevenueChart}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.45)" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={58} />
+                      <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(v) => `${Math.round(Number(v) / 1_000_000)}tr`} />
+                      <Tooltip
+                        formatter={(value) => formatCurrency(Number(value ?? 0))}
+                        contentStyle={{
+                          background: 'rgba(15, 23, 42, 0.95)',
+                          border: '1px solid rgba(255,255,255,0.1)'
+                        }}
+                      />
+                      <Bar dataKey="revenue" fill="#34d399" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </GlassCard>
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -282,7 +448,7 @@ export default function AdminMerchantDetailPage() {
                       <td className="py-3 text-right">
                         <div className="flex justify-end gap-2">
                           <Link href={`/admin/campaign-monitor?campaignId=${campaign.id}`} className="btn-glass text-xs px-2 py-1">Monitor</Link>
-                          <Link href={`/admin/campaigns?search=${encodeURIComponent(campaign.id)}`} className="btn-glass text-xs px-2 py-1">Quản lý</Link>
+                          <Link href={`/admin/campaigns/${campaign.id}`} className="btn-glass text-xs px-2 py-1">Quản lý</Link>
                         </div>
                       </td>
                     </tr>

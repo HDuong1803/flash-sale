@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Activity, Gauge, MousePointerClick, ShoppingCart, Timer, Users } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Activity, ArrowLeft, Gauge, MousePointerClick, ShoppingCart, Timer, Users } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -51,21 +52,12 @@ function KpiCard({
 }
 
 export default function AdminCampaignMonitorPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const [campaignId, setCampaignId] = useState<string>('')
+  const [campaignId, setCampaignId] = useState<string>(() => searchParams.get('campaignId') ?? '')
   const [minutes, setMinutes] = useState<number>(60)
 
   const { data: campaigns } = useAdminCampaigns(undefined, true)
-
-  useEffect(() => {
-    const campaignIdFromUrl = searchParams.get('campaignId')
-    if (!campaignIdFromUrl) return
-
-    const exists = campaigns.some((campaign) => campaign.id === campaignIdFromUrl)
-    if (exists) {
-      setCampaignId(campaignIdFromUrl)
-    }
-  }, [campaigns, searchParams])
 
   const params = useMemo(
     () => ({
@@ -85,8 +77,31 @@ export default function AdminCampaignMonitorPage() {
   const loading = overviewQuery.loading || timelineQuery.loading
   const error = overviewQuery.error || timelineQuery.error
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back()
+      return
+    }
+    router.push('/admin/campaigns')
+  }
+
   return (
     <div className="space-y-6">
+      <div className="glass rounded-2xl p-3 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
+        <button
+          onClick={handleBack}
+          className="p-2 rounded-xl glass text-white/80 hover:text-white hover:bg-white/10 transition-all"
+          aria-label="Quay lại"
+          title="Quay lại"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <Link href="/admin/campaigns" className="btn-glass text-sm px-3 py-1.5">Danh sách campaign</Link>
+        {campaignId && (
+          <Link href={`/admin/campaigns/${campaignId}`} className="btn-glass text-sm px-3 py-1.5">Campaign detail</Link>
+        )}
+      </div>
+
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <div>
           <h1 className="text-white text-2xl font-bold">Giám sát chiến dịch</h1>

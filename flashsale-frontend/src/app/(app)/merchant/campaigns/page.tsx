@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Megaphone, Plus, Calendar, Package, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Megaphone, Plus, Calendar, Package, AlertCircle } from 'lucide-react'
 import { useMyCampaigns } from '@/hooks/queries/useMyCampaigns'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
@@ -35,6 +35,14 @@ export default function MerchantCampaignsPage() {
 
   const filtered = activeTab === 'ALL' ? campaigns : campaigns.filter((c) => c.status === activeTab)
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back()
+      return
+    }
+    router.push('/merchant/dashboard')
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -45,6 +53,14 @@ export default function MerchantCampaignsPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <button
+          onClick={handleBack}
+          className="btn-glass text-xs px-3 py-1.5 inline-flex items-center justify-center"
+          aria-label="Quay lại"
+          title="Quay lại"
+        >
+          <ArrowLeft size={14} />
+        </button>
         <Link href="/merchant/dashboard" className="btn-glass text-xs px-3 py-1.5">Dashboard shop</Link>
         <Link href="/merchant/orders" className="btn-glass text-xs px-3 py-1.5">Đơn hàng nhận</Link>
         <Link href="/merchant/revenue" className="btn-glass text-xs px-3 py-1.5">Doanh thu</Link>
