@@ -257,7 +257,30 @@ export class CampaignService {
         'Cần có ít nhất 1 sản phẩm trước khi gửi duyệt'
       )
 
-    return this.campaignRepository.updateStatus(id, CampaignStatus.APPROVED)
+    const updated = await this.campaignRepository.updateStatus(
+      id,
+      CampaignStatus.APPROVED
+    )
+
+    await this.notificationService.notifyAdmins({
+      type: NotificationType.SYSTEM_ALERT,
+      title: 'Có chiến dịch mới chờ admin duyệt',
+      message: `Chiến dịch "${campaign.name}" của merchant ${merchant.businessName} vừa được gửi lên để duyệt.`,
+      telegramActions: [
+        {
+          type: 'APPROVE_CAMPAIGN',
+          resourceId: campaign.id,
+          label: 'Duyệt chiến dịch'
+        },
+        {
+          type: 'REJECT_CAMPAIGN',
+          resourceId: campaign.id,
+          label: 'Từ chối chiến dịch'
+        }
+      ]
+    })
+
+    return updated
   }
 
   async preRegister(userId: string, campaignId: string) {
@@ -444,8 +467,8 @@ export class CampaignService {
         try {
           await this.notificationService.createNotification(customer.id, {
             type: NotificationType.CAMPAIGN_RESCHEDULED,
-            title: 'Thời gian bắt đầu campaign đã thay đổi',
-            message: `Campaign "${details.campaign.name}" sẽ bắt đầu lúc ${formattedNew} (thay vì ${formattedOld})`
+            title: 'Thời gian bắt đầu chiến dịch đã thay đổi',
+            message: `Chiến dịch "${details.campaign.name}" sẽ bắt đầu lúc ${formattedNew} (thay vì ${formattedOld})`
           })
         } catch (err: unknown) {
           this.logger.error(

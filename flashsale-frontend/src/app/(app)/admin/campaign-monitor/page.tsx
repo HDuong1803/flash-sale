@@ -96,9 +96,9 @@ export default function AdminCampaignMonitorPage() {
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <Link href="/admin/campaigns" className="btn-glass text-sm px-3 py-1.5">Danh sách campaign</Link>
+        <Link href="/admin/campaigns" className="btn-glass text-sm px-3 py-1.5">Danh sách chiến dịch</Link>
         {campaignId && (
-          <Link href={`/admin/campaigns/${campaignId}`} className="btn-glass text-sm px-3 py-1.5">Campaign detail</Link>
+          <Link href={`/admin/campaigns/${campaignId}`} className="btn-glass text-sm px-3 py-1.5">Chi tiết chiến dịch</Link>
         )}
       </div>
 

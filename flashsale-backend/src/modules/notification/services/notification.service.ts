@@ -1,17 +1,22 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { NotificationType } from '@prisma/client'
+import { NotificationType, UserRole } from '@prisma/client'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import {
   FAILED_QUEUE_NAMES,
   QUEUE_NAMES
 } from '@infrastructure/rabbitmq/rabbitmq.constants'
 import { NotificationRepository } from '../repositories/notification.repository'
+import {
+  TelegramActionDescriptor,
+  TelegramNotificationService
+} from './telegram-notification.service'
 
 export interface NotificationJobPayload {
   userId: string
   type: NotificationType
   title: string
   message: string
+  telegramActions?: TelegramActionDescriptor[]
 }
 
 @Injectable()
@@ -20,7 +25,8 @@ export class NotificationService {
 
   constructor(
     private readonly notificationRepository: NotificationRepository,
-    private readonly rabbitmq: RabbitMQService
+    private readonly rabbitmq: RabbitMQService,
+    private readonly telegramNotificationService: TelegramNotificationService
   ) {}
 
   async createNotification(
@@ -29,6 +35,7 @@ export class NotificationService {
       type: NotificationType
       title: string
       message: string
+      telegramActions?: TelegramActionDescriptor[]
     }
   ): Promise<void> {
     const preferences =
@@ -63,7 +70,23 @@ export class NotificationService {
   }
 
   async processNotificationJob(payload: NotificationJobPayload): Promise<void> {
-    await this.notificationRepository.create(payload)
+    const created = await this.notificationRepository.create(payload)
+
+    const preferences =
+      await this.notificationRepository.getOrCreatePreferences(payload.userId)
+
+    if (!preferences.notificationsEnabled || !preferences.telegramEnabled) {
+      return
+    }
+
+    await this.telegramNotificationService.enqueueTelegramNotification({
+      notificationId: created.id,
+      userId: payload.userId,
+      type: payload.type,
+      title: payload.title,
+      message: payload.message,
+      telegramActions: payload.telegramActions
+    })
   }
 
   async startNotificationConsumer(): Promise<void> {
@@ -100,6 +123,7 @@ export class NotificationService {
     notificationsEnabled: boolean
     campaignReminderEnabled: boolean
     orderStatusEnabled: boolean
+    telegramEnabled: boolean
   }> {
     const preferences =
       await this.notificationRepository.getOrCreatePreferences(userId)
@@ -107,7 +131,8 @@ export class NotificationService {
     return {
       notificationsEnabled: preferences.notificationsEnabled,
       campaignReminderEnabled: preferences.campaignReminderEnabled,
-      orderStatusEnabled: preferences.orderStatusEnabled
+      orderStatusEnabled: preferences.orderStatusEnabled,
+      telegramEnabled: preferences.telegramEnabled
     }
   }
 
@@ -117,11 +142,13 @@ export class NotificationService {
       notificationsEnabled?: boolean
       campaignReminderEnabled?: boolean
       orderStatusEnabled?: boolean
+      telegramEnabled?: boolean
     }
   ): Promise<{
     notificationsEnabled: boolean
     campaignReminderEnabled: boolean
     orderStatusEnabled: boolean
+    telegramEnabled: boolean
   }> {
     const existing = await this.notificationRepository.getOrCreatePreferences(
       userId
@@ -138,19 +165,53 @@ export class NotificationService {
       ? payload.orderStatusEnabled ?? existing.orderStatusEnabled
       : false
 
+    const nextTelegramEnabled = nextNotificationsEnabled
+      ? payload.telegramEnabled ?? existing.telegramEnabled
+      : false
+
     const updated = await this.notificationRepository.updatePreferences(
       userId,
       {
         notificationsEnabled: nextNotificationsEnabled,
         campaignReminderEnabled: nextCampaignReminderEnabled,
-        orderStatusEnabled: nextOrderStatusEnabled
+        orderStatusEnabled: nextOrderStatusEnabled,
+        telegramEnabled: nextTelegramEnabled
       }
     )
 
     return {
       notificationsEnabled: updated.notificationsEnabled,
       campaignReminderEnabled: updated.campaignReminderEnabled,
-      orderStatusEnabled: updated.orderStatusEnabled
+      orderStatusEnabled: updated.orderStatusEnabled,
+      telegramEnabled: updated.telegramEnabled
     }
+  }
+
+  async notifyUsersByRole(
+    role: UserRole,
+    data: {
+      type: NotificationType
+      title: string
+      message: string
+      telegramActions?: TelegramActionDescriptor[]
+    }
+  ): Promise<void> {
+    const userIds = await this.notificationRepository.findUserIdsByRole(role)
+    if (!userIds.length) return
+
+    await Promise.allSettled(
+      userIds.map(async userId => {
+        await this.createNotification(userId, data)
+      })
+    )
+  }
+
+  async notifyAdmins(data: {
+    type: NotificationType
+    title: string
+    message: string
+    telegramActions?: TelegramActionDescriptor[]
+  }): Promise<void> {
+    await this.notifyUsersByRole('ADMIN', data)
   }
 }

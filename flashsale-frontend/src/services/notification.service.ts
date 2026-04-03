@@ -1,5 +1,15 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Notification, NotificationPreferences } from '@/types'
+import type {
+  Notification,
+  NotificationPreferences,
+  TelegramLinkStatus
+} from '@/types'
+
+interface TelegramLinkTokenResponse {
+  botUsername: string
+  deepLink: string
+  expiresInSeconds: number
+}
 
 class NotificationService {
   getAll(): Promise<Notification[]> {
@@ -20,6 +30,18 @@ class NotificationService {
     data: Partial<NotificationPreferences>
   ): Promise<NotificationPreferences> {
     return apiClient.patch('/notifications/preferences', data)
+  }
+
+  createTelegramLinkToken(): Promise<TelegramLinkTokenResponse> {
+    return apiClient.post('/notifications/telegram/link-token')
+  }
+
+  getTelegramStatus(): Promise<TelegramLinkStatus> {
+    return withRetry(() => apiClient.get('/notifications/telegram/status'))
+  }
+
+  unlinkTelegram(): Promise<{ revoked: boolean }> {
+    return apiClient.delete('/notifications/telegram/link')
   }
 }
 

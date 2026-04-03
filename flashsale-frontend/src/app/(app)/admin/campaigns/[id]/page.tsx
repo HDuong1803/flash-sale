@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Calendar,
   Clock,
+  Expand,
   Loader2,
   Package,
   Store,
@@ -24,6 +25,7 @@ import { useDeleteExpiredCampaign } from '@/hooks/mutations/useDeleteExpiredCamp
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { calculateDiscount, formatCurrency, formatDate } from '@/lib/utils'
 import type { CampaignStatus } from '@/types'
 
@@ -49,6 +51,7 @@ export default function AdminCampaignDetailPage() {
   const [confirmForceStart, setConfirmForceStart] = useState(false)
   const [confirmForceStop, setConfirmForceStop] = useState(false)
   const [confirmDeleteExpired, setConfirmDeleteExpired] = useState(false)
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null)
 
   const productStats = useMemo(() => {
     const products = campaign?.campaignProducts ?? []
@@ -128,7 +131,7 @@ export default function AdminCampaignDetailPage() {
         <div className="max-w-7xl mx-auto">
           <div className="glass rounded-2xl p-8 text-center">
             <Loader2 className="w-6 h-6 animate-spin text-white/70 mx-auto mb-3" />
-            <p className="text-white/70">Đang tải chi tiết campaign...</p>
+            <p className="text-white/70">Đang tải chi tiết chiến dịch...</p>
           </div>
         </div>
       </div>
@@ -148,10 +151,10 @@ export default function AdminCampaignDetailPage() {
           </button>
           <EmptyState
             icon={AlertCircle}
-            title="Không tìm thấy campaign"
-            description={error ?? 'Campaign có thể đã bị xóa hoặc không còn khả dụng.'}
+            title="Không tìm thấy chiến dịch"
+            description={error ?? 'Chiến dịch có thể đã bị xóa hoặc không còn khả dụng.'}
             action={{
-              label: 'Quay về danh sách campaign',
+              label: 'Quay về danh sách chiến dịch',
               onClick: () => router.push('/admin/campaigns'),
             }}
           />
@@ -172,25 +175,25 @@ export default function AdminCampaignDetailPage() {
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <Link href="/admin/campaigns" className="btn-glass text-sm px-3 py-1.5">Danh sách campaign</Link>
-          <Link href={`/admin/campaign-monitor?campaignId=${campaign.id}`} className="btn-glass text-sm px-3 py-1.5">Campaign Monitor</Link>
-          <Link href={`/admin/merchant-profiles/${campaign.merchantId}`} className="btn-glass text-sm px-3 py-1.5">Merchant Profile</Link>
+          <Link href="/admin/campaigns" className="btn-glass text-sm px-3 py-1.5">Danh sách chiến dịch</Link>
+          <Link href={`/admin/campaign-monitor?campaignId=${campaign.id}`} className="btn-glass text-sm px-3 py-1.5">Giám sát chiến dịch</Link>
+          <Link href={`/admin/merchant-profiles/${campaign.merchantId}`} className="btn-glass text-sm px-3 py-1.5">Hồ sơ nhà bán hàng</Link>
         </div>
 
         <section className="glass rounded-3xl p-5 md:p-7 border border-white/10">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2 min-w-0">
-              <p className="text-xs uppercase tracking-wider text-indigo-200/70">Campaign Detail</p>
+              <p className="text-xs uppercase tracking-wider text-indigo-200/70">Chi tiết chiến dịch</p>
               <h1 className="text-white text-2xl md:text-3xl font-bold leading-tight break-words">{campaign.name}</h1>
               <StatusBadge status={campaign.status} />
               <p className="text-white/70 text-sm md:text-base max-w-3xl">
-                {campaign.description?.trim() || 'Campaign chưa có mô tả chi tiết từ merchant.'}
+                {campaign.description?.trim() || 'Chiến dịch chưa có mô tả chi tiết từ nhà bán hàng.'}
               </p>
             </div>
             <div className="glass rounded-2xl p-4 md:p-5 min-w-[220px] border border-white/10 space-y-2">
               <p className="text-white/50 text-xs">Nhà bán hàng</p>
               <p className="text-white font-semibold text-sm md:text-base break-words">
-                {campaign.merchant?.businessName ?? 'Merchant không xác định'}
+                {campaign.merchant?.businessName ?? 'Nhà bán hàng không xác định'}
               </p>
               <p className="text-xs text-white/50 font-mono break-all">{campaign.merchantId}</p>
             </div>
@@ -211,7 +214,7 @@ export default function AdminCampaignDetailPage() {
             <p className="text-white font-semibold text-sm">{productStats.count} sản phẩm</p>
           </div>
           <div className="glass rounded-2xl p-4 border border-white/10">
-            <p className="text-white/50 text-xs flex items-center gap-1 mb-2"><Store size={12} /> Tồn kho campaign</p>
+            <p className="text-white/50 text-xs flex items-center gap-1 mb-2"><Store size={12} /> Tồn kho chiến dịch</p>
             <p className="text-white font-semibold text-sm">{productStats.remaining} / {productStats.total}</p>
             <p className="text-[11px] text-emerald-300/90 mt-1">Đã bán: {productStats.sold} ({productStats.soldRate}%)</p>
           </div>
@@ -221,7 +224,7 @@ export default function AdminCampaignDetailPage() {
           <div>
             <h2 className="text-white font-semibold text-base">Thao tác quản trị</h2>
             <p className="text-white/60 text-sm mt-1">
-              Tùy theo trạng thái hiện tại của campaign, bạn có thể duyệt, từ chối hoặc điều phối nhanh cho mục đích vận hành.
+              Tùy theo trạng thái hiện tại của chiến dịch, bạn có thể duyệt, từ chối hoặc điều phối nhanh cho mục đích vận hành.
             </p>
           </div>
 
@@ -234,13 +237,13 @@ export default function AdminCampaignDetailPage() {
                     className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
                     style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}
                   >
-                    Duyệt campaign
+                    Duyệt chiến dịch
                   </button>
                   <button
                     onClick={() => setShowRejectForm(true)}
                     className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-red-500/30 text-red-300 hover:bg-red-500/10 transition-all"
                   >
-                    Từ chối campaign
+                    Từ chối chiến dịch
                   </button>
                 </div>
               ) : (
@@ -250,7 +253,7 @@ export default function AdminCampaignDetailPage() {
                     onChange={(e) => setRejectReason(e.target.value)}
                     className="input-glass resize-none w-full"
                     rows={3}
-                    placeholder="Nhập lý do từ chối để merchant có thể chỉnh sửa và gửi lại..."
+                    placeholder="Nhập lý do từ chối để nhà bán hàng có thể chỉnh sửa và gửi lại..."
                   />
                   <div className="flex flex-col sm:flex-row gap-3">
                     <button
@@ -298,7 +301,7 @@ export default function AdminCampaignDetailPage() {
               <div className="glass rounded-xl p-3 border border-red-500/20">
                 <p className="text-red-200/90 text-xs flex items-start gap-2">
                   <Zap size={12} className="shrink-0 mt-0.5" />
-                  <span>Force Stop sẽ kết thúc campaign ngay lập tức và đồng bộ tồn kho về hệ thống.</span>
+                  <span>Force Stop sẽ kết thúc chiến dịch ngay lập tức và đồng bộ tồn kho về hệ thống.</span>
                 </p>
               </div>
               <button
@@ -316,7 +319,7 @@ export default function AdminCampaignDetailPage() {
               <div className="glass rounded-xl p-3 border border-red-500/20">
                 <p className="text-red-200/90 text-xs flex items-start gap-2">
                   <Trash2 size={12} className="shrink-0 mt-0.5" />
-                  <span>Campaign đã kết thúc có thể xóa mềm khỏi giao diện quản trị để giảm nhiễu dữ liệu.</span>
+                  <span>Chiến dịch đã kết thúc có thể xóa mềm khỏi giao diện quản trị để giảm nhiễu dữ liệu.</span>
                 </p>
               </div>
               <button
@@ -324,14 +327,14 @@ export default function AdminCampaignDetailPage() {
                 className="px-4 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-2"
                 style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}
               >
-                <Trash2 size={14} /> Xóa campaign hết hạn
+                <Trash2 size={14} /> Xóa chiến dịch hết hạn
               </button>
             </div>
           )}
 
           {status === 'DRAFT' && (
             <p className="text-xs text-white/55">
-              Trạng thái hiện tại: {status}. Campaign đang ở bản nháp, chưa đủ điều kiện cho thao tác vận hành nâng cao.
+              Trạng thái hiện tại: {status}. Chiến dịch đang ở bản nháp, chưa đủ điều kiện cho thao tác vận hành nâng cao.
             </p>
           )}
         </section>
@@ -339,7 +342,7 @@ export default function AdminCampaignDetailPage() {
         <section className="glass rounded-2xl border border-white/10 overflow-hidden">
           <div className="px-5 py-4 border-b border-white/10">
             <h2 className="text-white font-semibold text-base flex items-center gap-2">
-              <Tag size={14} /> Sản phẩm đang bán trong campaign
+              <Tag size={14} /> Sản phẩm đang bán trong chiến dịch
             </h2>
             <p className="text-white/60 text-sm mt-1">Admin có thể kiểm tra giá sale, mức giảm và tồn kho còn lại theo từng sản phẩm.</p>
           </div>
@@ -348,7 +351,7 @@ export default function AdminCampaignDetailPage() {
             <div className="p-5">
               <EmptyState
                 icon={Package}
-                title="Campaign chưa có sản phẩm"
+                title="Chiến dịch chưa có sản phẩm"
                 description="Merchant chưa gắn sản phẩm cho chiến dịch này."
               />
             </div>
@@ -374,12 +377,25 @@ export default function AdminCampaignDetailPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             {item.product?.imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={item.product.imageUrl}
-                                alt={item.product?.name ?? 'Product image'}
-                                className="w-12 h-12 rounded-lg object-cover border border-white/10"
-                              />
+                              <button
+                                type="button"
+                                onClick={() => setPreviewImage({
+                                  url: item.product!.imageUrl!,
+                                  name: item.product?.name ?? 'Sản phẩm',
+                                })}
+                                className="relative w-12 h-12 rounded-lg overflow-hidden border border-white/10 group"
+                                title="Xem ảnh sản phẩm"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={item.product.imageUrl}
+                                  alt={item.product?.name ?? 'Product image'}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                  <Expand size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                              </button>
                             ) : (
                               <div className="w-12 h-12 rounded-lg glass flex items-center justify-center border border-white/10">
                                 <Package size={14} className="text-white/50" />
@@ -414,8 +430,8 @@ export default function AdminCampaignDetailPage() {
 
       <ConfirmDialog
         open={confirmApprove}
-        title="Duyệt campaign?"
-        description="Campaign sẽ được lên lịch theo thời gian cấu hình."
+        title="Duyệt chiến dịch?"
+        description="Chiến dịch sẽ được lên lịch theo thời gian cấu hình."
         confirmLabel="Duyệt"
         cancelLabel="Hủy"
         onConfirm={handleApprove}
@@ -425,8 +441,8 @@ export default function AdminCampaignDetailPage() {
 
       <ConfirmDialog
         open={confirmForceStart}
-        title="Bắt đầu campaign ngay lập tức?"
-        description="Campaign sẽ chuyển sang ACTIVE ngay lập tức, bỏ qua lịch cài đặt."
+        title="Bắt đầu chiến dịch ngay lập tức?"
+        description="Chiến dịch sẽ chuyển sang ACTIVE ngay lập tức, bỏ qua lịch cài đặt."
         confirmLabel="Force Start"
         cancelLabel="Hủy"
         onConfirm={handleForceStart}
@@ -436,8 +452,8 @@ export default function AdminCampaignDetailPage() {
 
       <ConfirmDialog
         open={confirmForceStop}
-        title="Dừng campaign ngay lập tức?"
-        description="Campaign sẽ chuyển sang ENDED và hệ thống đồng bộ tồn kho về database."
+        title="Dừng chiến dịch ngay lập tức?"
+        description="Chiến dịch sẽ chuyển sang ENDED và hệ thống đồng bộ tồn kho về database."
         confirmLabel="Force Stop"
         cancelLabel="Hủy"
         onConfirm={handleForceStop}
@@ -447,15 +463,37 @@ export default function AdminCampaignDetailPage() {
 
       <ConfirmDialog
         open={confirmDeleteExpired}
-        title="Xóa mềm campaign đã hết hạn?"
-        description="Campaign ENDED sẽ bị ẩn khỏi danh sách quản trị. Hành động này không thể hoàn tác trên UI."
-        confirmLabel="Xóa campaign"
+        title="Xóa mềm chiến dịch đã hết hạn?"
+        description="Chiến dịch ENDED sẽ bị ẩn khỏi danh sách quản trị. Hành động này không thể hoàn tác trên UI."
+        confirmLabel="Xóa chiến dịch"
         cancelLabel="Hủy"
         variant="destructive"
         onConfirm={handleDeleteExpired}
         onCancel={() => setConfirmDeleteExpired(false)}
         loading={deletingExpired}
       />
+
+      <Dialog open={!!previewImage} onOpenChange={(open) => { if (!open) setPreviewImage(null) }}>
+        <DialogContent className="max-w-4xl p-0 bg-slate-950/95 border border-white/15 overflow-hidden" showCloseButton>
+          {previewImage && (
+            <div>
+              <div className="px-4 py-3 border-b border-white/10">
+                <DialogTitle className="text-white text-sm md:text-base font-semibold line-clamp-1">
+                  {previewImage.name}
+                </DialogTitle>
+              </div>
+              <div className="p-3 md:p-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewImage.url}
+                  alt={previewImage.name}
+                  className="w-full max-h-[75vh] object-contain rounded-xl bg-black/40"
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

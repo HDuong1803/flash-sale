@@ -1,15 +1,30 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Bell, Mail, Save, Loader2 } from 'lucide-react'
+import { Bell, Mail, Save, Loader2, Send } from 'lucide-react'
+import { toast } from 'sonner'
 import { GlassCard } from '@/components/shared/GlassCard'
 import { useNotificationPreferences } from '@/hooks/queries/useNotificationPreferences'
+import { useTelegramLinkStatus } from '@/hooks/queries/useTelegramLinkStatus'
 import { useUpdateNotificationPreferences } from '@/hooks/mutations/useUpdateNotificationPreferences'
+import { useTelegramLinkActions } from '@/hooks/mutations/useTelegramLinkActions'
 import type { NotificationPreferences } from '@/types'
 
 export default function SettingsPage() {
   const { data, loading, error } = useNotificationPreferences()
+  const {
+    data: telegramStatus,
+    loading: telegramLoading,
+    error: telegramError,
+    refetch: refetchTelegramStatus,
+  } = useTelegramLinkStatus()
   const { updatePreferences, loading: saving } = useUpdateNotificationPreferences()
+  const {
+    createLinkToken,
+    unlinkTelegram,
+    loadingCreateLink,
+    loadingUnlink,
+  } = useTelegramLinkActions()
   const [draft, setDraft] = useState<NotificationPreferences>(data)
 
   useEffect(() => {
@@ -20,7 +35,8 @@ export default function SettingsPage() {
     () =>
       draft.notificationsEnabled !== data.notificationsEnabled ||
       draft.campaignReminderEnabled !== data.campaignReminderEnabled ||
-      draft.orderStatusEnabled !== data.orderStatusEnabled,
+      draft.orderStatusEnabled !== data.orderStatusEnabled ||
+      draft.telegramEnabled !== data.telegramEnabled,
     [draft, data],
   )
 
@@ -33,7 +49,20 @@ export default function SettingsPage() {
       notificationsEnabled: value,
       campaignReminderEnabled: value ? prev.campaignReminderEnabled : false,
       orderStatusEnabled: value ? prev.orderStatusEnabled : false,
+      telegramEnabled: value ? prev.telegramEnabled : false,
     }))
+  }
+
+  const handleConnectTelegram = async () => {
+    const token = await createLinkToken()
+    window.open(token.deepLink, '_blank', 'noopener,noreferrer')
+    toast.success('Đã mở Telegram bot. Gõ /start để hoàn tất liên kết.')
+  }
+
+  const handleUnlinkTelegram = async () => {
+    await unlinkTelegram()
+    setDraft((prev) => ({ ...prev, telegramEnabled: false }))
+    refetchTelegramStatus()
   }
 
   return (
@@ -85,10 +114,72 @@ export default function SettingsPage() {
           disabled={!draft.notificationsEnabled || loading}
         />
 
+        <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-white text-sm font-medium">Kết nối Telegram Bot</p>
+              <p className="text-white/45 text-xs mt-1">
+                Liên kết chat cá nhân để nhận thông báo theo tài khoản của bạn.
+              </p>
+            </div>
+            <span className={[
+              'text-[11px] px-2 py-1 rounded-full border',
+              telegramStatus.linked
+                ? 'text-emerald-300 border-emerald-500/30 bg-emerald-500/10'
+                : 'text-white/60 border-white/15 bg-white/5'
+            ].join(' ')}>
+              {telegramStatus.linked ? 'Đã liên kết' : 'Chưa liên kết'}
+            </span>
+          </div>
+
+          {telegramStatus.linked && (
+            <p className="text-xs text-white/60">
+              {telegramStatus.telegramFirstName || telegramStatus.telegramUsername
+                ? `Đang liên kết với ${telegramStatus.telegramFirstName ?? ''}${telegramStatus.telegramUsername ? ` (@${telegramStatus.telegramUsername})` : ''}`
+                : 'Đang liên kết Telegram'}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={handleConnectTelegram}
+              disabled={loadingCreateLink || telegramLoading}
+              className="btn-glass text-xs px-3 py-1.5 flex items-center gap-2 disabled:opacity-50"
+            >
+              {loadingCreateLink ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+              {telegramStatus.linked ? 'Kết nối lại Telegram' : 'Kết nối Telegram'}
+            </button>
+
+            {telegramStatus.linked && (
+              <button
+                onClick={handleUnlinkTelegram}
+                disabled={loadingUnlink}
+                className="btn-glass text-xs px-3 py-1.5 text-red-300 border-red-500/20 disabled:opacity-50"
+              >
+                {loadingUnlink ? 'Đang hủy...' : 'Hủy liên kết'}
+              </button>
+            )}
+          </div>
+
+          <ToggleRow
+            title="Nhận thông báo qua Telegram"
+            description="Gửi thông báo cá nhân vào Telegram bot đã liên kết"
+            checked={draft.telegramEnabled}
+            onChange={(value) =>
+              setDraft((prev) => ({ ...prev, telegramEnabled: value }))
+            }
+            disabled={!draft.notificationsEnabled || !telegramStatus.linked || loading || telegramLoading}
+          />
+        </div>
+
         {error && (
           <p className="text-red-400 text-sm">
             {error}
           </p>
+        )}
+
+        {telegramError && (
+          <p className="text-red-400 text-sm">{telegramError}</p>
         )}
 
         <div className="pt-2 border-t border-white/10 flex justify-end">

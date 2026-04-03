@@ -182,10 +182,10 @@ export default function AdminMerchantDetailPage() {
         >
           <ArrowLeft size={14} />
         </button>
-        <Link href="/admin/merchant-profiles" className="btn-glass text-xs px-3 py-1.5">Hồ sơ merchant</Link>
-        <Link href={`/admin/campaigns?search=${encodeURIComponent(merchantId)}`} className="btn-glass text-xs px-3 py-1.5">Campaign của merchant</Link>
+        <Link href="/admin/merchant-profiles" className="btn-glass text-xs px-3 py-1.5">Hồ sơ nhà bán hàng</Link>
+        <Link href={`/admin/campaigns?search=${encodeURIComponent(merchantId)}`} className="btn-glass text-xs px-3 py-1.5">Chiến dịch của nhà bán hàng</Link>
         <Link href="/admin/orders" className="btn-glass text-xs px-3 py-1.5">Đơn hàng hệ thống</Link>
-        <Link href="/admin/campaign-monitor" className="btn-glass text-xs px-3 py-1.5">Giám sát campaign</Link>
+        <Link href="/admin/campaign-monitor" className="btn-glass text-xs px-3 py-1.5">Giám sát chiến dịch</Link>
       </div>
 
       {loading ? (
@@ -235,30 +235,30 @@ export default function AdminMerchantDetailPage() {
               icon={Package}
             />
             <KpiCard
-              label="Campaign"
+              label="Chiến dịch"
               value={data.metrics.campaignsTotal.toLocaleString()}
               hint={`ACTIVE ${data.metrics.campaignsByStatus.ACTIVE} • ENDED ${data.metrics.campaignsByStatus.ENDED}`}
               icon={Store}
             />
             <KpiCard
-              label="Campaign đã xóa"
+              label="Chiến dịch đã xóa"
               value={data.metrics.campaignsDeleted.toLocaleString()}
               hint="Admin có thể xem toàn bộ"
               icon={Store}
             />
             <KpiCard
-              label="Campaign merchant ẩn"
+              label="Chiến dịch ẩn"
               value={data.metrics.campaignsHiddenByMerchant.toLocaleString()}
-              hint="Ẩn khỏi danh sách merchant"
+              hint="Ẩn khỏi danh sách nhà bán hàng"
               icon={Store}
             />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <GlassCard className="p-5 space-y-3">
-              <h2 className="text-white font-semibold">Phân bố trạng thái campaign</h2>
+              <h2 className="text-white font-semibold">Phân bố trạng thái chiến dịch</h2>
               {campaignStatusChartData.length === 0 ? (
-                <p className="text-white/50 text-sm">Chưa có dữ liệu campaign để vẽ biểu đồ.</p>
+                <p className="text-white/50 text-sm">Chưa có dữ liệu chiến dịch để vẽ biểu đồ.</p>
               ) : (
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
@@ -294,9 +294,9 @@ export default function AdminMerchantDetailPage() {
             </GlassCard>
 
             <GlassCard className="p-5 space-y-3">
-              <h2 className="text-white font-semibold">Top campaign theo doanh thu</h2>
+              <h2 className="text-white font-semibold">Top chiến dịch theo doanh thu</h2>
               {topCampaignRevenueChart.length === 0 ? (
-                <p className="text-white/50 text-sm">Chưa có dữ liệu doanh thu campaign.</p>
+                <p className="text-white/50 text-sm">Chưa có dữ liệu doanh thu chiến dịch.</p>
               ) : (
                 <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
@@ -412,14 +412,14 @@ export default function AdminMerchantDetailPage() {
 
           <GlassCard className="p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-white font-semibold text-lg">Danh sách campaign của merchant</h2>
+              <h2 className="text-white font-semibold text-lg">Danh sách chiến dịch của nhà bán hàng</h2>
               <span className="text-white/50 text-xs">Tổng: {data.campaigns.length}</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/10">
-                    <th className="py-2 pr-3 text-left text-white/50">Campaign</th>
+                    <th className="py-2 pr-3 text-left text-white/50">Chiến dịch</th>
                     <th className="py-2 pr-3 text-left text-white/50">Trạng thái</th>
                     <th className="py-2 pr-3 text-left text-white/50">Sản phẩm</th>
                     <th className="py-2 pr-3 text-left text-white/50">Đơn hàng</th>
@@ -471,7 +471,7 @@ export default function AdminMerchantDetailPage() {
                         <div>
                           <p className="text-white text-sm font-medium">Đơn {order.id.slice(0, 10)}...</p>
                           <p className="text-white/50 text-xs">Khách: {order.customer.fullName}</p>
-                          <p className="text-white/50 text-xs">Campaign: {order.campaign?.name ?? 'N/A'}</p>
+                          <p className="text-white/50 text-xs">Chiến dịch: {order.campaign?.name ?? 'N/A'}</p>
                         </div>
                         <div className="text-right">
                           <StatusBadge status={order.status} />

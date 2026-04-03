@@ -36,6 +36,8 @@ model User {
   orders             Order[]
   notifications      Notification[]
   notificationPreference NotificationPreference?
+  telegramLink       TelegramLink?
+  telegramDeliveries TelegramDelivery[]
   rescheduleRequests CampaignRescheduleRequest[] @relation("RescheduleRequests")
 
   @@map("users")
@@ -443,7 +445,8 @@ model Notification {
   read      Boolean          @default(false) @map("read")
   createdAt DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telegramDeliveries TelegramDelivery[]
 
   @@index([userId, read])
   @@index([userId, createdAt(sort: Desc)]) // Feed notification theo thời gian
@@ -456,12 +459,59 @@ model NotificationPreference {
   notificationsEnabled     Boolean  @default(true) @map("notifications_enabled")
   campaignReminderEnabled  Boolean  @default(true) @map("campaign_reminder_enabled")
   orderStatusEnabled       Boolean  @default(true) @map("order_status_enabled")
+  telegramEnabled          Boolean  @default(false) @map("telegram_enabled")
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+model TelegramLink {
+  id                String    @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId            String    @unique @map("user_id") @db.VarChar(36)
+  telegramChatId    String    @map("telegram_chat_id") @db.VarChar(255)
+  telegramUserId    String    @map("telegram_user_id") @db.VarChar(255)
+  telegramUsername  String?   @map("telegram_username") @db.VarChar(255)
+  telegramFirstName String?   @map("telegram_first_name") @db.VarChar(255)
+  telegramLastName  String?   @map("telegram_last_name") @db.VarChar(255)
+  linkedAt          DateTime  @default(now()) @map("linked_at") @db.Timestamp(6)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamp(6)
+  lastInteractionAt DateTime? @map("last_interaction_at") @db.Timestamp(6)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([telegramChatId])
+  @@index([telegramUserId])
+  @@index([revokedAt])
+  @@map("telegram_links")
+}
+
+model TelegramDelivery {
+  id                String                 @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId            String                 @map("user_id") @db.VarChar(36)
+  notificationId    String?                @map("notification_id") @db.VarChar(36)
+  eventType         NotificationType       @map("event_type")
+  idempotencyKey    String                 @unique @map("idempotency_key") @db.VarChar(120)
+  status            TelegramDeliveryStatus @default(PENDING) @map("status")
+  attemptCount      Int                    @default(0) @map("attempt_count")
+  providerMessageId String?                @map("provider_message_id") @db.VarChar(120)
+  errorCode         String?                @map("error_code") @db.VarChar(120)
+  errorMessage      String?                @map("error_message") @db.Text
+  sentAt            DateTime?              @map("sent_at") @db.Timestamp(6)
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification  Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@index([notificationId])
+  @@map("telegram_deliveries")
 }
 
 model DeadLetterJob {
@@ -614,6 +664,13 @@ enum NotificationType {
   CAMPAIGN_STARTING // Flash sale sắp bắt đầu
   CAMPAIGN_RESCHEDULED // Thời gian bắt đầu chiến dịch đã thay đổi
   RESCHEDULE_CONFIRMATION_NEEDED // Merchant cần xác nhận yêu cầu thay đổi lịch
+  SYSTEM_ALERT // Cảnh báo vận hành/hệ thống cho admin
+}
+
+enum TelegramDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 enum RescheduleRequestType {

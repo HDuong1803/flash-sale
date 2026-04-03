@@ -456,8 +456,8 @@ export class AdminService {
     try {
       await this.notificationService.createNotification(merchant.userId, {
         type: NotificationType.RESCHEDULE_CONFIRMATION_NEEDED,
-        title: 'Yêu cầu thay đổi lịch bắt đầu campaign',
-        message: `Admin đã yêu cầu thay đổi lịch bắt đầu campaign "${details.campaign.name}". Vui lòng xác nhận hoặc từ chối.`
+        title: 'Yêu cầu thay đổi lịch bắt đầu chiến dịch',
+        message: `Admin đã yêu cầu thay đổi lịch bắt đầu chiến dịch "${details.campaign.name}". Vui lòng xác nhận hoặc từ chối.`
       })
     } catch (err: unknown) {
       this.logger.error(
@@ -524,8 +524,8 @@ export class AdminService {
         try {
           await this.notificationService.createNotification(customer.id, {
             type: NotificationType.CAMPAIGN_RESCHEDULED,
-            title: 'Thời gian bắt đầu campaign đã thay đổi',
-            message: `Campaign "${request.campaign.name}" sẽ bắt đầu lúc ${formattedNew} (thay vì ${formattedOld})`
+            title: 'Thời gian bắt đầu chiến dịch đã thay đổi',
+            message: `Chiến dịch "${request.campaign.name}" sẽ bắt đầu lúc ${formattedNew} (thay vì ${formattedOld})`
           })
         } catch (err: unknown) {
           this.logger.error(

@@ -277,10 +277,102 @@ Admin xem dashboard chi tiết của một merchant theo merchant key (`id`).
 
 ---
 
+### Notifications
+
+#### POST /api/v1/notifications/telegram/link-token
+
+Tạo deep-link token để user liên kết Telegram bot với tài khoản hiện tại.
+
+**Auth required**: Yes
+
+**Response** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "botUsername": "flashsale_notify_bot",
+    "deepLink": "https://t.me/flashsale_notify_bot?start=token_value",
+    "expiresInSeconds": 600
+  }
+}
+```
+
+---
+
+#### GET /api/v1/notifications/telegram/status
+
+Lấy trạng thái liên kết Telegram của user hiện tại.
+
+**Auth required**: Yes
+
+**Response** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "linked": true,
+    "telegramUsername": "alice_store",
+    "telegramFirstName": "Alice",
+    "linkedAt": "2026-04-03T10:30:00.000Z"
+  }
+}
+```
+
+---
+
+#### DELETE /api/v1/notifications/telegram/link
+
+Hủy liên kết Telegram hiện tại và tự động tắt `telegramEnabled` trong preferences.
+
+**Auth required**: Yes
+
+**Response** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "revoked": true
+  }
+}
+```
+
+---
+
+#### POST /api/v1/integrations/telegram/webhook
+
+Webhook endpoint nhận callback từ Telegram bot.
+
+**Auth required**: No
+
+**Required header**:
+```http
+X-Telegram-Bot-Api-Secret-Token: <TELEGRAM_WEBHOOK_SECRET>
+```
+
+**Compatibility note**:
+- Legacy route `POST /api/v1/integrations/telegram/webhook/:secret` vẫn còn hỗ trợ tạm thời để migration webhook cũ.
+- Nếu header `X-Telegram-Bot-Api-Secret-Token` xuất hiện nhưng sai, request sẽ bị từ chối ngay (không fallback sang path secret).
+- Fallback cũ mặc định đã tắt (`TELEGRAM_ALLOW_LEGACY_PATH_SECRET_AUTH=false`). Chỉ bật tạm thời khi cần migration.
+- Khuyến nghị cập nhật Telegram webhook về route mới và xác thực bằng header secret token.
+
+**Response** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "ok": true
+  }
+}
+```
+
+---
+
 ## Changelog
 
 | Date | Version | Change |
 |------|---------|--------|
+| 2026-04-03 | 1.3.1 | Telegram webhook auth migrated to `X-Telegram-Bot-Api-Secret-Token` header, legacy path-secret route deprecated |
+| 2026-04-03 | 1.3.0 | Add Telegram link/token/status/unlink APIs and webhook endpoint |
 | 2026-04-03 | 1.2.0 | Add `GET /admin/merchant-profiles/:id/overview` for detailed merchant analytics |
 | 2026-04-03 | 1.1.0 | Add `PATCH /campaigns/:id/hide-expired` and `DELETE /admin/campaigns/:id` |
 | [YYYY-MM-DD] | 1.0.0 | Initial API |

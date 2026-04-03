@@ -64,7 +64,7 @@ export default function MerchantCampaignsPage() {
         <Link href="/merchant/dashboard" className="btn-glass text-xs px-3 py-1.5">Dashboard shop</Link>
         <Link href="/merchant/orders" className="btn-glass text-xs px-3 py-1.5">Đơn hàng nhận</Link>
         <Link href="/merchant/revenue" className="btn-glass text-xs px-3 py-1.5">Doanh thu</Link>
-        <Link href="/merchant/campaigns/create" className="btn-glass text-xs px-3 py-1.5">Tạo campaign</Link>
+        <Link href="/merchant/campaigns/create" className="btn-glass text-xs px-3 py-1.5">Tạo chiến dịch</Link>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -174,8 +174,8 @@ export default function MerchantCampaignsPage() {
       <ConfirmDialog
         open={!!hideExpiredId}
         title="Ẩn chiến dịch đã hết hạn?"
-        description="Campaign ENDED sẽ bị ẩn khỏi danh sách chiến dịch hết hạn của shop."
-        confirmLabel="Ẩn campaign"
+        description="Chiến dịch ENDED sẽ bị ẩn khỏi danh sách chiến dịch hết hạn của shop."
+        confirmLabel="Ẩn chiến dịch"
         cancelLabel="Hủy"
         onConfirm={async () => {
           if (hideExpiredId) {

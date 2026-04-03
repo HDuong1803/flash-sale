@@ -83,5 +83,12 @@ export const config = {
     SENDER_EMAIL: '',
     EMAIL_SUPPORT: '',
     RESEND_API_KEY: ''
+  },
+
+  telegram: {
+    BOT_TOKEN: '',
+    BOT_USERNAME: '',
+    WEBHOOK_SECRET: '',
+    ALLOW_LEGACY_PATH_SECRET_AUTH: 'false'
   }
 }

@@ -4,6 +4,8 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common'
+import { NotificationType } from '@prisma/client'
+import { NotificationService } from '@modules/notification/services/notification.service'
 import { MerchantRepository } from '../repositories/merchant.repository'
 import {
   ApplyMerchantDto,
@@ -13,7 +15,10 @@ import {
 
 @Injectable()
 export class MerchantService {
-  constructor(private readonly merchantRepository: MerchantRepository) {}
+  constructor(
+    private readonly merchantRepository: MerchantRepository,
+    private readonly notificationService: NotificationService
+  ) {}
 
   async apply(userId: string, userRole: string, dto: ApplyMerchantDto) {
     if (userRole !== 'CUSTOMER') {
@@ -29,7 +34,27 @@ export class MerchantService {
     const taxExists = await this.merchantRepository.findByTaxCode(dto.taxCode)
     if (taxExists) throw new BadRequestException('Mã số thuế đã được sử dụng')
 
-    return this.merchantRepository.create({ userId, ...dto })
+    const created = await this.merchantRepository.create({ userId, ...dto })
+
+    await this.notificationService.notifyAdmins({
+      type: NotificationType.SYSTEM_ALERT,
+      title: 'Có đơn đăng ký merchant mới cần duyệt',
+      message: `Merchant ${dto.businessName} vừa gửi hồ sơ đăng ký. Vui lòng kiểm tra và duyệt sớm.`,
+      telegramActions: [
+        {
+          type: 'APPROVE_MERCHANT',
+          resourceId: created.id,
+          label: 'Duyệt nhà bán hàng'
+        },
+        {
+          type: 'REJECT_MERCHANT',
+          resourceId: created.id,
+          label: 'Từ chối nhà bán hàng'
+        }
+      ]
+    })
+
+    return created
   }
 
   async getApplicationStatus(userId: string) {

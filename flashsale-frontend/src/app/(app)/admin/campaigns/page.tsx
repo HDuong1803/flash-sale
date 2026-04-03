@@ -82,7 +82,7 @@ export default function AdminCampaignsPage() {
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Tìm theo tên chiến dịch, tên merchant hoặc key merchant (merchantId)..."
+          placeholder="Tìm theo tên chiến dịch, tên nhà bán hàng..."
           className="input-glass w-full"
         />
       </div>

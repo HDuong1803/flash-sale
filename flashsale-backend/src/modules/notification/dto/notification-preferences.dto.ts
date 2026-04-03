@@ -13,6 +13,12 @@ export class NotificationPreferencesResponseDto {
 
   @ApiProperty({ description: 'Cập nhật trạng thái đơn hàng', example: true })
   orderStatusEnabled: boolean
+
+  @ApiProperty({
+    description: 'Nhận thông báo qua Telegram bot',
+    example: false
+  })
+  telegramEnabled: boolean
 }
 
 export class UpdateNotificationPreferencesDto {
@@ -42,4 +48,13 @@ export class UpdateNotificationPreferencesDto {
   @IsOptional()
   @IsBoolean()
   orderStatusEnabled?: boolean
+
+  @ApiProperty({
+    description: 'Nhận thông báo qua Telegram bot',
+    required: false,
+    example: false
+  })
+  @IsOptional()
+  @IsBoolean()
+  telegramEnabled?: boolean
 }

@@ -86,6 +86,14 @@ export const config = {
     RESEND_API_KEY: process.env.RESEND_API_KEY
   },
 
+  telegram: {
+    BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+    BOT_USERNAME: process.env.TELEGRAM_BOT_USERNAME,
+    WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET,
+    ALLOW_LEGACY_PATH_SECRET_AUTH:
+      process.env.TELEGRAM_ALLOW_LEGACY_PATH_SECRET_AUTH ?? 'false'
+  },
+
   sendgrid: {
     SENDGRID_API_KEY: process.env.SENDGRID_API_KEY
   },

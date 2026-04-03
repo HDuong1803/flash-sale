@@ -49,7 +49,7 @@ export class CreateCampaignDto {
   endTime: string
 
   @ApiProperty({
-    description: 'ID danh mục hoa hồng áp dụng cho campaign',
+    description: 'ID danh mục hoa hồng áp dụng cho chiến dịch',
     example: 'cmcat_electronics'
   })
   @IsString()

@@ -20,7 +20,10 @@ const typeConfig = {
   CAMPAIGN_STARTING:              { border: 'border-l-blue-500', icon: Bell, iconColor: 'text-blue-400' },
   CAMPAIGN_RESCHEDULED:           { border: 'border-l-yellow-500', icon: Clock, iconColor: 'text-yellow-400' },
   RESCHEDULE_CONFIRMATION_NEEDED: { border: 'border-l-violet-500', icon: Bell, iconColor: 'text-violet-400' },
+  SYSTEM_ALERT:                   { border: 'border-l-rose-500', icon: Bell, iconColor: 'text-rose-300' },
 }
+
+const defaultConfig = { border: 'border-l-white/20', icon: Bell, iconColor: 'text-white/40' }
 
 export function NotificationDropdown({ notifications, onMarkRead, onMarkAllRead }: NotificationDropdownProps) {
   const [open, setOpen] = useState(false)
@@ -62,7 +65,7 @@ export function NotificationDropdown({ notifications, onMarkRead, onMarkAllRead 
               ) : (
                 <div className="p-2 space-y-1">
                   {notifications.map((n) => {
-                    const cfg = typeConfig[n.type]
+                    const cfg = typeConfig[n.type] ?? defaultConfig
                     const Icon = cfg.icon
                     return (
                       <button

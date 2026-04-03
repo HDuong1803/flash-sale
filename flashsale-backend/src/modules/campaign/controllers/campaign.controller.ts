@@ -231,7 +231,7 @@ export class CampaignController {
   @ApiResponse({ status: HttpStatus.OK, description: 'Ẩn thành công' })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Chỉ có thể ẩn campaign ở trạng thái ENDED'
+    description: 'Chỉ có thể ẩn chiến dịch ở trạng thái ENDED'
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,

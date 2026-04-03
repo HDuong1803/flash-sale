@@ -222,7 +222,7 @@ export interface MerchantProfile extends Merchant {
 
 export interface Notification {
   id: string
-  type: 'RESERVATION_EXPIRING' | 'ORDER_CONFIRMED' | 'PAYMENT_FAILED' | 'CAMPAIGN_STARTING' | 'CAMPAIGN_RESCHEDULED' | 'RESCHEDULE_CONFIRMATION_NEEDED'
+  type: 'RESERVATION_EXPIRING' | 'ORDER_CONFIRMED' | 'PAYMENT_FAILED' | 'CAMPAIGN_STARTING' | 'CAMPAIGN_RESCHEDULED' | 'RESCHEDULE_CONFIRMATION_NEEDED' | 'SYSTEM_ALERT'
   title: string
   message: string
   read: boolean
@@ -233,6 +233,14 @@ export interface NotificationPreferences {
   notificationsEnabled: boolean
   campaignReminderEnabled: boolean
   orderStatusEnabled: boolean
+  telegramEnabled: boolean
+}
+
+export interface TelegramLinkStatus {
+  linked: boolean
+  telegramUsername?: string | null
+  telegramFirstName?: string | null
+  linkedAt?: string | null
 }
 
 export interface DashboardMetrics {

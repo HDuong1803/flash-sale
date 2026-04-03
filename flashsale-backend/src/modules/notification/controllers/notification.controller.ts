@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Post,
   Param,
   Patch,
   UseGuards,
@@ -20,10 +22,15 @@ import { ResponseInterceptor } from '@common/interceptors'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { NotificationService } from '../services/notification.service'
+import { TelegramNotificationService } from '../services/telegram-notification.service'
 import {
   NotificationPreferencesResponseDto,
   UpdateNotificationPreferencesDto
 } from '../dto/notification-preferences.dto'
+import {
+  TelegramLinkStatusResponseDto,
+  TelegramLinkTokenResponseDto
+} from '../dto/telegram.dto'
 
 const moduleName = 'notifications'
 
@@ -33,7 +40,10 @@ const moduleName = 'notifications'
 @UseInterceptors(ResponseInterceptor)
 @ApiBearerAuth('JWT-auth')
 export class NotificationController {
-  constructor(private readonly notificationService: NotificationService) {}
+  constructor(
+    private readonly notificationService: NotificationService,
+    private readonly telegramNotificationService: TelegramNotificationService
+  ) {}
 
   @ApiOperation({ summary: 'Lấy danh sách thông báo của tôi' })
   @ApiResponse({
@@ -123,5 +133,52 @@ export class NotificationController {
     @Body() body: UpdateNotificationPreferencesDto
   ): Promise<NotificationPreferencesResponseDto> {
     return this.notificationService.updatePreferences(user.userId, body)
+  }
+
+  @ApiOperation({ summary: 'Tạo deep link token để liên kết Telegram bot' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Tạo token liên kết thành công',
+    type: TelegramLinkTokenResponseDto
+  })
+  @Post('telegram/link-token')
+  @HttpCode(HttpStatus.OK)
+  async createTelegramLinkToken(
+    @CurrentUser() user: { userId: string }
+  ): Promise<TelegramLinkTokenResponseDto> {
+    return this.telegramNotificationService.createLinkToken(user.userId)
+  }
+
+  @ApiOperation({ summary: 'Lấy trạng thái liên kết Telegram' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Trả về trạng thái liên kết Telegram',
+    type: TelegramLinkStatusResponseDto
+  })
+  @Get('telegram/status')
+  @HttpCode(HttpStatus.OK)
+  async getTelegramStatus(
+    @CurrentUser() user: { userId: string }
+  ): Promise<TelegramLinkStatusResponseDto> {
+    return this.telegramNotificationService.getLinkStatus(user.userId)
+  }
+
+  @ApiOperation({ summary: 'Hủy liên kết Telegram hiện tại' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Hủy liên kết thành công'
+  })
+  @Delete('telegram/link')
+  @HttpCode(HttpStatus.OK)
+  async unlinkTelegram(
+    @CurrentUser() user: { userId: string }
+  ): Promise<{ revoked: boolean }> {
+    const revoked = await this.telegramNotificationService.unlink(user.userId)
+
+    await this.notificationService.updatePreferences(user.userId, {
+      telegramEnabled: false
+    })
+
+    return revoked
   }
 }

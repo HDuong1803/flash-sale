@@ -93,6 +93,11 @@ Database      → PostgreSQL via Prisma
 - **Environments**: development, staging, production
 - **Deployment**: [CI/CD tool and strategy]
 - **Containerization**: Docker + docker-compose (development), [orchestration in production]
+- **Notification Channels**: In-app + Email + Telegram (personal chat)
+- **Telegram Integration**:
+     - Webhook: `/api/v1/integrations/telegram/webhook` (auth via `X-Telegram-Bot-Api-Secret-Token`)
+     - Queue: `telegram.notification`
+     - DLQ: `failed_telegram_notifications`
 
 ---
 

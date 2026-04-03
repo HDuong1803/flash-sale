@@ -19,7 +19,7 @@ export function useAdminMerchantOverview(
     error: query.error
       ? query.error instanceof Error
         ? query.error.message
-        : 'Không thể tải thống kê merchant'
+        : 'Không thể tải thống kê tổng quan nhà bán hàng'
       : null,
     refetch: () => {
       void query.refetch()

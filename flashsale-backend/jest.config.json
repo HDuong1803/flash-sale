@@ -16,6 +16,7 @@
         "^@modules/(.*)$": "<rootDir>/modules/$1",
         "^@config/(.*)$": "<rootDir>/config/$1",
         "^@common/(.*)$": "<rootDir>/common/$1",
+        "^@infrastructure/(.*)$": "<rootDir>/infrastructure/$1",
         "^@local-prisma/(.*)$": "<rootDir>/prisma/$1",
         "^@redis/(.*)$": "<rootDir>/redis/$1"
       }
@@ -35,6 +36,7 @@
         "^@modules/(.*)$": "<rootDir>/src/modules/$1",
         "^@config/(.*)$": "<rootDir>/src/config/$1",
         "^@common/(.*)$": "<rootDir>/src/common/$1",
+        "^@infrastructure/(.*)$": "<rootDir>/src/infrastructure/$1",
         "^@local-prisma/(.*)$": "<rootDir>/src/prisma/$1",
         "^@redis/(.*)$": "<rootDir>/src/redis/$1"
       }

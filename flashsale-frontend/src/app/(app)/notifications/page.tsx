@@ -13,6 +13,7 @@ const typeConfig: Record<string, { border: string; icon: typeof Bell; iconColor:
   ORDER_CONFIRMED:       { border: 'border-l-emerald-500', icon: CheckCircle, iconColor: 'text-emerald-400' },
   PAYMENT_FAILED:        { border: 'border-l-red-500', icon: XCircle, iconColor: 'text-red-400' },
   CAMPAIGN_STARTING:     { border: 'border-l-blue-500', icon: Bell, iconColor: 'text-blue-400' },
+  SYSTEM_ALERT:          { border: 'border-l-rose-500', icon: Bell, iconColor: 'text-rose-300' },
 }
 
 const defaultConfig = { border: 'border-l-white/20', icon: Bell, iconColor: 'text-white/40' }

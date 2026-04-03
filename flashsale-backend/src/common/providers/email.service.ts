@@ -98,13 +98,13 @@ export class EmailService {
     [EmailTemplate.MERCHANT_APPLICATION_ADMIN]:
       '[Flash Sale] Đơn đăng ký Merchant mới',
     [EmailTemplate.CAMPAIGN_SUBSCRIPTION]:
-      '[Flash Sale] Bạn đã đăng ký nhận thông báo campaign',
+      '[Flash Sale] Bạn đã đăng ký nhận thông báo chiến dịch',
     [EmailTemplate.ORDER_CONFIRMED]: '[Flash Sale] Đặt hàng thành công',
     [EmailTemplate.ORDER_CANCELLED]: '[Flash Sale] Đơn hàng đã bị hủy',
     [EmailTemplate.CAMPAIGN_RESCHEDULE_REQUEST]:
-      '[Flash Sale] Yêu cầu thay đổi lịch bắt đầu campaign',
+      '[Flash Sale] Yêu cầu thay đổi lịch bắt đầu chiến dịch',
     [EmailTemplate.CAMPAIGN_TIME_CHANGED]:
-      '[Flash Sale] Thời gian bắt đầu campaign đã thay đổi'
+      '[Flash Sale] Thời gian bắt đầu chiến dịch đã thay đổi'
   }
 
   constructor(
@@ -323,7 +323,7 @@ export class EmailService {
     })
   }
 
-  /** Xác nhận đăng ký nhận thông báo campaign */
+  /** Xác nhận đăng ký nhận thông báo chiến dịch */
   async sendCampaignSubscriptionConfirmed(
     to: string,
     name: string,
@@ -448,7 +448,7 @@ export class EmailService {
     })
   }
 
-  /** Gửi email cho subscribers khi thời gian bắt đầu campaign thay đổi */
+  /** Gửi email cho subscribers khi thời gian bắt đầu chiến dịch thay đổi */
   async sendCampaignTimeChanged(params: {
     to: string
     name: string

@@ -38,6 +38,7 @@ export const queryKeys = {
     list: () => ['notifications', 'list'] as const,
     unreadCount: () => ['notifications', 'unread-count'] as const,
     preferences: () => ['notifications', 'preferences'] as const,
+    telegramStatus: () => ['notifications', 'telegram-status'] as const,
   },
   admin: {
     all: ['admin'] as const,

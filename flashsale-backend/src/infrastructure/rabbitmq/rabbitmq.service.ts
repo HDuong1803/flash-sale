@@ -126,6 +126,13 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
         'x-dead-letter-routing-key': FAILED_QUEUE_NAMES.EMAILS
       }
     })
+    await this.channel.assertQueue(QUEUE_NAMES.TELEGRAM, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': 'failed_jobs',
+        'x-dead-letter-routing-key': FAILED_QUEUE_NAMES.TELEGRAM
+      }
+    })
     await this.channel.assertQueue(FAILED_QUEUE_NAMES.ORDERS, { durable: true })
     await this.channel.bindQueue(
       FAILED_QUEUE_NAMES.ORDERS,
@@ -147,6 +154,14 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       FAILED_QUEUE_NAMES.EMAILS,
       'failed_jobs',
       FAILED_QUEUE_NAMES.EMAILS
+    )
+    await this.channel.assertQueue(FAILED_QUEUE_NAMES.TELEGRAM, {
+      durable: true
+    })
+    await this.channel.bindQueue(
+      FAILED_QUEUE_NAMES.TELEGRAM,
+      'failed_jobs',
+      FAILED_QUEUE_NAMES.TELEGRAM
     )
   }
 

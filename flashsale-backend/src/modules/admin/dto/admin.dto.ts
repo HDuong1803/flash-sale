@@ -161,7 +161,7 @@ export class ForceRescheduleDto {
 
   @ApiProperty({
     description: 'Lý do thay đổi lịch',
-    example: 'Điều chỉnh để phù hợp với campaign marketing',
+    example: 'Điều chỉnh để phù hợp với chiến dịch marketing',
     required: false
   })
   @IsString()
@@ -290,7 +290,7 @@ export class UpdatePaymentGatewayConfigDto {
 }
 
 export class CampaignMonitorQueryDto {
-  @ApiProperty({ required: false, description: 'ID campaign để lọc monitor' })
+  @ApiProperty({ required: false, description: 'ID chiến dịch để lọc monitor' })
   @IsOptional()
   @IsString()
   campaignId?: string

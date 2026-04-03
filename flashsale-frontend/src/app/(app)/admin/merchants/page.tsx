@@ -93,7 +93,7 @@ export default function AdminMerchantsPage() {
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2 flex-wrap justify-end">
                         <Link href={`/admin/merchant-profiles/${m.id}`} className="text-xs px-3 py-1.5 rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 transition-all">
-                          Xem merchant
+                          Xem nhà bán hàng
                         </Link>
                         {m.kycStatus === 'PENDING' && (
                           <>

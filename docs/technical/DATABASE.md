@@ -93,10 +93,60 @@ sessions
 
 ---
 
+### notification_preferences (delta)
+
+**Purpose**: Lưu cấu hình nhận thông báo theo user.
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| `telegram_enabled` | BOOLEAN | NOT NULL, DEFAULT false | Bật/tắt gửi thông báo qua Telegram bot |
+
+---
+
+### telegram_links
+
+**Purpose**: Mapping 1-1 giữa user hệ thống và Telegram chat cá nhân đã liên kết.
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| `id` | VARCHAR(36) | PK | Telegram link id |
+| `user_id` | VARCHAR(36) | UNIQUE, FK -> users.id | User được liên kết |
+| `telegram_chat_id` | VARCHAR(255) | UNIQUE | Telegram chat cá nhân |
+| `telegram_user_id` | VARCHAR(255) | INDEX | Telegram user id |
+| `telegram_username` | VARCHAR(255) | NULL | Username Telegram |
+| `telegram_first_name` | VARCHAR(255) | NULL | First name Telegram |
+| `telegram_last_name` | VARCHAR(255) | NULL | Last name Telegram |
+| `linked_at` | TIMESTAMP(6) | NOT NULL | Thời điểm liên kết |
+| `revoked_at` | TIMESTAMP(6) | NULL, INDEX | Thời điểm hủy liên kết |
+| `last_interaction_at` | TIMESTAMP(6) | NULL | Lần tương tác gần nhất |
+
+---
+
+### telegram_deliveries
+
+**Purpose**: Audit và theo dõi trạng thái gửi Telegram theo từng notification.
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| `id` | VARCHAR(36) | PK | Delivery id |
+| `user_id` | VARCHAR(36) | FK -> users.id, INDEX | Recipient user |
+| `notification_id` | VARCHAR(36) | NULL, FK -> notifications.id, INDEX | Optional link về in-app notification |
+| `event_type` | ENUM(NotificationType) | NOT NULL | Loại notification |
+| `idempotency_key` | VARCHAR(120) | UNIQUE | Chống gửi trùng |
+| `status` | ENUM(TelegramDeliveryStatus) | NOT NULL | `PENDING`, `SENT`, `FAILED` |
+| `attempt_count` | INT | NOT NULL | Số lần retry |
+| `provider_message_id` | VARCHAR(120) | NULL | Message id của Telegram |
+| `error_code` | VARCHAR(120) | NULL | Mã lỗi provider/internal |
+| `error_message` | TEXT | NULL | Mô tả lỗi gần nhất |
+| `sent_at` | TIMESTAMP(6) | NULL | Thời điểm gửi thành công |
+
+---
+
 ## Migrations Log
 
 | Migration | Date | Description | Risk |
 |-----------|------|-------------|------|
+| `20260403130000_add_telegram_notifications_phase1` | 2026-04-03 | Add Telegram link + delivery tables and `notification_preferences.telegram_enabled` | Medium |
 | `20260403113000_add_merchant_hidden_campaign` | 2026-04-03 | Add `campaigns.merchant_hidden_at` | Low |
 | `20240115120000_initial_schema` | 2024-01-15 | Initial tables | Zero-downtime |
 

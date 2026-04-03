@@ -7,6 +7,7 @@ const DEFAULT_PREFERENCES: NotificationPreferences = {
   notificationsEnabled: true,
   campaignReminderEnabled: true,
   orderStatusEnabled: true,
+  telegramEnabled: false,
 }
 
 export function useNotificationPreferences() {

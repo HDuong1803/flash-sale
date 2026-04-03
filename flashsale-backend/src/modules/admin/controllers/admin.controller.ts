@@ -156,11 +156,11 @@ export class AdminController {
   @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Xóa thành công campaign đã kết thúc'
+    description: 'Xóa thành công chiến dịch đã kết thúc'
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Chỉ xóa được campaign ở trạng thái ENDED'
+    description: 'Chỉ xóa được chiến dịch ở trạng thái ENDED'
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -175,7 +175,7 @@ export class AdminController {
   }
 
   @ApiOperation({
-    summary: 'Xem danh sách tất cả yêu cầu thay đổi lịch campaign'
+    summary: 'Xem danh sách tất cả yêu cầu thay đổi lịch chiến dịch'
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách yêu cầu' })
   @Get('campaigns/reschedule-requests')
@@ -218,11 +218,11 @@ export class AdminController {
   @ApiResponse({
     status: HttpStatus.OK,
     description:
-      'Campaign đã chuyển sang ENDED ngay lập tức, stock đã sync về DB'
+      'Chiến dịch đã chuyển sang ENDED ngay lập tức, stock đã sync về DB'
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Campaign không ở trạng thái ACTIVE'
+    description: 'Chiến dịch không ở trạng thái ACTIVE'
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -237,7 +237,7 @@ export class AdminController {
   }
 
   @ApiOperation({
-    summary: 'Admin tạo yêu cầu force thay đổi lịch bắt đầu campaign'
+    summary: 'Admin tạo yêu cầu force thay đổi lịch bắt đầu chiến dịch'
   })
   @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiBody({ type: ForceRescheduleDto })
@@ -247,7 +247,7 @@ export class AdminController {
   })
   @ApiResponse({
     status: HttpStatus.BAD_REQUEST,
-    description: 'Campaign không ở trạng thái SCHEDULED'
+    description: 'Chiến dịch không ở trạng thái SCHEDULED'
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -267,7 +267,7 @@ export class AdminController {
   @ApiParam({ name: 'requestId', description: 'ID yêu cầu đổi lịch' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Đã duyệt, lịch campaign đã được cập nhật'
+    description: 'Đã duyệt, lịch chiến dịch đã được cập nhật'
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -491,7 +491,9 @@ export class AdminController {
     return this.adminService.getPaymentGatewayConfigs() as unknown as PaymentGatewayConfigDto[]
   }
 
-  @ApiOperation({ summary: 'Tổng quan monitor campaign theo cửa sổ thời gian' })
+  @ApiOperation({
+    summary: 'Tổng quan monitor chiến dịch theo cửa sổ thời gian'
+  })
   @ApiResponse({ status: HttpStatus.OK, type: CampaignMonitorOverviewDto })
   @Get('campaign-monitor/overview')
   @HttpCode(HttpStatus.OK)
@@ -503,7 +505,9 @@ export class AdminController {
     ) as unknown as CampaignMonitorOverviewDto
   }
 
-  @ApiOperation({ summary: 'Timeline monitor campaign theo bucket thời gian' })
+  @ApiOperation({
+    summary: 'Timeline monitor chiến dịch theo bucket thời gian'
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     type: [CampaignMonitorTimelineItemDto]
@@ -566,7 +570,7 @@ export class AdminController {
   @ApiParam({ name: 'id', description: 'Merchant profile ID' })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Thông tin chi tiết merchant, KPI, campaign, đơn hàng'
+    description: 'Thông tin chi tiết merchant, KPI, chiến dịch, đơn hàng'
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
