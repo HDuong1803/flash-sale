@@ -6,7 +6,7 @@ import type {
   AdminMerchantProfile, UserActionLog, OutboxEvent, FinanceDashboardSummary,
   FinanceTrendItem, CommissionCategoryBreakdown, PaymentGatewayConfig, PaymentMethod,
   CampaignMonitorOverview, CampaignMonitorTimelineItem,
-  AdminMerchantOverview,
+  AdminMerchantOverview, AdminUserDetail,
 } from '@/types'
 
 class AdminService {
@@ -39,6 +39,9 @@ class AdminService {
   }
   getUsers(filters?: { role?: UserRole; search?: string; page?: number; limit?: number }): Promise<User[]> {
     return withRetry(() => apiClient.get('/admin/users', { params: filters }))
+  }
+  getUserDetail(id: string): Promise<AdminUserDetail> {
+    return withRetry(() => apiClient.get(`/admin/users/${id}`))
   }
   suspendUser(id: string): Promise<User> {
     return apiClient.patch(`/admin/users/${id}/suspend`)

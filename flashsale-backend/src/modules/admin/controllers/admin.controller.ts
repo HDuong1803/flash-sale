@@ -49,7 +49,8 @@ import {
   CampaignMonitorTimelineItemDto,
   CampaignMonitorTimelineQueryDto,
   PaymentGatewayConfigDto,
-  UpdatePaymentGatewayConfigDto
+  UpdatePaymentGatewayConfigDto,
+  AdminUserDetailResponseDto
 } from '../dto/admin.dto'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 
@@ -314,6 +315,28 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async getUsers(@Query() query: AdminUserQueryDto): Promise<unknown[]> {
     return this.adminService.getUsers(query)
+  }
+
+  @ApiOperation({
+    summary:
+      'Xem chi tiết người dùng — thông tin cá nhân, hành vi mua sắm, lịch sử đơn hàng'
+  })
+  @ApiParam({ name: 'id', description: 'ID người dùng' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Chi tiết người dùng',
+    type: AdminUserDetailResponseDto
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Không tìm thấy người dùng'
+  })
+  @Get('users/:id')
+  @HttpCode(HttpStatus.OK)
+  async getUserDetail(
+    @Param('id') id: string
+  ): Promise<AdminUserDetailResponseDto> {
+    return this.adminService.getUserDetail(id)
   }
 
   @ApiOperation({ summary: 'Khoá tài khoản user' })

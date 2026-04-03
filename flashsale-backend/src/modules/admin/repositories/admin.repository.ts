@@ -882,4 +882,165 @@ export class AdminRepository {
             : 0
       }))
   }
+
+  // ─── User Detail ────────────────────────────────────────────────────────────
+
+  async getUserDetail(userId: string) {
+    const now = new Date()
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+
+    const [
+      user,
+      recentOrders,
+      orderStatusCounts,
+      allOrdersAgg,
+      completedOrdersAgg,
+      orders30d,
+      orders90d,
+      preRegistrations
+    ] = await Promise.all([
+      // 1. User với tất cả relations cần thiết
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+          role: true,
+          status: true,
+          emailVerified: true,
+          lastLoginAt: true,
+          createdAt: true,
+          photo: { select: { url: true } },
+          customerProfile: {
+            select: { phone: true, defaultAddress: true }
+          },
+          notificationPreference: {
+            select: {
+              notificationsEnabled: true,
+              telegramEnabled: true,
+              campaignReminderEnabled: true,
+              orderStatusEnabled: true
+            }
+          },
+          telegramLink: {
+            select: {
+              telegramUsername: true,
+              telegramFirstName: true,
+              linkedAt: true,
+              revokedAt: true
+            }
+          },
+          _count: {
+            select: { notifications: { where: { read: false } } }
+          }
+        }
+      }),
+
+      // 2. 20 đơn hàng gần nhất kèm thông tin campaign và merchant
+      this.prisma.order.findMany({
+        where: { customerId: userId, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          status: true,
+          totalAmount: true,
+          shippingAddress: true,
+          createdAt: true,
+          merchant: { select: { businessName: true } },
+          payment: { select: { status: true } },
+          reservation: {
+            select: {
+              campaignProduct: {
+                select: {
+                  campaign: {
+                    select: { id: true, name: true, status: true }
+                  }
+                }
+              }
+            }
+          },
+          _count: { select: { items: true } }
+        }
+      }),
+
+      // 3. Phân bổ số đơn theo trạng thái
+      this.prisma.order.groupBy({
+        by: ['status'],
+        where: { customerId: userId, deletedAt: null },
+        _count: { id: true }
+      }),
+
+      // 4. Tổng hợp tất cả đơn (không lọc trạng thái) — lấy ngày đầu/cuối
+      this.prisma.order.aggregate({
+        where: { customerId: userId, deletedAt: null },
+        _count: { id: true },
+        _min: { createdAt: true },
+        _max: { createdAt: true }
+      }),
+
+      // 5. Tổng hợp đơn hoàn thành — tính tổng chi tiêu thực tế
+      this.prisma.order.aggregate({
+        where: {
+          customerId: userId,
+          status: OrderStatus.DONE,
+          deletedAt: null
+        },
+        _sum: { totalAmount: true },
+        _avg: { totalAmount: true },
+        _count: { id: true }
+      }),
+
+      // 6. Đơn trong 30 ngày qua
+      this.prisma.order.count({
+        where: {
+          customerId: userId,
+          deletedAt: null,
+          createdAt: { gte: thirtyDaysAgo }
+        }
+      }),
+
+      // 7. Đơn trong 90 ngày qua
+      this.prisma.order.count({
+        where: {
+          customerId: userId,
+          deletedAt: null,
+          createdAt: { gte: ninetyDaysAgo }
+        }
+      }),
+
+      // 8. Các campaign đã đăng ký trước (pre-registration)
+      this.prisma.preRegistration.findMany({
+        where: { customerId: userId },
+        orderBy: { registeredAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          registeredAt: true,
+          campaign: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              startTime: true,
+              endTime: true
+            }
+          }
+        }
+      })
+    ])
+
+    return {
+      user,
+      recentOrders,
+      orderStatusCounts,
+      allOrdersAgg,
+      completedOrdersAgg,
+      orders30d,
+      orders90d,
+      preRegistrations
+    }
+  }
 }

@@ -10,8 +10,9 @@ export function useApproveMerchant() {
     mutationFn: (id: string) => adminService.approveMerchant(id),
     onSuccess: () => {
       toast.success('Đã duyệt nhà bán hàng!')
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.merchants.all })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'merchants'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'merchant-profiles'] })
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Có lỗi xảy ra'

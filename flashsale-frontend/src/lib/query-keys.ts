@@ -45,6 +45,7 @@ export const queryKeys = {
     merchants: (params?: object) => ['admin', 'merchants', params] as const,
     campaigns: (params?: object) => ['admin', 'campaigns', params] as const,
     users: (params?: object) => ['admin', 'users', params] as const,
+    userDetail: (id: string) => ['admin', 'users', id, 'detail'] as const,
     stats: () => ['admin', 'stats'] as const,
     health: () => ['admin', 'health'] as const,
     queueStats: () => ['admin', 'queue-stats'] as const,

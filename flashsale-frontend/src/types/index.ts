@@ -544,3 +544,89 @@ export interface CampaignMonitorTimelineItem {
   successfulPayments: number
   successRatePct: number
 }
+
+// ─── Admin User Detail ───────────────────────────────────────────────────────
+
+export interface AdminUserDetailRecentOrder {
+  id: string
+  status: OrderStatus
+  totalAmount: number
+  shippingAddress: string
+  createdAt: string
+  campaignId: string | null
+  campaignName: string | null
+  campaignStatus: CampaignStatus | null
+  itemCount: number
+  paymentStatus: PaymentStatus | null
+  merchantName: string
+}
+
+export interface AdminUserDetailPreRegistration {
+  id: string
+  createdAt: string
+  campaignId: string
+  campaignName: string
+  campaignStatus: CampaignStatus
+  campaignStartTime: string
+  campaignEndTime: string
+}
+
+export interface AdminUserDetailTopCampaign {
+  campaignId: string
+  campaignName: string
+  merchantName: string
+  orderCount: number
+  totalSpend: number
+}
+
+export interface AdminUserDetail {
+  // Identity
+  id: string
+  email: string
+  fullName: string
+  role: UserRole
+  status: UserStatus
+  emailVerified: boolean
+  avatarUrl: string | null
+  lastLoginAt: string | null
+  createdAt: string
+
+  // Profile
+  phone: string | null
+  defaultAddress: string | null
+
+  // Telegram
+  telegramLinked: boolean
+  telegramUsername: string | null
+  telegramLinkedAt: string | null
+
+  // Notification preferences
+  notificationsEnabled: boolean
+  telegramEnabled: boolean
+  campaignReminderEnabled: boolean
+  orderStatusEnabled: boolean
+
+  // Purchase stats
+  totalOrders: number
+  completedOrders: number
+  cancelledOrders: number
+  totalSpend: number
+  avgOrderValue: number
+  firstOrderAt: string | null
+  lastOrderAt: string | null
+  purchasesLast30Days: number
+  purchasesLast90Days: number
+  unreadNotifications: number
+
+  // Order breakdown
+  ordersPending: number
+  ordersConfirmed: number
+  ordersShipping: number
+  ordersDone: number
+  ordersCancelled: number
+
+  // Collections
+  recentOrders: AdminUserDetailRecentOrder[]
+  preRegistrations: AdminUserDetailPreRegistration[]
+  topCampaigns: AdminUserDetailTopCampaign[]
+}

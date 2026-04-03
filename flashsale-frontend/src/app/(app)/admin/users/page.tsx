@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { Users, AlertCircle, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminUsers } from '@/hooks/queries/useAdminUsers'
@@ -135,12 +136,12 @@ export default function AdminUsersPage() {
                   <tr key={user.id} className="border-b border-white/5 hover:bg-white/3 transition-colors">
                     <td className="px-4 py-3"><input type="checkbox" checked={selected.has(user.id)} onChange={() => toggleSelect(user.id)} className="accent-red-500" /></td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
+                      <Link href={`/admin/users/${user.id}`} className="flex items-center gap-3 group">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>
                           {user.fullName[0]}
                         </div>
-                        <span className="text-white text-sm font-medium">{user.fullName}</span>
-                      </div>
+                        <span className="text-white text-sm font-medium group-hover:text-indigo-300 transition-colors">{user.fullName}</span>
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-white/60 text-sm">{user.email}</td>
                     <td className="px-4 py-3">
@@ -148,12 +149,20 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="px-4 py-3 text-white/40 text-xs">{formatDate(user.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => setConfirmAction({ id: user.id, action: 'suspend' })}
-                        className="text-xs px-3 py-1.5 rounded-xl bg-orange-500/15 text-orange-300 border border-orange-500/20 hover:bg-orange-500/25 transition-all"
-                      >
-                        Đình chỉ
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/admin/users/${user.id}`}
+                          className="text-xs px-3 py-1.5 rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 transition-all"
+                        >
+                          Chi tiết
+                        </Link>
+                        <button
+                          onClick={() => setConfirmAction({ id: user.id, action: 'suspend' })}
+                          className="text-xs px-3 py-1.5 rounded-xl bg-orange-500/15 text-orange-300 border border-orange-500/20 hover:bg-orange-500/25 transition-all"
+                        >
+                          Đình chỉ
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -218,6 +218,151 @@ export class AdminService {
     return this.adminRepository.updateUserStatus(userId, UserStatus.ACTIVE)
   }
 
+  async getUserDetail(userId: string) {
+    const raw = await this.adminRepository.getUserDetail(userId)
+
+    if (!raw.user) throw new NotFoundException('Người dùng không tồn tại')
+
+    const {
+      user,
+      recentOrders,
+      orderStatusCounts,
+      allOrdersAgg,
+      completedOrdersAgg,
+      orders30d,
+      orders90d,
+      preRegistrations
+    } = raw
+
+    // Map order status counts to lookup object
+    const statusMap: Record<string, number> = {}
+    for (const s of orderStatusCounts) {
+      statusMap[s.status] = s._count.id
+    }
+
+    // Derive top campaigns from recent orders (group in application layer)
+    const campaignMap = new Map<
+      string,
+      {
+        campaignName: string
+        merchantName: string
+        orderCount: number
+        totalSpend: number
+      }
+    >()
+    for (const order of recentOrders) {
+      const campaign = order.reservation?.campaignProduct?.campaign
+      if (!campaign) continue
+      const existing = campaignMap.get(campaign.id)
+      if (existing) {
+        existing.orderCount++
+        existing.totalSpend += Number(order.totalAmount)
+      } else {
+        campaignMap.set(campaign.id, {
+          campaignName: campaign.name,
+          merchantName: order.merchant.businessName,
+          orderCount: 1,
+          totalSpend: Number(order.totalAmount)
+        })
+      }
+    }
+
+    const totalSpend = Number(completedOrdersAgg._sum.totalAmount ?? 0)
+    const completedOrders = completedOrdersAgg._count.id
+    const avgOrderValue =
+      completedOrders > 0 ? Math.round(totalSpend / completedOrders) : 0
+
+    const telegramActive =
+      !!user.telegramLink && user.telegramLink.revokedAt === null
+
+    return {
+      // Identity
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      status: user.status,
+      emailVerified: user.emailVerified ?? false,
+      avatarUrl: user.photo?.url ?? null,
+      lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+      createdAt: user.createdAt.toISOString(),
+
+      // Profile
+      phone: user.customerProfile?.phone ?? null,
+      defaultAddress: user.customerProfile?.defaultAddress ?? null,
+
+      // Telegram
+      telegramLinked: telegramActive,
+      telegramUsername: telegramActive
+        ? user.telegramLink?.telegramUsername ?? null
+        : null,
+      telegramLinkedAt: telegramActive
+        ? user.telegramLink?.linkedAt?.toISOString() ?? null
+        : null,
+
+      // Notification preferences
+      notificationsEnabled:
+        user.notificationPreference?.notificationsEnabled ?? true,
+      telegramEnabled: user.notificationPreference?.telegramEnabled ?? false,
+      campaignReminderEnabled:
+        user.notificationPreference?.campaignReminderEnabled ?? true,
+      orderStatusEnabled:
+        user.notificationPreference?.orderStatusEnabled ?? true,
+
+      // Purchase stats
+      totalOrders: allOrdersAgg._count.id,
+      completedOrders,
+      cancelledOrders: statusMap['CANCELLED'] ?? 0,
+      totalSpend,
+      avgOrderValue,
+      firstOrderAt: allOrdersAgg._min.createdAt?.toISOString() ?? null,
+      lastOrderAt: allOrdersAgg._max.createdAt?.toISOString() ?? null,
+      purchasesLast30Days: orders30d,
+      purchasesLast90Days: orders90d,
+      unreadNotifications: user._count.notifications,
+
+      // Order breakdown by status
+      ordersPending: statusMap['PENDING'] ?? 0,
+      ordersConfirmed: statusMap['CONFIRMED'] ?? 0,
+      ordersShipping: statusMap['SHIPPING'] ?? 0,
+      ordersDone: statusMap['DONE'] ?? 0,
+      ordersCancelled: statusMap['CANCELLED'] ?? 0,
+
+      // Recent orders
+      recentOrders: recentOrders.map(o => ({
+        id: o.id,
+        status: o.status,
+        totalAmount: Number(o.totalAmount),
+        shippingAddress: o.shippingAddress,
+        createdAt: o.createdAt.toISOString(),
+        campaignId: o.reservation?.campaignProduct?.campaign?.id ?? null,
+        campaignName: o.reservation?.campaignProduct?.campaign?.name ?? null,
+        campaignStatus:
+          o.reservation?.campaignProduct?.campaign?.status ?? null,
+        itemCount: o._count.items,
+        paymentStatus: o.payment?.status ?? null,
+        merchantName: o.merchant.businessName
+      })),
+
+      // Pre-registrations
+      preRegistrations: preRegistrations.map(p => ({
+        id: p.id,
+        createdAt: p.registeredAt.toISOString(),
+        campaignId: p.campaign.id,
+        campaignName: p.campaign.name,
+        campaignStatus: p.campaign.status,
+        campaignStartTime: p.campaign.startTime.toISOString(),
+        campaignEndTime: p.campaign.endTime.toISOString()
+      })),
+
+      // Top campaigns sorted by order count
+      topCampaigns: Array.from(campaignMap.entries())
+        .map(([id, data]) => ({ campaignId: id, ...data }))
+        .sort((a, b) => b.orderCount - a.orderCount)
+        .slice(0, 5)
+    }
+  }
+
   // ─── Statistics ─────────────────────────────────────────────────────
 
   async getStats() {

@@ -340,3 +340,171 @@ export class CampaignMonitorTimelineItemDto {
   @ApiProperty({ example: 19 }) successfulPayments: number
   @ApiProperty({ example: 45.23 }) successRatePct: number
 }
+
+// ─── Admin User Detail ──────────────────────────────────────────────────────
+
+export class AdminUserDetailRecentOrderDto {
+  @ApiProperty({ example: 'order_id' }) id: string
+  @ApiProperty({ example: 'DONE' }) status: string
+  @ApiProperty({ example: 250000 }) totalAmount: number
+  @ApiProperty({ example: 'campaign_id', required: false, nullable: true })
+  campaignId: string | null
+  @ApiProperty({
+    example: 'Flash Sale Điện Tử',
+    required: false,
+    nullable: true
+  })
+  campaignName: string | null
+  @ApiProperty({ example: 'ACTIVE', required: false, nullable: true })
+  campaignStatus: string | null
+  @ApiProperty({ example: 2 }) itemCount: number
+  @ApiProperty({ example: 'SUCCESS', required: false, nullable: true })
+  paymentStatus: string | null
+  @ApiProperty({ example: 'Cửa hàng ABC' }) merchantName: string
+  @ApiProperty({ example: '2026-03-15T10:30:00.000Z' }) createdAt: string
+}
+
+export class AdminUserDetailPreRegistrationDto {
+  @ApiProperty({ example: 'pre_id' }) id: string
+  @ApiProperty({ example: '2026-03-10T08:00:00.000Z' }) createdAt: string
+  @ApiProperty({ example: 'campaign_id' }) campaignId: string
+  @ApiProperty({ example: 'Flash Sale Mùa Hè' }) campaignName: string
+  @ApiProperty({ example: 'SCHEDULED' }) campaignStatus: string
+  @ApiProperty({ example: '2026-04-01T08:00:00.000Z' })
+  campaignStartTime: string
+  @ApiProperty({ example: '2026-04-01T10:00:00.000Z' }) campaignEndTime: string
+}
+
+export class AdminUserDetailTopCampaignDto {
+  @ApiProperty({ example: 'campaign_id' }) campaignId: string
+  @ApiProperty({ example: 'Flash Sale Điện Tử' }) campaignName: string
+  @ApiProperty({ example: 'Cửa hàng ABC' }) merchantName: string
+  @ApiProperty({ example: 3 }) orderCount: number
+  @ApiProperty({ example: 750000 }) totalSpend: number
+}
+
+export class AdminUserDetailResponseDto {
+  @ApiProperty({ example: 'user_id', description: 'ID người dùng' })
+  id: string
+
+  @ApiProperty({ example: 'user@example.com' }) email: string
+  @ApiProperty({ example: 'Nguyễn Văn An' }) fullName: string
+  @ApiProperty({ example: 'CUSTOMER' }) role: string
+  @ApiProperty({ example: 'ACTIVE' }) status: string
+  @ApiProperty({ example: true }) emailVerified: boolean
+
+  @ApiProperty({
+    example: 'https://cdn.example.com/avatar.jpg',
+    required: false,
+    nullable: true
+  })
+  avatarUrl: string | null
+
+  @ApiProperty({
+    example: '2026-03-01T08:00:00.000Z',
+    required: false,
+    nullable: true,
+    description: 'Lần đăng nhập gần nhất'
+  })
+  lastLoginAt: string | null
+
+  @ApiProperty({ example: '2026-01-15T10:00:00.000Z' }) createdAt: string
+
+  // ─── Profile ─────────────────────────────────────────────────────────────
+  @ApiProperty({ example: '0901234567', required: false, nullable: true })
+  phone: string | null
+
+  @ApiProperty({
+    example: '123 Đường Lê Lợi, Q.1, TP.HCM',
+    required: false,
+    nullable: true
+  })
+  defaultAddress: string | null
+
+  // ─── Telegram ────────────────────────────────────────────────────────────
+  @ApiProperty({ example: true }) telegramLinked: boolean
+
+  @ApiProperty({
+    example: 'user_telegram',
+    required: false,
+    nullable: true
+  })
+  telegramUsername: string | null
+
+  @ApiProperty({
+    example: '2026-02-01T09:00:00.000Z',
+    required: false,
+    nullable: true
+  })
+  telegramLinkedAt: string | null
+
+  // ─── Notification preferences ─────────────────────────────────────────────
+  @ApiProperty({ example: true }) notificationsEnabled: boolean
+  @ApiProperty({ example: false }) telegramEnabled: boolean
+  @ApiProperty({ example: true }) campaignReminderEnabled: boolean
+  @ApiProperty({ example: true }) orderStatusEnabled: boolean
+
+  // ─── Purchase stats ───────────────────────────────────────────────────────
+  @ApiProperty({ example: 12, description: 'Tổng số đơn hàng' })
+  totalOrders: number
+
+  @ApiProperty({ example: 10, description: 'Đơn hàng hoàn thành (DONE)' })
+  completedOrders: number
+
+  @ApiProperty({ example: 1, description: 'Đơn hàng đã hủy' })
+  cancelledOrders: number
+
+  @ApiProperty({
+    example: 2500000,
+    description: 'Tổng chi tiêu (VND, chỉ đơn DONE)'
+  })
+  totalSpend: number
+
+  @ApiProperty({
+    example: 250000,
+    description: 'Giá trị trung bình mỗi đơn (đơn DONE)'
+  })
+  avgOrderValue: number
+
+  @ApiProperty({
+    example: '2026-01-20T10:00:00.000Z',
+    required: false,
+    nullable: true,
+    description: 'Ngày mua hàng đầu tiên'
+  })
+  firstOrderAt: string | null
+
+  @ApiProperty({
+    example: '2026-03-28T14:00:00.000Z',
+    required: false,
+    nullable: true,
+    description: 'Ngày mua hàng gần nhất'
+  })
+  lastOrderAt: string | null
+
+  @ApiProperty({ example: 3, description: 'Số đơn trong 30 ngày qua' })
+  purchasesLast30Days: number
+
+  @ApiProperty({ example: 8, description: 'Số đơn trong 90 ngày qua' })
+  purchasesLast90Days: number
+
+  @ApiProperty({ example: 2, description: 'Số thông báo chưa đọc' })
+  unreadNotifications: number
+
+  // ─── Order status breakdown ───────────────────────────────────────────────
+  @ApiProperty({ example: 0 }) ordersPending: number
+  @ApiProperty({ example: 1 }) ordersConfirmed: number
+  @ApiProperty({ example: 1 }) ordersShipping: number
+  @ApiProperty({ example: 10 }) ordersDone: number
+  @ApiProperty({ example: 1 }) ordersCancelled: number
+
+  // ─── Collections ──────────────────────────────────────────────────────────
+  @ApiProperty({ type: [AdminUserDetailRecentOrderDto] })
+  recentOrders: AdminUserDetailRecentOrderDto[]
+
+  @ApiProperty({ type: [AdminUserDetailPreRegistrationDto] })
+  preRegistrations: AdminUserDetailPreRegistrationDto[]
+
+  @ApiProperty({ type: [AdminUserDetailTopCampaignDto] })
+  topCampaigns: AdminUserDetailTopCampaignDto[]
+}

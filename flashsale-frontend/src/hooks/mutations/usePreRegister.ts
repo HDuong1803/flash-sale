@@ -1,14 +1,18 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { campaignService } from '@/services/campaign.service'
+import { queryKeys } from '@/lib/query-keys'
 
 export function usePreRegister() {
   const [loading, setLoading] = useState(false)
+  const queryClient = useQueryClient()
 
   const preRegister = async (campaignId: string) => {
     setLoading(true)
     try {
       const result = await campaignService.preRegister(campaignId)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       toast.success('Đăng ký thành công!')
       return result
     } catch (err) {
