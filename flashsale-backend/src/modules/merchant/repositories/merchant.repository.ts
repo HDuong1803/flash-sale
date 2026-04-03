@@ -20,7 +20,16 @@ export class MerchantRepository {
 
   async findMyCampaigns(userId: string) {
     const raws = await this.prisma.campaign.findMany({
-      where: { merchant: { userId } },
+      where: {
+        merchant: { userId },
+        deletedAt: null,
+        NOT: {
+          AND: [
+            { status: CampaignStatus.ENDED },
+            { merchantHiddenAt: { not: null } }
+          ]
+        }
+      },
       include: {
         campaignProducts: {
           include: {

@@ -33,6 +33,7 @@ import {
   AdminUserQueryDto,
   DlqJobResponseDto,
   ForceRescheduleDto,
+  MerchantOverviewQueryDto,
   OrdersByHourItemDto,
   OrdersByTimeQueryDto,
   QueueStatsResponseDto,
@@ -149,6 +150,28 @@ export class AdminController {
   @HttpCode(HttpStatus.OK)
   async rejectCampaign(@Param('id') id: string): Promise<unknown> {
     return this.adminService.rejectCampaign(id)
+  }
+
+  @ApiOperation({ summary: 'Xóa mềm chiến dịch đã kết thúc (ENDED)' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Xóa thành công campaign đã kết thúc'
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Chỉ xóa được campaign ở trạng thái ENDED'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Chiến dịch không tồn tại'
+  })
+  @Delete('campaigns/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteExpiredCampaign(
+    @Param('id') id: string
+  ): Promise<{ deleted: boolean }> {
+    return this.adminService.deleteExpiredCampaign(id)
   }
 
   @ApiOperation({
@@ -537,6 +560,25 @@ export class AdminController {
     @Query('status') status?: string
   ): Promise<unknown[]> {
     return this.adminService.getMerchants(status as KycStatus | undefined)
+  }
+
+  @ApiOperation({ summary: 'Lấy thống kê chi tiết 1 merchant (admin)' })
+  @ApiParam({ name: 'id', description: 'Merchant profile ID' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Thông tin chi tiết merchant, KPI, campaign, đơn hàng'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Merchant không tồn tại'
+  })
+  @Get('merchant-profiles/:id/overview')
+  @HttpCode(HttpStatus.OK)
+  async getMerchantOverview(
+    @Param('id') merchantId: string,
+    @Query() query: MerchantOverviewQueryDto
+  ): Promise<unknown> {
+    return this.adminService.getMerchantOverview(merchantId, query.days)
   }
 
   // ─── Notifications (admin) ───────────────────────────────────────────

@@ -180,6 +180,7 @@ model Campaign {
   approvedAt      DateTime?      @map("approved_at") @db.Timestamp(6) // Thời điểm được admin duyệt
   approvedBy      String?        @map("approved_by") @db.VarChar(36) // ID của admin đã duyệt (audit trail)
   deletedAt       DateTime?      @map("deleted_at") @db.Timestamp(6) // Soft delete — admin xóa campaign vi phạm
+  merchantHiddenAt DateTime?     @map("merchant_hidden_at") @db.Timestamp(6) // Merchant tự ẩn campaign đã hết hạn khỏi danh sách của mình
   createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamp(6)
 

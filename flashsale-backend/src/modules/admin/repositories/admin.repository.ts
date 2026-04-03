@@ -49,11 +49,282 @@ export class AdminRepository {
     })
   }
 
+  async getMerchantOverview(merchantId: string, days: number) {
+    const merchant = await this.prisma.merchantProfile.findUnique({
+      where: { id: merchantId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            status: true,
+            lastLoginAt: true,
+            createdAt: true,
+            updatedAt: true
+          }
+        }
+      }
+    })
+
+    if (!merchant) return null
+
+    const now = new Date()
+    const since = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+
+    const [
+      productsTotal,
+      activeProducts,
+      reservationsTotal,
+      ordersTotal,
+      ordersDone,
+      ordersCancelled,
+      revenueTotalAgg,
+      revenueInRangeAgg,
+      campaigns,
+      orderCampaignRows,
+      recentOrders,
+      topProductRows
+    ] = await Promise.all([
+      this.prisma.product.count({ where: { merchantId } }),
+      this.prisma.product.count({ where: { merchantId, deletedAt: null } }),
+      this.prisma.reservation.count({
+        where: { campaignProduct: { campaign: { merchantId } } }
+      }),
+      this.prisma.order.count({ where: { merchantId } }),
+      this.prisma.order.count({ where: { merchantId, status: OrderStatus.DONE } }),
+      this.prisma.order.count({
+        where: { merchantId, status: OrderStatus.CANCELLED }
+      }),
+      this.prisma.order.aggregate({
+        where: { merchantId, status: { not: OrderStatus.CANCELLED } },
+        _sum: { totalAmount: true }
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          merchantId,
+          status: { not: OrderStatus.CANCELLED },
+          createdAt: { gte: since }
+        },
+        _sum: { totalAmount: true }
+      }),
+      this.prisma.campaign.findMany({
+        where: { merchantId },
+        include: {
+          campaignProducts: {
+            select: { saleQuantity: true, remainingQuantity: true }
+          },
+          _count: { select: { campaignProducts: true, preRegistrations: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.order.findMany({
+        where: { merchantId },
+        select: {
+          status: true,
+          totalAmount: true,
+          reservation: {
+            select: {
+              campaignProduct: { select: { campaignId: true } }
+            }
+          }
+        }
+      }),
+      this.prisma.order.findMany({
+        where: { merchantId },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          status: true,
+          totalAmount: true,
+          shippingAddress: true,
+          createdAt: true,
+          customer: {
+            select: { id: true, fullName: true, email: true }
+          },
+          payment: {
+            select: { status: true, method: true, paidAt: true }
+          },
+          reservation: {
+            select: {
+              campaignProduct: {
+                select: {
+                  campaign: {
+                    select: { id: true, name: true, status: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }),
+      this.prisma.orderItem.findMany({
+        where: {
+          order: { merchantId, status: { not: OrderStatus.CANCELLED } }
+        },
+        select: {
+          productId: true,
+          quantity: true,
+          unitPrice: true,
+          product: { select: { name: true } }
+        }
+      })
+    ])
+
+    const campaignOrderMap = new Map<string, { orders: number; revenue: number }>()
+    for (const row of orderCampaignRows) {
+      const campaignId = row.reservation?.campaignProduct?.campaignId
+      if (!campaignId) continue
+
+      const existing = campaignOrderMap.get(campaignId) ?? { orders: 0, revenue: 0 }
+      existing.orders += 1
+      if (row.status !== OrderStatus.CANCELLED) {
+        existing.revenue += Number(row.totalAmount)
+      }
+      campaignOrderMap.set(campaignId, existing)
+    }
+
+    const campaignsByStatus: Record<CampaignStatus, number> = {
+      [CampaignStatus.DRAFT]: 0,
+      [CampaignStatus.APPROVED]: 0,
+      [CampaignStatus.SCHEDULED]: 0,
+      [CampaignStatus.ACTIVE]: 0,
+      [CampaignStatus.ENDED]: 0
+    }
+
+    for (const campaign of campaigns) {
+      campaignsByStatus[campaign.status] += 1
+    }
+
+    const campaignsDetailed = campaigns.map(campaign => {
+      const ordersSummary = campaignOrderMap.get(campaign.id)
+      const totalSaleQuantity = campaign.campaignProducts.reduce(
+        (sum, item) => sum + item.saleQuantity,
+        0
+      )
+      const totalRemainingQuantity = campaign.campaignProducts.reduce(
+        (sum, item) => sum + item.remainingQuantity,
+        0
+      )
+
+      return {
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status,
+        startTime: campaign.startTime,
+        endTime: campaign.endTime,
+        createdAt: campaign.createdAt,
+        updatedAt: campaign.updatedAt,
+        deletedAt: campaign.deletedAt,
+        merchantHiddenAt: campaign.merchantHiddenAt,
+        productsCount: campaign._count.campaignProducts,
+        preRegistrationsCount: campaign._count.preRegistrations,
+        totalSaleQuantity,
+        totalRemainingQuantity,
+        ordersCount: ordersSummary?.orders ?? 0,
+        revenue: ordersSummary?.revenue ?? 0
+      }
+    })
+
+    const topProductMap = new Map<
+      string,
+      { productName: string; quantity: number; revenue: number }
+    >()
+    for (const item of topProductRows) {
+      const existing = topProductMap.get(item.productId)
+      const revenue = Number(item.unitPrice) * item.quantity
+
+      if (existing) {
+        existing.quantity += item.quantity
+        existing.revenue += revenue
+      } else {
+        topProductMap.set(item.productId, {
+          productName: item.product.name,
+          quantity: item.quantity,
+          revenue
+        })
+      }
+    }
+
+    const topProducts = Array.from(topProductMap.entries())
+      .map(([productId, value]) => ({ productId, ...value }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10)
+
+    const revenueTotal = Number(revenueTotalAgg._sum.totalAmount ?? 0)
+    const revenueInRange = Number(revenueInRangeAgg._sum.totalAmount ?? 0)
+    const averageOrderValue =
+      ordersDone > 0 ? Math.round(revenueTotal / ordersDone) : 0
+    const conversionRatePct =
+      reservationsTotal > 0
+        ? Math.round((ordersDone / reservationsTotal) * 10000) / 100
+        : 0
+
+    return {
+      profile: {
+        id: merchant.id,
+        userId: merchant.userId,
+        businessName: merchant.businessName,
+        taxCode: merchant.taxCode,
+        description: merchant.description,
+        businessPhone: merchant.phone,
+        businessAddress: merchant.address,
+        businessEmail: merchant.user.email,
+        kycStatus: merchant.kycStatus,
+        rejectionReason: merchant.rejectionReason,
+        approvedAt: merchant.approvedAt,
+        approvedBy: merchant.approvedBy,
+        createdAt: merchant.createdAt,
+        updatedAt: merchant.updatedAt,
+        user: merchant.user
+      },
+      metrics: {
+        productsTotal,
+        activeProducts,
+        campaignsTotal: campaigns.length,
+        campaignsByStatus,
+        campaignsDeleted: campaigns.filter(c => c.deletedAt !== null).length,
+        campaignsHiddenByMerchant: campaigns.filter(
+          c => c.merchantHiddenAt !== null
+        ).length,
+        ordersTotal,
+        ordersDone,
+        ordersCancelled,
+        reservationsTotal,
+        conversionRatePct,
+        revenueTotal,
+        revenueInRange,
+        averageOrderValue
+      },
+      campaigns: campaignsDetailed,
+      recentOrders: recentOrders.map(order => ({
+        id: order.id,
+        status: order.status,
+        totalAmount: Number(order.totalAmount),
+        shippingAddress: order.shippingAddress,
+        createdAt: order.createdAt,
+        customer: order.customer,
+        payment: order.payment,
+        campaign: order.reservation?.campaignProduct?.campaign
+      })),
+      topProducts,
+      timeframe: {
+        days,
+        since,
+        until: now
+      }
+    }
+  }
+
   // ─── Campaigns ──────────────────────────────────────────────────────
 
   async findCampaigns(status?: CampaignStatus) {
     return this.prisma.campaign.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        deletedAt: null,
+        ...(status ? { status } : {})
+      },
       include: {
         merchant: { select: { businessName: true } },
         campaignProducts: {
@@ -69,6 +340,13 @@ export class AdminRepository {
     return this.prisma.campaign.update({
       where: { id },
       data: { status }
+    })
+  }
+
+  async softDeleteCampaign(id: string): Promise<void> {
+    await this.prisma.campaign.update({
+      where: { id },
+      data: { deletedAt: new Date() }
     })
   }
 
@@ -132,7 +410,9 @@ export class AdminRepository {
       this.prisma.merchantProfile.count({
         where: { kycStatus: KycStatus.APPROVED }
       }),
-      this.prisma.campaign.count({ where: { status: CampaignStatus.ACTIVE } }),
+      this.prisma.campaign.count({
+        where: { status: CampaignStatus.ACTIVE, deletedAt: null }
+      }),
       this.prisma.order.count({ where: { createdAt: { gte: todayStart } } }),
       this.prisma.order.aggregate({
         where: {

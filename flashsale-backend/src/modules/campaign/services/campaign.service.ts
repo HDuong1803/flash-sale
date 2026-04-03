@@ -220,6 +220,32 @@ export class CampaignService {
     return { deleted: true }
   }
 
+  async hideExpired(
+    userId: string,
+    id: string
+  ): Promise<{ hidden: boolean }> {
+    const merchant = await this.getApprovedMerchant(userId)
+    const campaign = await this.campaignRepository.findByIdAndMerchant(
+      id,
+      merchant.id
+    )
+    if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
+    if (campaign.status !== CampaignStatus.ENDED)
+      throw new BadRequestException(
+        'Chỉ có thể ẩn chiến dịch đã kết thúc (ENDED)'
+      )
+
+    const hidden = await this.campaignRepository.hideExpiredByMerchant(
+      id,
+      merchant.id
+    )
+
+    if (!hidden)
+      throw new BadRequestException('Chiến dịch đã được ẩn trước đó')
+
+    return { hidden: true }
+  }
+
   async submit(userId: string, id: string) {
     const merchant = await this.getApprovedMerchant(userId)
     const campaign =

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Store, AlertCircle, Loader2 } from 'lucide-react'
 import { useAdminMerchants } from '@/hooks/queries/useAdminMerchants'
 import { useApproveMerchant } from '@/hooks/mutations/useApproveMerchant'
@@ -90,12 +91,17 @@ export default function AdminMerchantsPage() {
                     <td className="px-4 py-3 text-white/50 text-xs">{formatDate(m.createdAt)}</td>
                     <td className="px-4 py-3"><StatusBadge status={m.kycStatus} /></td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      {m.kycStatus === 'PENDING' && (
-                        <div className="flex gap-2">
-                          <button onClick={() => setConfirmApprove(m.id)} className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all">Duyệt</button>
-                          <button onClick={() => { setSelectedMerchant(m); setShowRejectForm(true) }} className="text-xs px-3 py-1.5 rounded-xl bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 transition-all">Từ chối</button>
-                        </div>
-                      )}
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        <Link href={`/admin/merchant-profiles/${m.id}`} className="text-xs px-3 py-1.5 rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 transition-all">
+                          Xem merchant
+                        </Link>
+                        {m.kycStatus === 'PENDING' && (
+                          <>
+                            <button onClick={() => setConfirmApprove(m.id)} className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all">Duyệt</button>
+                            <button onClick={() => { setSelectedMerchant(m); setShowRejectForm(true) }} className="text-xs px-3 py-1.5 rounded-xl bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 transition-all">Từ chối</button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -64,6 +64,16 @@ export class AdminService {
     return this.adminRepository.rejectMerchant(merchantId, reason)
   }
 
+  async getMerchantOverview(merchantId: string, days?: number) {
+    const safeDays = days && days > 0 ? Math.min(days, 365) : 30
+    const overview = await this.adminRepository.getMerchantOverview(
+      merchantId,
+      safeDays
+    )
+    if (!overview) throw new NotFoundException('Merchant không tồn tại')
+    return overview
+  }
+
   // ─── Campaigns ──────────────────────────────────────────────────────
 
   async getCampaigns(status?: CampaignStatus) {
@@ -156,6 +166,24 @@ export class AdminService {
     )
 
     return { stopped: true }
+  }
+
+  async deleteExpiredCampaign(
+    campaignId: string
+  ): Promise<{ deleted: boolean }> {
+    const campaign = await this.campaignRepository.findById(campaignId)
+    if (!campaign) throw new NotFoundException('Chiến dịch không tồn tại')
+    if (campaign.status !== CampaignStatus.ENDED)
+      throw new BadRequestException(
+        'Chỉ có thể xóa chiến dịch đã kết thúc (ENDED)'
+      )
+
+    await this.adminRepository.softDeleteCampaign(campaignId)
+    this.logger.log(
+      `Campaign soft-deleted by admin: ${campaign.id} (${campaign.name})`
+    )
+
+    return { deleted: true }
   }
 
   async rejectCampaign(campaignId: string) {

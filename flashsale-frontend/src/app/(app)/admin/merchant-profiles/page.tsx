@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Building2, Search, Download, Eye, CheckCircle, XCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react'
 import { GlassCard } from '@/components/shared/GlassCard'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -17,9 +19,17 @@ import type { AdminMerchantProfile, KycStatus } from '@/types'
 export const dynamic = 'force-dynamic'
 
 export default function AdminMerchantProfilesPage() {
+  const searchParams = useSearchParams()
   const [statusFilter, setStatusFilter] = useState<KycStatus | 'ALL'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProfile, setSelectedProfile] = useState<AdminMerchantProfile | null>(null)
+
+  useEffect(() => {
+    const initialSearch = searchParams.get('search')
+    if (initialSearch) {
+      setSearchQuery(initialSearch)
+    }
+  }, [searchParams])
 
   const { data: profiles, loading, error, refetch } = useAdminMerchantProfiles(
     statusFilter === 'ALL' ? undefined : statusFilter
@@ -221,15 +231,13 @@ export default function AdminMerchantProfilesPage() {
                       <p className="text-white/40 text-xs">{new Date(profile.createdAt).toLocaleTimeString('vi-VN')}</p>
                     </td>
                     <td className="p-4 text-right">
-                      <Button
-                        onClick={() => setSelectedProfile(profile)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
+                      <Link
+                        href={`/admin/merchant-profiles/${profile.id}`}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors text-sm"
                       >
-                        <Eye size={16} className="mr-2" />
-                        Chi tiết
-                      </Button>
+                        <Eye size={16} />
+                        Xem thống kê
+                      </Link>
                     </td>
                   </tr>
                 ))}

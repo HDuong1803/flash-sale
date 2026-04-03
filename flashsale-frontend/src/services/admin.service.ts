@@ -6,6 +6,7 @@ import type {
   AdminMerchantProfile, UserActionLog, OutboxEvent, FinanceDashboardSummary,
   FinanceTrendItem, CommissionCategoryBreakdown, PaymentGatewayConfig, PaymentMethod,
   CampaignMonitorOverview, CampaignMonitorTimelineItem,
+  AdminMerchantOverview,
 } from '@/types'
 
 class AdminService {
@@ -32,6 +33,9 @@ class AdminService {
   }
   forceStopCampaign(id: string): Promise<{ stopped: boolean }> {
     return apiClient.post(`/admin/campaigns/${id}/force-stop`)
+  }
+  deleteExpiredCampaign(id: string): Promise<{ deleted: boolean }> {
+    return apiClient.delete(`/admin/campaigns/${id}`)
   }
   getUsers(filters?: { role?: UserRole; search?: string; page?: number; limit?: number }): Promise<User[]> {
     return withRetry(() => apiClient.get('/admin/users', { params: filters }))
@@ -77,6 +81,12 @@ class AdminService {
   
   getMerchantProfiles(status?: KycStatus): Promise<AdminMerchantProfile[]> {
     return withRetry(() => apiClient.get('/admin/merchant-profiles', { params: { status } }))
+  }
+
+  getMerchantOverview(id: string, days = 30): Promise<AdminMerchantOverview> {
+    return withRetry(() =>
+      apiClient.get(`/admin/merchant-profiles/${id}/overview`, { params: { days } })
+    )
   }
   
   getUserActionLogs(): Promise<UserActionLog[]> {

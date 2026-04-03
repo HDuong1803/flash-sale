@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Activity, Gauge, MousePointerClick, ShoppingCart, Timer, Users } from 'lucide-react'
 import {
   Area,
@@ -50,10 +51,22 @@ function KpiCard({
 }
 
 export default function AdminCampaignMonitorPage() {
+  const searchParams = useSearchParams()
   const [campaignId, setCampaignId] = useState<string>('')
   const [minutes, setMinutes] = useState<number>(60)
 
   const { data: campaigns } = useAdminCampaigns(undefined, true)
+
+  useEffect(() => {
+    const campaignIdFromUrl = searchParams.get('campaignId')
+    if (!campaignIdFromUrl) return
+
+    const exists = campaigns.some((campaign) => campaign.id === campaignIdFromUrl)
+    if (exists) {
+      setCampaignId(campaignIdFromUrl)
+    }
+  }, [campaigns, searchParams])
+
   const params = useMemo(
     () => ({
       campaignId: campaignId || undefined,

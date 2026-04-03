@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { CampaignCardSkeleton } from '@/components/shared/skeletons/CampaignCardSkeleton'
 import { useDeleteCampaign } from '@/hooks/mutations/useDeleteCampaign'
+import { useHideExpiredCampaign } from '@/hooks/mutations/useHideExpiredCampaign'
 import { formatDate } from '@/lib/utils'
 import type { CampaignStatus } from '@/types'
 
@@ -27,8 +28,10 @@ export default function MerchantCampaignsPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<CampaignStatus | 'ALL'>('ALL')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [hideExpiredId, setHideExpiredId] = useState<string | null>(null)
   const { data: campaigns, loading, error, refetch } = useMyCampaigns()
   const { mutate: deleteCampaign, loading: deleting } = useDeleteCampaign()
+  const { hideExpired, loading: hidingExpired } = useHideExpiredCampaign()
 
   const filtered = activeTab === 'ALL' ? campaigns : campaigns.filter((c) => c.status === activeTab)
 
@@ -39,6 +42,13 @@ export default function MerchantCampaignsPage() {
         <Link href="/merchant/campaigns/create" className="btn-primary flex items-center gap-2 text-sm">
           <Plus size={16} /> Tạo chiến dịch mới
         </Link>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Link href="/merchant/dashboard" className="btn-glass text-xs px-3 py-1.5">Dashboard shop</Link>
+        <Link href="/merchant/orders" className="btn-glass text-xs px-3 py-1.5">Đơn hàng nhận</Link>
+        <Link href="/merchant/revenue" className="btn-glass text-xs px-3 py-1.5">Doanh thu</Link>
+        <Link href="/merchant/campaigns/create" className="btn-glass text-xs px-3 py-1.5">Tạo campaign</Link>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
@@ -113,7 +123,15 @@ export default function MerchantCampaignsPage() {
                     </>
                   )}
                   {campaign.status === 'ENDED' && (
-                    <Link href={`/merchant/campaigns/${campaign.id}/dashboard`} className="btn-glass text-xs px-3 py-1.5">Xem báo cáo</Link>
+                    <>
+                      <Link href={`/merchant/campaigns/${campaign.id}/dashboard`} className="btn-glass text-xs px-3 py-1.5">Xem báo cáo</Link>
+                      <button
+                        onClick={() => setHideExpiredId(campaign.id)}
+                        className="text-amber-300 hover:text-amber-200 text-xs px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                      >
+                        Ẩn khỏi danh sách hết hạn
+                      </button>
+                    </>
                   )}
                   {campaign.status === 'SCHEDULED' && (
                     <Link href={`/merchant/campaigns/${campaign.id}/dashboard`} className="btn-glass text-xs px-3 py-1.5">Xem chi tiết</Link>
@@ -135,6 +153,26 @@ export default function MerchantCampaignsPage() {
         onConfirm={async () => { if (deleteId) { try { await deleteCampaign(deleteId) } finally { setDeleteId(null); refetch() } } }}
         onCancel={() => setDeleteId(null)}
         loading={deleting}
+      />
+
+      <ConfirmDialog
+        open={!!hideExpiredId}
+        title="Ẩn chiến dịch đã hết hạn?"
+        description="Campaign ENDED sẽ bị ẩn khỏi danh sách chiến dịch hết hạn của shop."
+        confirmLabel="Ẩn campaign"
+        cancelLabel="Hủy"
+        onConfirm={async () => {
+          if (hideExpiredId) {
+            try {
+              await hideExpired(hideExpiredId)
+            } finally {
+              setHideExpiredId(null)
+              refetch()
+            }
+          }
+        }}
+        onCancel={() => setHideExpiredId(null)}
+        loading={hidingExpired}
       />
     </div>
   )

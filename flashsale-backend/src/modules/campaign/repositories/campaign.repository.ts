@@ -54,14 +54,14 @@ export class CampaignRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<Campaign | null> {
-    return this.prisma.campaign.findUnique({ where: { id } })
+    return this.prisma.campaign.findFirst({ where: { id, deletedAt: null } })
   }
 
   async findByIdForActivation(
     id: string
   ): Promise<CampaignForActivation | null> {
-    return this.prisma.campaign.findUnique({
-      where: { id },
+    return this.prisma.campaign.findFirst({
+      where: { id, deletedAt: null },
       include: {
         campaignProducts: { select: { id: true, saleQuantity: true } },
         preRegistrations: { select: { customerId: true } }
@@ -73,8 +73,8 @@ export class CampaignRepository {
     id: string,
     userId?: string
   ): Promise<CampaignWithProducts | null> {
-    const raw = await this.prisma.campaign.findUnique({
-      where: { id },
+    const raw = await this.prisma.campaign.findFirst({
+      where: { id, deletedAt: null },
       include: {
         campaignProducts: {
           include: {
@@ -115,7 +115,9 @@ export class CampaignRepository {
     id: string,
     merchantId: string
   ): Promise<Campaign | null> {
-    return this.prisma.campaign.findFirst({ where: { id, merchantId } })
+    return this.prisma.campaign.findFirst({
+      where: { id, merchantId, deletedAt: null }
+    })
   }
 
   async findByIdAndMerchantWithProducts(
@@ -123,7 +125,7 @@ export class CampaignRepository {
     merchantId: string
   ): Promise<(Campaign & { campaignProducts: CampaignProduct[] }) | null> {
     return this.prisma.campaign.findFirst({
-      where: { id, merchantId },
+      where: { id, merchantId, deletedAt: null },
       include: { campaignProducts: true }
     })
   }
@@ -138,6 +140,7 @@ export class CampaignRepository {
   }): Promise<CampaignWithProducts[]> {
     const raws = await this.prisma.campaign.findMany({
       where: {
+        deletedAt: null,
         ...(filters.statuses
           ? { status: { in: filters.statuses } }
           : filters.status
@@ -239,6 +242,24 @@ export class CampaignRepository {
 
   async delete(id: string): Promise<void> {
     await this.prisma.campaign.delete({ where: { id } })
+  }
+
+  async hideExpiredByMerchant(
+    id: string,
+    merchantId: string
+  ): Promise<boolean> {
+    const result = await this.prisma.campaign.updateMany({
+      where: {
+        id,
+        merchantId,
+        status: CampaignStatus.ENDED,
+        deletedAt: null,
+        merchantHiddenAt: null
+      },
+      data: { merchantHiddenAt: new Date() }
+    })
+
+    return result.count > 0
   }
 
   async upsertPreRegistration(

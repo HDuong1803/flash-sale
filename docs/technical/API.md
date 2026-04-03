@@ -4,7 +4,7 @@
 **Base URL**: `http://localhost:3000/api/v1` (default local backend)
 **Authentication**: Bearer token (JWT)
 **Content-Type**: `application/json`
-**Last updated**: 2026-03-28
+**Last updated**: 2026-04-03
 
 ---
 
@@ -180,8 +180,107 @@ Get the authenticated user's profile.
 
 ---
 
+### Campaigns
+
+#### PATCH /api/v1/campaigns/:id/hide-expired
+
+Merchant ẩn chiến dịch đã kết thúc khỏi danh sách chiến dịch của chính merchant đó.
+
+**Auth required**: Yes (`MERCHANT`)
+
+**Response** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "hidden": true
+  }
+}
+```
+
+**Rules**:
+- Chỉ áp dụng với campaign thuộc merchant hiện tại.
+- Chỉ áp dụng khi campaign đang ở trạng thái `ENDED`.
+
+**Errors**: `400 BAD_REQUEST`, `403 FORBIDDEN`, `404 NOT_FOUND`
+
+---
+
+### Admin
+
+#### DELETE /api/v1/admin/campaigns/:id
+
+Admin xóa mềm campaign đã kết thúc khỏi danh sách quản trị.
+
+**Auth required**: Yes (`ADMIN`)
+
+**Response** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "deleted": true
+  }
+}
+```
+
+**Rules**:
+- Chỉ xóa được campaign ở trạng thái `ENDED`.
+- Thao tác là soft-delete bằng trường `deleted_at`.
+
+**Errors**: `400 BAD_REQUEST`, `403 FORBIDDEN`, `404 NOT_FOUND`
+
+---
+
+#### GET /api/v1/admin/merchant-profiles/:id/overview?days=30
+
+Admin xem dashboard chi tiết của một merchant theo merchant key (`id`).
+
+**Auth required**: Yes (`ADMIN`)
+
+**Query params**:
+- `days` (optional, default `30`, range `1..365`): số ngày dùng để tính doanh thu theo cửa sổ thời gian.
+
+**Response** `200`:
+```json
+{
+  "success": true,
+  "data": {
+    "profile": {
+      "id": "merchant_id",
+      "businessName": "Shop ABC",
+      "taxCode": "0123456789",
+      "businessEmail": "owner@example.com",
+      "kycStatus": "APPROVED"
+    },
+    "metrics": {
+      "revenueTotal": 128000000,
+      "revenueInRange": 21500000,
+      "ordersTotal": 540,
+      "ordersDone": 501,
+      "ordersCancelled": 39,
+      "campaignsTotal": 18
+    },
+    "campaigns": [],
+    "recentOrders": [],
+    "topProducts": [],
+    "timeframe": {
+      "days": 30,
+      "since": "2026-03-04T00:00:00.000Z",
+      "until": "2026-04-03T00:00:00.000Z"
+    }
+  }
+}
+```
+
+**Errors**: `403 FORBIDDEN`, `404 NOT_FOUND`
+
+---
+
 ## Changelog
 
 | Date | Version | Change |
 |------|---------|--------|
+| 2026-04-03 | 1.2.0 | Add `GET /admin/merchant-profiles/:id/overview` for detailed merchant analytics |
+| 2026-04-03 | 1.1.0 | Add `PATCH /campaigns/:id/hide-expired` and `DELETE /admin/campaigns/:id` |
 | [YYYY-MM-DD] | 1.0.0 | Initial API |

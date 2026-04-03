@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Zap, AlertCircle, Loader2, X, Calendar, Package } from 'lucide-react'
 import { useAdminCampaigns } from '@/hooks/queries/useAdminCampaigns'
 import { useApproveCampaign } from '@/hooks/mutations/useApproveCampaign'
 import { useRejectCampaign } from '@/hooks/mutations/useRejectCampaign'
 import { useForceStartCampaign } from '@/hooks/mutations/useForceStartCampaign'
 import { useForceStopCampaign } from '@/hooks/mutations/useForceStopCampaign'
+import { useDeleteExpiredCampaign } from '@/hooks/mutations/useDeleteExpiredCampaign'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -22,19 +25,45 @@ const TABS: { label: string; value: CampaignStatus }[] = [
 ]
 
 export default function AdminCampaignsPage() {
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<CampaignStatus>('APPROVED')
+  const [search, setSearch] = useState('')
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectForm, setShowRejectForm] = useState(false)
   const [confirmApprove, setConfirmApprove] = useState<string | null>(null)
   const [confirmForceStart, setConfirmForceStart] = useState<string | null>(null)
   const [confirmForceStop, setConfirmForceStop] = useState<string | null>(null)
+  const [confirmDeleteExpired, setConfirmDeleteExpired] = useState<string | null>(null)
 
   const { data: campaigns, loading, error, refetch } = useAdminCampaigns(activeTab)
   const { approve, loading: approving } = useApproveCampaign()
   const { reject, loading: rejecting } = useRejectCampaign()
   const { forceStart, loading: forceStarting } = useForceStartCampaign()
   const { forceStop, loading: forceStoping } = useForceStopCampaign()
+  const { deleteExpired, loading: deletingExpired } = useDeleteExpiredCampaign()
+
+  useEffect(() => {
+    const searchFromUrl = searchParams.get('search')
+    if (searchFromUrl) {
+      setSearch(searchFromUrl)
+    }
+  }, [searchParams])
+
+  const filteredCampaigns = useMemo(() => {
+    const keyword = search.trim().toLowerCase()
+    if (!keyword) return campaigns
+    return campaigns.filter((campaign) => {
+      const name = campaign.name?.toLowerCase() ?? ''
+      const merchantName = campaign.merchant?.businessName?.toLowerCase() ?? ''
+      const merchantId = campaign.merchantId?.toLowerCase() ?? ''
+      return (
+        name.includes(keyword) ||
+        merchantName.includes(keyword) ||
+        merchantId.includes(keyword)
+      )
+    })
+  }, [campaigns, search])
 
   const closeDetail = () => {
     setSelectedCampaign(null)
@@ -59,9 +88,24 @@ export default function AdminCampaignsPage() {
     try { await forceStop(id); refetch(); closeDetail(); setConfirmForceStop(null) } catch {}
   }
 
+  const handleDeleteExpired = async (id: string) => {
+    try {
+      await deleteExpired(id)
+      refetch()
+      if (selectedCampaign?.id === id) closeDetail()
+      setConfirmDeleteExpired(null)
+    } catch {}
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <h1 className="text-white text-2xl font-bold">Quản lý Chiến dịch</h1>
+
+      <div className="flex flex-wrap gap-2">
+        <Link href="/admin/campaign-monitor" className="btn-glass text-xs px-3 py-1.5">Giám sát chiến dịch</Link>
+        <Link href="/admin/merchant-profiles" className="btn-glass text-xs px-3 py-1.5">Hồ sơ nhà bán hàng</Link>
+        <Link href="/admin/merchants" className="btn-glass text-xs px-3 py-1.5">KYC nhà bán hàng</Link>
+      </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map((tab) => (
@@ -74,6 +118,15 @@ export default function AdminCampaignsPage() {
         ))}
       </div>
 
+      <div className="glass rounded-2xl p-3">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Tìm theo tên chiến dịch, tên merchant hoặc key merchant (merchantId)..."
+          className="input-glass w-full"
+        />
+      </div>
+
       {loading ? (
         <div className="glass rounded-2xl overflow-hidden animate-pulse p-4 space-y-3">
           {Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-white/8 h-12 rounded-xl" />)}
@@ -84,7 +137,7 @@ export default function AdminCampaignsPage() {
           <p className="text-white/60 text-sm mb-4">{error}</p>
           <button onClick={refetch} className="btn-glass text-sm px-4 py-2">Thử lại</button>
         </div>
-      ) : campaigns.length === 0 ? (
+      ) : filteredCampaigns.length === 0 ? (
         <EmptyState icon={Zap} title="Không có chiến dịch nào" description="Không có chiến dịch trong danh mục này" />
       ) : (
         <div className="glass rounded-2xl overflow-hidden">
@@ -98,13 +151,22 @@ export default function AdminCampaignsPage() {
                 </tr>
               </thead>
               <tbody>
-                {campaigns.map((c) => (
+                {filteredCampaigns.map((c) => (
                   <tr key={c.id} onClick={() => setSelectedCampaign(c)}
                     className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors">
                     <td className="px-4 py-3 text-white font-medium text-sm max-w-[200px]">
                       <p className="line-clamp-1">{c.name}</p>
                     </td>
-                    <td className="px-4 py-3 text-white/60 text-sm">{c.merchant?.businessName}</td>
+                    <td className="px-4 py-3 text-white/60 text-sm">
+                      <Link
+                        href={`/admin/merchant-profiles/${c.merchantId}`}
+                        className="text-indigo-300 hover:text-indigo-200 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {c.merchant?.businessName}
+                      </Link>
+                      <p className="text-[10px] text-white/35 mt-0.5">Key: {c.merchantId}</p>
+                    </td>
                     <td className="px-4 py-3 text-white/60 text-sm">{c.campaignProducts?.length ?? 0}</td>
                     <td className="px-4 py-3 text-white/50 text-xs">
                       <p>{formatDate(c.startTime)}</p>
@@ -117,6 +179,14 @@ export default function AdminCampaignsPage() {
                           <button onClick={() => setConfirmApprove(c.id)} className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/25 transition-all">Duyệt</button>
                           <button onClick={() => { setSelectedCampaign(c); setShowRejectForm(true) }} className="text-xs px-3 py-1.5 rounded-xl bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 transition-all">Từ chối</button>
                         </div>
+                      )}
+                      {c.status === 'ENDED' && (
+                        <button
+                          onClick={() => setConfirmDeleteExpired(c.id)}
+                          className="text-xs px-3 py-1.5 rounded-xl bg-red-500/15 text-red-300 border border-red-500/20 hover:bg-red-500/25 transition-all"
+                        >
+                          Xóa chiến dịch hết hạn
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -152,6 +222,24 @@ export default function AdminCampaignsPage() {
                   <div className="flex justify-between">
                     <span className="text-white/50">Nhà bán hàng</span>
                     <span className="text-white font-medium">{selectedCampaign.merchant?.businessName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-white/50">Merchant key</span>
+                    <span className="text-white/80 text-xs font-mono">{selectedCampaign.merchantId}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Link
+                      href={`/admin/merchant-profiles/${selectedCampaign.merchantId}`}
+                      className="btn-glass text-xs px-3 py-1.5"
+                    >
+                      Hồ sơ merchant
+                    </Link>
+                    <Link
+                      href={`/admin/campaign-monitor?campaignId=${selectedCampaign.id}`}
+                      className="btn-glass text-xs px-3 py-1.5"
+                    >
+                      Giám sát campaign
+                    </Link>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-white/50 flex items-center gap-1"><Calendar size={12} /> Bắt đầu</span>
@@ -285,6 +373,18 @@ export default function AdminCampaignsPage() {
                     </button>
                   </div>
                 )}
+
+                {selectedCampaign.status === 'ENDED' && (
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setConfirmDeleteExpired(selectedCampaign.id)}
+                      className="w-full py-2.5 rounded-xl text-sm font-medium text-white transition-all flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, #ef4444, #b91c1c)' }}
+                    >
+                      Xóa chiến dịch hết hạn
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -322,6 +422,18 @@ export default function AdminCampaignsPage() {
         onConfirm={() => confirmForceStop && handleForceStop(confirmForceStop)}
         onCancel={() => setConfirmForceStop(null)}
         loading={forceStoping}
+      />
+
+      <ConfirmDialog
+        open={!!confirmDeleteExpired}
+        title="Xóa chiến dịch đã hết hạn?"
+        description="Campaign ENDED sẽ bị xóa mềm khỏi danh sách quản trị. Hành động này không thể hoàn tác trên giao diện."
+        confirmLabel="Xóa campaign"
+        cancelLabel="Hủy"
+        variant="destructive"
+        onConfirm={() => confirmDeleteExpired && handleDeleteExpired(confirmDeleteExpired)}
+        onCancel={() => setConfirmDeleteExpired(null)}
+        loading={deletingExpired}
       />
     </div>
   )

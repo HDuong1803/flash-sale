@@ -53,6 +53,8 @@ export const queryKeys = {
     revenueTrend: () => ['admin', 'revenue-trend'] as const,
     ordersByTime: (start: string, end: string) => ['admin', 'orders-by-time', start, end] as const,
     merchantProfiles: (params?: object) => ['admin', 'merchant-profiles', params] as const,
+    merchantOverview: (merchantId: string, days: number) =>
+      ['admin', 'merchant-overview', merchantId, days] as const,
     userActionLogs: (params?: object) => ['admin', 'user-action-logs', params] as const,
     outboxEvents: (params?: object) => ['admin', 'outbox-events', params] as const,
     financeSummary: () => ['admin', 'finance', 'summary'] as const,

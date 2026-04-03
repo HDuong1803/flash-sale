@@ -393,6 +393,110 @@ export interface AdminMerchantProfile {
   }
 }
 
+export interface AdminMerchantOverviewProfile {
+  id: string
+  userId: string
+  businessName: string
+  taxCode: string
+  description?: string | null
+  businessPhone?: string | null
+  businessAddress?: string | null
+  businessEmail: string
+  kycStatus: KycStatus
+  rejectionReason?: string | null
+  approvedAt?: string | null
+  approvedBy?: string | null
+  createdAt: string
+  updatedAt: string
+  user: {
+    id: string
+    fullName: string
+    email: string
+    status: UserStatus
+    lastLoginAt?: string | null
+    createdAt: string
+    updatedAt: string
+  }
+}
+
+export interface AdminMerchantOverviewMetrics {
+  productsTotal: number
+  activeProducts: number
+  campaignsTotal: number
+  campaignsByStatus: Record<CampaignStatus, number>
+  campaignsDeleted: number
+  campaignsHiddenByMerchant: number
+  ordersTotal: number
+  ordersDone: number
+  ordersCancelled: number
+  reservationsTotal: number
+  conversionRatePct: number
+  revenueTotal: number
+  revenueInRange: number
+  averageOrderValue: number
+}
+
+export interface AdminMerchantOverviewCampaign {
+  id: string
+  name: string
+  status: CampaignStatus
+  startTime: string
+  endTime: string
+  createdAt: string
+  updatedAt: string
+  deletedAt?: string | null
+  merchantHiddenAt?: string | null
+  productsCount: number
+  preRegistrationsCount: number
+  totalSaleQuantity: number
+  totalRemainingQuantity: number
+  ordersCount: number
+  revenue: number
+}
+
+export interface AdminMerchantOverviewOrder {
+  id: string
+  status: OrderStatus
+  totalAmount: number
+  shippingAddress: string
+  createdAt: string
+  customer: {
+    id: string
+    fullName: string
+    email: string
+  }
+  payment?: {
+    status: PaymentStatus
+    method: PaymentMethod
+    paidAt?: string | null
+  } | null
+  campaign?: {
+    id: string
+    name: string
+    status: CampaignStatus
+  } | null
+}
+
+export interface AdminMerchantOverviewTopProduct {
+  productId: string
+  productName: string
+  quantity: number
+  revenue: number
+}
+
+export interface AdminMerchantOverview {
+  profile: AdminMerchantOverviewProfile
+  metrics: AdminMerchantOverviewMetrics
+  campaigns: AdminMerchantOverviewCampaign[]
+  recentOrders: AdminMerchantOverviewOrder[]
+  topProducts: AdminMerchantOverviewTopProduct[]
+  timeframe: {
+    days: number
+    since: string
+    until: string
+  }
+}
+
 export interface UserActionLog {
   id: string
   userId?: string

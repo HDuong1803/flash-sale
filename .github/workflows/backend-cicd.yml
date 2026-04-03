@@ -146,6 +146,18 @@ jobs:
               exit 1
             fi
 
+            echo "🧽 Cleaning old backend images (keep current tag)..."
+            CURRENT_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
+            OLD_IMAGES=$(docker image ls "${IMAGE_NAME}" --format '{{.Repository}}:{{.Tag}}' | grep -v "^${CURRENT_IMAGE}$" | grep -v '<none>' || true)
+
+            if [ -n "${OLD_IMAGES}" ]; then
+              echo "Removing old images:"
+              echo "${OLD_IMAGES}"
+              echo "${OLD_IMAGES}" | xargs -r docker image rm -f || true
+            else
+              echo "No old backend images to remove"
+            fi
+
             echo "🧽 Cleaning dangling images..."
             docker image prune -f
 

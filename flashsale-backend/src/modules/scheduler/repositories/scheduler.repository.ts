@@ -26,6 +26,7 @@ export class SchedulerRepository {
   async findCampaignsToActivate(): Promise<CampaignWithActivationData[]> {
     return this.prisma.campaign.findMany({
       where: {
+        deletedAt: null,
         status: CampaignStatus.APPROVED,
         startTime: { lte: new Date() }
       },
@@ -38,7 +39,11 @@ export class SchedulerRepository {
 
   async findCampaignsToClose(): Promise<CampaignWithCloseData[]> {
     return this.prisma.campaign.findMany({
-      where: { status: CampaignStatus.ACTIVE, endTime: { lte: new Date() } },
+      where: {
+        deletedAt: null,
+        status: CampaignStatus.ACTIVE,
+        endTime: { lte: new Date() }
+      },
       include: { campaignProducts: { select: { id: true } } }
     }) as Promise<CampaignWithCloseData[]>
   }
@@ -49,6 +54,7 @@ export class SchedulerRepository {
 
     return this.prisma.campaign.findMany({
       where: {
+        deletedAt: null,
         status: CampaignStatus.APPROVED,
         startTime: { gte: now, lte: fifteenMinutesFromNow }
       },
@@ -63,7 +69,7 @@ export class SchedulerRepository {
 
   async findActiveCampaignProducts(): Promise<Array<{ id: string }>> {
     const campaigns = await this.prisma.campaign.findMany({
-      where: { status: CampaignStatus.ACTIVE },
+      where: { deletedAt: null, status: CampaignStatus.ACTIVE },
       include: { campaignProducts: { select: { id: true } } }
     })
     return campaigns.flatMap(c => c.campaignProducts)

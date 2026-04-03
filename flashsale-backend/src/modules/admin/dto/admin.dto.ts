@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsISO8601,
   Min,
+  Max,
   MaxLength,
   IsBoolean,
   IsObject
@@ -23,6 +24,22 @@ export class AdminMerchantQueryDto {
   @IsOptional()
   @IsEnum(KycStatus)
   status?: KycStatus
+}
+
+export class MerchantOverviewQueryDto {
+  @ApiProperty({
+    description: 'Số ngày thống kê doanh thu gần nhất',
+    required: false,
+    default: 30,
+    minimum: 1,
+    maximum: 365
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  days?: number
 }
 
 export class AdminCampaignQueryDto {

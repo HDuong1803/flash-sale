@@ -51,6 +51,9 @@ class CampaignService {
   delete(id: string): Promise<{ deleted: boolean }> {
     return apiClient.delete(`/campaigns/${id}`)
   }
+  hideExpired(id: string): Promise<{ hidden: boolean }> {
+    return apiClient.patch(`/campaigns/${id}/hide-expired`)
+  }
   preRegister(campaignId: string): Promise<{ registered: boolean }> {
     return apiClient.post(`/campaigns/${campaignId}/register`)
   }

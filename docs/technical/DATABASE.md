@@ -4,7 +4,7 @@
 **Engine**: PostgreSQL 16
 **ORM**: Prisma 6.x
 **Connection**: `DATABASE_URL` environment variable
-**Last updated**: 2026-03-28
+**Last updated**: 2026-04-03
 
 ---
 
@@ -75,10 +75,29 @@ sessions
 
 ---
 
+### campaigns (delta)
+
+**Purpose**: Quản lý campaign flash sale theo merchant và vòng đời vận hành.
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| `id` | VARCHAR(36) | PK | Campaign ID |
+| `merchant_id` | VARCHAR(36) | NOT NULL, FK | Merchant sở hữu campaign |
+| `status` | ENUM | NOT NULL | Vòng đời campaign (`DRAFT`, `APPROVED`, `SCHEDULED`, `ACTIVE`, `ENDED`) |
+| `deleted_at` | TIMESTAMP(6) | NULL | Soft-delete cho thao tác admin xóa campaign đã hết hạn |
+| `merchant_hidden_at` | TIMESTAMP(6) | NULL | Merchant ẩn campaign ENDED khỏi danh sách của mình |
+
+**Notes**:
+- Query danh sách campaign (public/admin/merchant) cần mặc định loại bản ghi có `deleted_at IS NOT NULL`.
+- Merchant list cần ẩn thêm campaign thỏa `status = ENDED` và `merchant_hidden_at IS NOT NULL`.
+
+---
+
 ## Migrations Log
 
 | Migration | Date | Description | Risk |
 |-----------|------|-------------|------|
+| `20260403113000_add_merchant_hidden_campaign` | 2026-04-03 | Add `campaigns.merchant_hidden_at` | Low |
 | `20240115120000_initial_schema` | 2024-01-15 | Initial tables | Zero-downtime |
 
 ---

@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Param,
   Post,
   Put,
@@ -221,6 +222,33 @@ export class CampaignController {
     @Param('id') id: string
   ): Promise<{ deleted: boolean }> {
     return this.campaignService.delete(user.userId, id)
+  }
+
+  @ApiOperation({ summary: 'Ẩn chiến dịch đã kết thúc khỏi danh sách merchant' })
+  @ApiParam({ name: 'id', description: 'ID chiến dịch' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Ẩn thành công' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Chỉ có thể ẩn campaign ở trạng thái ENDED'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Chiến dịch không tồn tại'
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @Patch(':id/hide-expired')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('MERCHANT')
+  async hideExpired(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string
+  ): Promise<{ hidden: boolean }> {
+    return this.campaignService.hideExpired(user.userId, id)
   }
 
   @ApiOperation({ summary: 'Xóa sản phẩm khỏi chiến dịch' })
