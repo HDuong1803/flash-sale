@@ -92,7 +92,9 @@ export class AdminRepository {
         where: { campaignProduct: { campaign: { merchantId } } }
       }),
       this.prisma.order.count({ where: { merchantId } }),
-      this.prisma.order.count({ where: { merchantId, status: OrderStatus.DONE } }),
+      this.prisma.order.count({
+        where: { merchantId, status: OrderStatus.DONE }
+      }),
       this.prisma.order.count({
         where: { merchantId, status: OrderStatus.CANCELLED }
       }),
@@ -172,12 +174,18 @@ export class AdminRepository {
       })
     ])
 
-    const campaignOrderMap = new Map<string, { orders: number; revenue: number }>()
+    const campaignOrderMap = new Map<
+      string,
+      { orders: number; revenue: number }
+    >()
     for (const row of orderCampaignRows) {
       const campaignId = row.reservation?.campaignProduct?.campaignId
       if (!campaignId) continue
 
-      const existing = campaignOrderMap.get(campaignId) ?? { orders: 0, revenue: 0 }
+      const existing = campaignOrderMap.get(campaignId) ?? {
+        orders: 0,
+        revenue: 0
+      }
       existing.orders += 1
       if (row.status !== OrderStatus.CANCELLED) {
         existing.revenue += Number(row.totalAmount)

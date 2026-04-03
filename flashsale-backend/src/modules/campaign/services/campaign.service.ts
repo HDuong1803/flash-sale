@@ -220,10 +220,7 @@ export class CampaignService {
     return { deleted: true }
   }
 
-  async hideExpired(
-    userId: string,
-    id: string
-  ): Promise<{ hidden: boolean }> {
+  async hideExpired(userId: string, id: string): Promise<{ hidden: boolean }> {
     const merchant = await this.getApprovedMerchant(userId)
     const campaign = await this.campaignRepository.findByIdAndMerchant(
       id,
@@ -240,8 +237,7 @@ export class CampaignService {
       merchant.id
     )
 
-    if (!hidden)
-      throw new BadRequestException('Chiến dịch đã được ẩn trước đó')
+    if (!hidden) throw new BadRequestException('Chiến dịch đã được ẩn trước đó')
 
     return { hidden: true }
   }

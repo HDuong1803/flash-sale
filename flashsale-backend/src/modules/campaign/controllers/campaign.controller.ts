@@ -224,7 +224,9 @@ export class CampaignController {
     return this.campaignService.delete(user.userId, id)
   }
 
-  @ApiOperation({ summary: 'Ẩn chiến dịch đã kết thúc khỏi danh sách merchant' })
+  @ApiOperation({
+    summary: 'Ẩn chiến dịch đã kết thúc khỏi danh sách merchant'
+  })
   @ApiParam({ name: 'id', description: 'ID chiến dịch' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Ẩn thành công' })
   @ApiResponse({
