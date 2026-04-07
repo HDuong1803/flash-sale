@@ -29,7 +29,46 @@ export function useSSE(campaignId: string | null) {
 
       es.onmessage = (e) => {
         if (!mountedRef.current) return
-        try { setData(JSON.parse(e.data) as DashboardMetrics) } catch { /* ignore parse errors */ }
+        try {
+          const event = JSON.parse(e.data) as Record<string, unknown>
+          if (event.type === 'heartbeat') return
+
+          if (event.type === 'SNAPSHOT') {
+            const stockValues = (event.stockValues as Array<{ remaining: number; total: number }>) ?? []
+            const stockRemaining = stockValues.reduce((sum, v) => sum + v.remaining, 0)
+            const stockTotal = stockValues.reduce((sum, v) => sum + v.total, 0)
+            setData({
+              stockRemaining,
+              stockTotal,
+              totalOrders: (event.totalOrders as number) ?? 0,
+              successOrders: 0,
+              revenue: 0,
+              conversionRate: 0,
+              queueDepth: 0,
+              ordersPerSecond: 0,
+            })
+            return
+          }
+
+          if (event.type === 'STOCK_UPDATE') {
+            setData(prev => prev ? {
+              ...prev,
+              stockRemaining: (event.stockRemaining as number) ?? prev.stockRemaining,
+              stockTotal: (event.stockTotal as number) ?? prev.stockTotal,
+            } : prev)
+            return
+          }
+
+          if (event.type === 'ORDER_CONFIRMED') {
+            setData(prev => prev ? {
+              ...prev,
+              totalOrders: prev.totalOrders + 1,
+              successOrders: prev.successOrders + 1,
+              revenue: prev.revenue + ((event.revenue as number) ?? 0),
+            } : prev)
+            return
+          }
+        } catch { /* ignore parse errors */ }
       }
 
       es.onerror = () => {

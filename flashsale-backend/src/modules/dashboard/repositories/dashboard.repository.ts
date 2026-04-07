@@ -7,10 +7,12 @@ export class DashboardRepository {
 
   async getCampaignProducts(
     campaignId: string
-  ): Promise<Array<{ id: string; saleQuantity: number }>> {
+  ): Promise<
+    Array<{ id: string; saleQuantity: number; remainingQuantity: number }>
+  > {
     return this.prisma.campaignProduct.findMany({
       where: { campaignId },
-      select: { id: true, saleQuantity: true }
+      select: { id: true, saleQuantity: true, remainingQuantity: true }
     })
   }
 

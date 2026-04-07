@@ -98,7 +98,12 @@ export class DashboardController {
       const stockValues = await Promise.all(
         products.map(async p => {
           const remaining = await this.redis.getStock(p.id)
-          return { id: p.id, remaining: remaining ?? 0, total: p.saleQuantity }
+          // Fallback to DB remainingQuantity when Redis key not yet initialized
+          return {
+            id: p.id,
+            remaining: remaining ?? p.remainingQuantity,
+            total: p.saleQuantity
+          }
         })
       )
 
