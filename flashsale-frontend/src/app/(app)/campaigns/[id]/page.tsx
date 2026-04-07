@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { Store, AlertCircle, ArrowLeft, Minus, Plus, Info, Loader2 } from 'lucide-react'
+import { Store, AlertCircle, ArrowLeft, Minus, Plus, Info, Loader2, ImageOff } from 'lucide-react'
 import { useCampaign } from '@/hooks/queries/useCampaign'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
@@ -29,6 +29,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [quantity, setQuantity] = useState(1)
   const [selectedProductIdx, setSelectedProductIdx] = useState(0)
   const [activeTab, setActiveTab] = useState<'desc' | 'seller'>('desc')
+  const [mainImgError, setMainImgError] = useState(false)
+  const [thumbErrors, setThumbErrors] = useState<Record<string, boolean>>({})
   // null = chưa có override (dùng giá trị từ API), true/false = user vừa bấm nút
   const [preRegisteredOverride, setPreRegisteredOverride] = useState<boolean | null>(null)
 
@@ -45,6 +47,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
   const isSoldOut = campaign?.status === 'ACTIVE' ? (displayRemaining <= 0) : false
   const isActive = campaign?.status === 'ACTIVE'
+
+  const handleSelectProduct = (idx: number) => {
+    setSelectedProductIdx(idx)
+    setMainImgError(false)
+  }
 
   const handleBuy = async () => {
     if (!isAuthenticated) { openAuthModal('login'); return }
@@ -105,11 +112,19 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         {/* Left: Image Gallery */}
         <div className="space-y-3">
           <div className="relative aspect-square glass rounded-2xl overflow-hidden">
-            {product?.product?.imageUrl ? (
-              <Image src={product.product.imageUrl} alt={product.product?.name ?? ''} fill className="object-cover" sizes="(max-width: 768px) 100vw, 50vw" />
+            {product?.product?.imageUrl && !mainImgError ? (
+              <Image
+                src={product.product.imageUrl}
+                alt={product.product?.name ?? ''}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                onError={() => setMainImgError(true)}
+              />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Store size={64} className="text-white/20" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                <Store size={48} className="text-white/20" />
+                {mainImgError && <span className="text-white/20 text-xs">Không tải được ảnh</span>}
               </div>
             )}
             {isSoldOut && (
@@ -120,14 +135,34 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </div>
           {/* Thumbnail strip */}
           {(campaign.campaignProducts?.length ?? 0) > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {(campaign.campaignProducts ?? []).map((p, i) => (
                 <button
                   key={p.id}
-                  onClick={() => setSelectedProductIdx(i)}
-                  className={`relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 transition-all ${i === selectedProductIdx ? 'ring-2 ring-indigo-500' : 'opacity-50 hover:opacity-80'}`}
+                  onClick={() => handleSelectProduct(i)}
+                  className={`relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 transition-all glass ${
+                    i === selectedProductIdx ? 'ring-2 ring-indigo-500 opacity-100' : 'opacity-50 hover:opacity-80'
+                  }`}
+                  title={p.product?.name}
                 >
-                  {p.product?.imageUrl && <Image src={p.product.imageUrl} alt={p.product.name} fill className="object-cover" sizes="64px" />}
+                  {p.product?.imageUrl && !thumbErrors[p.id] ? (
+                    <Image
+                      src={p.product.imageUrl}
+                      alt={p.product.name}
+                      fill
+                      className="object-cover"
+                      sizes="64px"
+                      onError={() => setThumbErrors(prev => ({ ...prev, [p.id]: true }))}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <ImageOff size={20} className="text-white/25" />
+                    </div>
+                  )}
+                  {/* Product name label */}
+                  <div className="absolute inset-x-0 bottom-0 bg-black/60 px-1 py-0.5">
+                    <p className="text-white/80 text-[9px] leading-tight truncate">{p.product?.name}</p>
+                  </div>
                 </button>
               ))}
             </div>
