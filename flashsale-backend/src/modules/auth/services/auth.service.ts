@@ -50,6 +50,8 @@ export class AuthService {
   private readonly OTP_RATE_LIMIT_WINDOW_SECONDS = 15 * 60 // 15 minute window
   private readonly RESET_OTP_TTL_SECONDS = 10 * 60 // 10 minutes
   private readonly OTP_MAX_ATTEMPTS = 5 // max wrong attempts before OTP is invalidated
+  private readonly LOGIN_MAX_FAILURES = 5
+  private readonly LOGIN_LOCKOUT_SECONDS = 15 * 60 // 15 minutes
 
   constructor(
     private readonly userRepository: UserRepository,
@@ -105,6 +107,14 @@ export class AuthService {
 
   private resetOtpAttemptsKey(email: string): string {
     return `otp:attempts:reset:${email}`
+  }
+
+  private loginFailuresKey(email: string): string {
+    return `login:failures:${email}`
+  }
+
+  private loginLockoutKey(email: string): string {
+    return `login:lockout:${email}`
   }
 
   private async sendVerificationOtp(
@@ -195,15 +205,55 @@ export class AuthService {
   // ─── Login ────────────────────────────────────────────────────────────────
 
   async login(dto: LoginDto): Promise<AuthResult> {
+    // kiểm tra lockout trước khi xử lý — tránh timing oracle
+    const lockoutKey = this.loginLockoutKey(dto.email)
+    const isLocked = await this.redis.client.get(lockoutKey)
+    if (isLocked) {
+      const ttl = await this.redis.client.ttl(lockoutKey)
+      const minutes = Math.ceil(ttl / 60)
+      throw new UnauthorizedException(
+        `Tài khoản tạm thời bị khóa do nhập sai quá nhiều lần. Thử lại sau ${minutes} phút.`
+      )
+    }
+
     const user = await this.userRepository.findByEmail(dto.email)
-    if (!user || !user.passwordHash)
+    if (!user || !user.passwordHash) {
+      // Không tiết lộ email có tồn tại hay không
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng')
+    }
     if (user.status === 'BANNED')
       throw new UnauthorizedException('Tài khoản đã bị khóa')
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash)
-    if (!valid)
+    if (!valid) {
+      // Tăng failure counter
+      const failKey = this.loginFailuresKey(dto.email)
+      const failures = await this.redis.client.incr(failKey)
+      if (failures === 1) {
+        // Set TTL cho counter bằng thời gian lockout để tự cleanup
+        await this.redis.client.expire(failKey, this.LOGIN_LOCKOUT_SECONDS)
+      }
+      if (failures >= this.LOGIN_MAX_FAILURES) {
+        await this.redis.client.set(
+          lockoutKey,
+          '1',
+          'EX',
+          this.LOGIN_LOCKOUT_SECONDS
+        )
+        await this.redis.client.del(failKey)
+        this.logger.warn({
+          event: 'login_lockout',
+          email: dto.email,
+          failures
+        })
+        throw new UnauthorizedException(
+          `Tài khoản tạm thời bị khóa do nhập sai quá nhiều lần. Thử lại sau ${
+            this.LOGIN_LOCKOUT_SECONDS / 60
+          } phút.`
+        )
+      }
       throw new UnauthorizedException('Email hoặc mật khẩu không đúng')
+    }
 
     if (!user.emailVerified) {
       const onCooldown = await this.redis.client.get(
@@ -223,6 +273,9 @@ export class AuthService {
           'Email chưa được xác minh. Vui lòng kiểm tra hộp thư và nhập mã OTP.'
       })
     }
+
+    // Reset failure counter on successful login
+    await this.redis.client.del(this.loginFailuresKey(dto.email))
 
     await this.userRepository.updateLastLogin(user.id)
     return this.buildAuthResult(user)

@@ -63,6 +63,45 @@ export class ReservationRepository {
     })
   }
 
+  /** fallback khi Redis key mất — lấy dữ liệu reservation từ DB để restore stock */
+  async findWithCampaignProductById(reservationId: string) {
+    return this.prisma.reservation.findUnique({
+      where: { id: reservationId },
+      select: {
+        id: true,
+        customerId: true,
+        quantity: true,
+        status: true,
+        campaignProduct: {
+          select: { id: true }
+        }
+      }
+    })
+  }
+
+  /** tìm tất cả reservation HOLDING thuộc danh sách campaignProductIds */
+  async findHoldingByCampaignProductIds(campaignProductIds: string[]): Promise<
+    Array<{
+      id: string
+      customerId: string
+      campaignProductId: string
+      quantity: number
+    }>
+  > {
+    return this.prisma.reservation.findMany({
+      where: {
+        campaignProductId: { in: campaignProductIds },
+        status: ReservationStatus.HOLDING
+      },
+      select: {
+        id: true,
+        customerId: true,
+        campaignProductId: true,
+        quantity: true
+      }
+    })
+  }
+
   async findDetailByIdForCustomer(reservationId: string, customerId: string) {
     return this.prisma.reservation.findFirst({
       where: { id: reservationId, customerId },

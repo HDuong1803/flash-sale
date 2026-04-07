@@ -25,7 +25,11 @@ import { PrismaModule } from './infrastructure/prisma'
 import { RedisModule } from './infrastructure/redis'
 import { RabbitMQModule } from './infrastructure/rabbitmq'
 import { CloudinaryModule } from './infrastructure/cloudinary/cloudinary.module'
-import { RequestMiddleware, LoggerMiddleware } from '@common/middleware'
+import {
+  RequestMiddleware,
+  LoggerMiddleware,
+  CsrfOriginMiddleware
+} from '@common/middleware'
 
 @Module({
   imports: [
@@ -59,6 +63,8 @@ import { RequestMiddleware, LoggerMiddleware } from '@common/middleware'
 })
 export class AppModule implements NestModule {
   public configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(LoggerMiddleware, RequestMiddleware).forRoutes('*')
+    consumer
+      .apply(LoggerMiddleware, RequestMiddleware, CsrfOriginMiddleware)
+      .forRoutes('*')
   }
 }

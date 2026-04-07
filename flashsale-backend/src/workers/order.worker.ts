@@ -52,6 +52,8 @@ export class OrderWorker implements OnModuleInit {
 
     if (remaining === -2) {
       // Stock key not found — campaign may not be initialised yet
+      // decrement purchase counter vì reservation không được tạo
+      await this.redis.decrementPurchaseCount(campaignProductId, userId)
       const result = { status: 'SOLD_OUT', reason: 'Chiến dịch chưa bắt đầu' }
       await this.saveResult(requestId, idempotencyKey, result)
       return
@@ -59,6 +61,8 @@ export class OrderWorker implements OnModuleInit {
 
     if (remaining < 0) {
       // Insufficient stock
+      // decrement purchase counter vì reservation không được tạo
+      await this.redis.decrementPurchaseCount(campaignProductId, userId)
       const result = { status: 'SOLD_OUT', reason: 'Sản phẩm đã hết hàng' }
       await this.saveResult(requestId, idempotencyKey, result)
       this.logger.log(`SOLD_OUT: campaignProductId=${campaignProductId}`)

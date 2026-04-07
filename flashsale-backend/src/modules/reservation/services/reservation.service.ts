@@ -67,6 +67,27 @@ export class ReservationService {
         resv.customerId
       )
       await this.redis.deleteReservation(reservationId)
+    } else {
+      // Redis key đã mất (evicted/expired) — fallback từ DB để restore stock
+      const dbResv =
+        await this.reservationRepository.findWithCampaignProductById(
+          reservationId
+        )
+      if (dbResv && dbResv.status === ReservationStatus.HOLDING) {
+        await this.redis.incrementStock(
+          dbResv.campaignProduct.id,
+          dbResv.quantity
+        )
+        await this.redis.decrementPurchaseCount(
+          dbResv.campaignProduct.id,
+          dbResv.customerId
+        )
+        this.logger.warn({
+          event: 'reservation_redis_fallback',
+          reservationId,
+          reason: 'Redis key missing — restored stock from DB'
+        })
+      }
     }
 
     // Remove from expiry sorted set
@@ -81,6 +102,28 @@ export class ReservationService {
 
     if (reason.toUpperCase().includes('EXPIRE')) {
       await this.redis.incrementMetricCounter('reservation_expire_rate')
+    }
+  }
+
+  /** release toàn bộ HOLDING reservations khi force stop campaign */
+  async releaseAllHoldingForCampaign(
+    campaignProductIds: string[]
+  ): Promise<void> {
+    if (!campaignProductIds.length) return
+
+    const holdings =
+      await this.reservationRepository.findHoldingByCampaignProductIds(
+        campaignProductIds
+      )
+
+    await Promise.allSettled(
+      holdings.map(r => this.releaseReservation(r.id, 'CAMPAIGN_FORCE_STOPPED'))
+    )
+
+    if (holdings.length > 0) {
+      this.logger.log(
+        `Released ${holdings.length} HOLDING reservations for force-stopped campaign`
+      )
     }
   }
 

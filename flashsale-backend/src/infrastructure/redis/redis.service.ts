@@ -133,6 +133,25 @@ export class RedisService {
     return this._redisClient.get(`purchase:req:${idempotencyKey}`)
   }
 
+  /**
+   * Atomic SET NX — claim idempotency key chỉ khi chưa tồn tại.
+   * Trả về true nếu claim thành công, false nếu key đã tồn tại (race condition).
+   */
+  async claimPurchaseRequestIdempotency(
+    idempotencyKey: string,
+    requestId: string,
+    ttlSeconds = 300
+  ): Promise<boolean> {
+    const result = await this._redisClient.set(
+      `purchase:req:${idempotencyKey}`,
+      requestId,
+      'EX',
+      ttlSeconds,
+      'NX'
+    )
+    return result === 'OK'
+  }
+
   async setPurchaseRequestOwner(
     requestId: string,
     userId: string,

@@ -5,7 +5,7 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { PaymentMethod } from '@prisma/client'
+import { CampaignStatus, PaymentMethod } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { CheckoutRepository } from '../repositories/checkout.repository'
 import { CheckoutDto } from '../dto/checkout.dto'
@@ -30,11 +30,17 @@ export class CheckoutService {
     if (resv.customerId !== userId)
       throw new ForbiddenException('Không có quyền truy cập giữ chỗ này')
 
-    // 2. Get campaign product for price calculation
+    // 2. Get campaign product for price calculation and validate campaign is still ACTIVE
     const cp = await this.checkoutRepository.findCampaignProduct(
       resv.campaignProductId
     )
     if (!cp) throw new NotFoundException('Sản phẩm không tồn tại')
+
+    if (cp.campaign.status !== CampaignStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Chiến dịch đã kết thúc hoặc bị dừng — không thể thanh toán'
+      )
+    }
 
     const amount = Number(cp.salePrice) * parseInt(resv.quantity)
     const shippingAddress = dto.shippingAddress.trim()

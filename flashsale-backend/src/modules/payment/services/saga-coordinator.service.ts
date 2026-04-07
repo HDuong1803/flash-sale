@@ -117,13 +117,9 @@ export class SagaCoordinatorService {
     }
 
     try {
-      // Bước 1: Đánh dấu thanh toán thành công
-      await this.paymentRepository.updatePaymentSuccess(
-        paymentId,
-        transactionId
-      )
-
-      // Bước 2: Tạo đơn hàng + trừ tồn kho (trong 1 DB transaction)
+      // Bước 1: Tạo đơn hàng + trừ tồn kho (trong 1 DB transaction)
+      // Phải tạo order TRƯỚC khi đánh dấu payment SUCCESS.
+      // Nếu tạo order thất bại, payment vẫn ở PROCESSING → rollback an toàn.
       const order = await this.paymentRepository.createOrderWithItems({
         customerId: resv.customerId,
         merchantId: resv.campaignProduct.product.merchantId,
@@ -140,6 +136,12 @@ export class SagaCoordinatorService {
         commissionRate: Number(resv.campaignProduct.campaign.commissionRate),
         commissionCategoryId: resv.campaignProduct.campaign.commissionCategoryId
       })
+
+      // Bước 2: Đánh dấu thanh toán thành công (order đã tồn tại, an toàn để set SUCCESS)
+      await this.paymentRepository.updatePaymentSuccess(
+        paymentId,
+        transactionId
+      )
 
       // Bước 3: Giải phóng reservation trong Redis
       await this.reservationService.markAsPaid(reservationId)
@@ -185,8 +187,8 @@ export class SagaCoordinatorService {
     await this.paymentRepository.updatePaymentFailed(paymentId)
 
     if (resv) {
-      // Restore stock in Redis
-      await this.redis.incrementStock(resv.campaignProduct.id, resv.quantity)
+      // releaseReservation xử lý toàn bộ: restore stock + decrement purchase counter + cleanup
+      // KHÔNG gọi incrementStock riêng — tránh double restore
       await this.reservationService.releaseReservation(
         reservationId,
         'PAYMENT_FAILED'

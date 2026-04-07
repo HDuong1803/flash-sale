@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
   Query,
@@ -43,6 +45,8 @@ const moduleName = 'payments'
 @Controller(moduleName)
 @UseInterceptors(ResponseInterceptor)
 export class PaymentController {
+  private readonly logger = new Logger(PaymentController.name)
+
   constructor(
     private readonly paymentService: PaymentService,
     private readonly configService: ConfigService
@@ -50,13 +54,38 @@ export class PaymentController {
 
   // ─── Webhook generic (legacy) ──────────────────────────────────────────────
 
-  @ApiOperation({ summary: 'Nhận kết quả từ cổng thanh toán (webhook)' })
+  @ApiOperation({
+    summary: 'Nhận kết quả từ cổng thanh toán (webhook — legacy)',
+    description:
+      'Endpoint legacy. Yêu cầu header X-Webhook-Secret khớp với PAYMENT_WEBHOOK_SECRET. ' +
+      'Nên dùng /webhook/stripe cho tích hợp Stripe.'
+  })
   @ApiBody({ type: PaymentWebhookDto })
   @ApiResponse({ status: HttpStatus.OK, type: WebhookResponseDto })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Secret không hợp lệ'
+  })
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @Public()
-  async webhook(@Body() dto: PaymentWebhookDto): Promise<WebhookResponseDto> {
+  async webhook(
+    @Body() dto: PaymentWebhookDto,
+    @Headers('x-webhook-secret') secret?: string
+  ): Promise<WebhookResponseDto> {
+    const expectedSecret = this.configService.get<string>(
+      'secrets.PAYMENT_WEBHOOK_SECRET',
+      ''
+    )
+
+    if (!expectedSecret || !secret || secret !== expectedSecret) {
+      this.logger.warn({
+        event: 'legacy_webhook_rejected',
+        reason: !expectedSecret ? 'secret_not_configured' : 'secret_mismatch'
+      })
+      throw new ForbiddenException('Unauthorized webhook request')
+    }
+
     return this.paymentService.handleWebhook(dto)
   }
 

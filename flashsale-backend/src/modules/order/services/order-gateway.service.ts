@@ -61,8 +61,27 @@ export class OrderGatewayService {
     const isWhitelisted = await this.redis.isWhitelisted(cp.campaignId, userId)
     const queue = isWhitelisted ? 'order.high' : 'order.normal'
 
-    // 5. Generate requestId and enqueue
+    // 5. Generate requestId và atomic claim idempotency key
+    // SET NX đảm bảo chỉ một request concurrent được xử lý, không có race window
     const requestId = crypto.randomUUID()
+    const claimed = await this.redis.claimPurchaseRequestIdempotency(
+      idempotencyKey,
+      requestId,
+      300
+    )
+
+    if (!claimed) {
+      // Key đã tồn tại — request concurrent khác đã claim trước
+      await this.redis.decrementPurchaseCount(dto.campaignProductId, userId)
+      const existingRequestId = await this.redis.getPurchaseRequestIdempotency(
+        idempotencyKey
+      )
+      if (existingRequestId) return { requestId: existingRequestId }
+      // Cực kỳ hiếm: key expire ngay sau khi claim fail
+      throw new BadRequestException('Request trùng lặp — vui lòng thử lại')
+    }
+
+    // 6. Enqueue (idempotency key đã được claim atomic ở bước 5)
     const published = await this.rabbitmq.publish(queue, {
       requestId,
       userId,
@@ -73,23 +92,17 @@ export class OrderGatewayService {
     })
 
     if (!published) {
-      // Rollback the counter increment so user can retry
+      // Rollback: xóa idempotency key đã claim + decrement counter
+      await this.redis.setPurchaseRequestIdempotency(idempotencyKey, '', 1) // expire ngay
       await this.redis.decrementPurchaseCount(dto.campaignProductId, userId)
       throw new BadRequestException(
         'Hệ thống đang quá tải, vui lòng thử lại sau'
       )
     }
 
-    // 6. Cache requestId so duplicate requests return same requestId (5 min TTL)
-    const result = { requestId }
-    await this.redis.setPurchaseRequestIdempotency(
-      idempotencyKey,
-      requestId,
-      300
-    )
     await this.redis.setPurchaseRequestOwner(requestId, userId, 86400)
 
-    return result
+    return { requestId }
   }
 
   async getResult(

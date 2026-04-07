@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { Payment, PaymentMethod, PaymentStatus } from '@prisma/client'
+import {
+  CampaignStatus,
+  Payment,
+  PaymentMethod,
+  PaymentStatus
+} from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -9,8 +14,20 @@ export class CheckoutRepository {
   async findCampaignProduct(campaignProductId: string) {
     return this.prisma.campaignProduct.findUnique({
       where: { id: campaignProductId },
-      select: { salePrice: true, campaignId: true }
+      select: {
+        salePrice: true,
+        campaignId: true,
+        campaign: { select: { status: true } }
+      }
     })
+  }
+
+  async isCampaignActive(campaignId: string): Promise<boolean> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { status: true }
+    })
+    return campaign?.status === CampaignStatus.ACTIVE
   }
 
   async findPaymentByIdempotencyKey(

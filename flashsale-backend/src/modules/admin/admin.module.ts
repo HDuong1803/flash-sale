@@ -6,9 +6,15 @@ import { AdminRepository } from './repositories/admin.repository'
 import { CampaignModule } from '@modules/campaign/campaign.module'
 import { NotificationModule } from '@modules/notification/notification.module'
 import { PaymentModule } from '@modules/payment/payment.module'
+import { ReservationModule } from '@modules/reservation/reservation.module'
 
 @Module({
-  imports: [CampaignModule, NotificationModule, PaymentModule],
+  imports: [
+    CampaignModule,
+    NotificationModule,
+    PaymentModule,
+    ReservationModule
+  ],
   controllers: [AdminController, AdminStreamController],
   providers: [AdminService, AdminRepository]
 })

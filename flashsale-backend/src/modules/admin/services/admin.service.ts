@@ -28,6 +28,7 @@ import {
   RescheduleRequestQueryDto
 } from '../dto/admin.dto'
 import { PaymentGatewayConfigService } from '@modules/payment/services/payment-gateway-config.service'
+import { ReservationService } from '@modules/reservation/services/reservation.service'
 import { PaymentMethod } from '@prisma/client'
 
 @Injectable()
@@ -42,7 +43,8 @@ export class AdminService {
     private readonly rescheduleRequestRepository: RescheduleRequestRepository,
     private readonly notificationService: NotificationService,
     private readonly emailService: EmailService,
-    private readonly paymentGatewayConfigService: PaymentGatewayConfigService
+    private readonly paymentGatewayConfigService: PaymentGatewayConfigService,
+    private readonly reservationService: ReservationService
   ) {}
 
   // ─── Merchants ──────────────────────────────────────────────────────
@@ -156,6 +158,13 @@ export class AdminService {
         )
       }
     }
+
+    // release toàn bộ HOLDING reservations trước khi đóng campaign
+    // Tránh trường hợp user có reservation HOLDING tiếp tục thanh toán sau khi stop
+    const campaignProductIds = campaign.campaignProducts.map(cp => cp.id)
+    await this.reservationService.releaseAllHoldingForCampaign(
+      campaignProductIds
+    )
 
     await this.adminRepository.updateCampaignStatus(
       campaignId,

@@ -285,11 +285,7 @@ export class CampaignService {
 
   async preRegister(userId: string, campaignId: string) {
     const campaign = await this.campaignRepository.findById(campaignId)
-    if (
-      !campaign ||
-      (campaign.status !== CampaignStatus.APPROVED &&
-        campaign.status !== CampaignStatus.SCHEDULED)
-    )
+    if (!campaign || campaign.status !== CampaignStatus.SCHEDULED)
       throw new BadRequestException('Chiến dịch không nhận đăng ký trước')
 
     await this.campaignRepository.upsertPreRegistration(userId, campaignId)
@@ -298,11 +294,7 @@ export class CampaignService {
 
   async cancelPreRegister(userId: string, campaignId: string) {
     const campaign = await this.campaignRepository.findById(campaignId)
-    if (
-      !campaign ||
-      (campaign.status !== CampaignStatus.APPROVED &&
-        campaign.status !== CampaignStatus.SCHEDULED)
-    )
+    if (!campaign || campaign.status !== CampaignStatus.SCHEDULED)
       throw new BadRequestException('Chiến dịch không hợp lệ để huỷ đăng ký')
 
     const deleted = await this.campaignRepository.deletePreRegistration(

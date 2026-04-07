@@ -27,7 +27,7 @@ export class SchedulerRepository {
     return this.prisma.campaign.findMany({
       where: {
         deletedAt: null,
-        status: CampaignStatus.APPROVED,
+        status: CampaignStatus.SCHEDULED,
         startTime: { lte: new Date() }
       },
       include: {
@@ -55,7 +55,7 @@ export class SchedulerRepository {
     return this.prisma.campaign.findMany({
       where: {
         deletedAt: null,
-        status: CampaignStatus.APPROVED,
+        status: CampaignStatus.SCHEDULED,
         startTime: { gte: now, lte: fifteenMinutesFromNow }
       },
       include: {
