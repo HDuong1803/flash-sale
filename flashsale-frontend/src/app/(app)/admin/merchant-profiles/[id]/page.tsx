@@ -400,7 +400,7 @@ export default function AdminMerchantDetailPage() {
                 </div>
                 <div>
                   <p className="text-white/50 text-xs uppercase mb-1">Trạng thái KYC</p>
-                  <StatusBadge status={data.profile.kycStatus} />
+                  <StatusBadge status={data.profile.kycStatus} context="kyc" />
                 </div>
                 <div>
                   <p className="text-white/50 text-xs uppercase mb-1">Đăng nhập gần nhất</p>

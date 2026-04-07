@@ -224,7 +224,7 @@ export default function AdminMerchantProfilesPage() {
                       <p className="text-white/50 text-xs">{profile.user.email}</p>
                     </td>
                     <td className="p-4">
-                      <StatusBadge status={profile.kycStatus} />
+                      <StatusBadge status={profile.kycStatus} context="kyc" />
                     </td>
                     <td className="p-4">
                       <p className="text-white/70 text-sm">{new Date(profile.createdAt).toLocaleDateString('vi-VN')}</p>
@@ -261,7 +261,7 @@ export default function AdminMerchantProfilesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-white/50 text-xs uppercase mb-1">Trạng thái KYC</p>
-                  <StatusBadge status={selectedProfile.kycStatus} />
+                  <StatusBadge status={selectedProfile.kycStatus} context="kyc" />
                 </div>
                 <div>
                   <p className="text-white/50 text-xs uppercase mb-1">Trạng thái tài khoản</p>

@@ -27,6 +27,7 @@ const statusConfig: Record<string, { bg: string; border: string; text: string; d
 interface StatusBadgeProps {
   status: StatusType | string
   className?: string
+  context?: 'default' | 'kyc'
 }
 
 const statusLabels: Record<string, string> = {
@@ -37,9 +38,17 @@ const statusLabels: Record<string, string> = {
   REJECTED: 'Từ chối', INACTIVE: 'Không hoạt động',
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+const kycStatusLabels: Record<string, string> = {
+  PENDING: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Bị từ chối',
+}
+
+export function StatusBadge({ status, className, context = 'default' }: StatusBadgeProps) {
   const config = statusConfig[status] ?? statusConfig['DRAFT']
-  const label = statusLabels[status] ?? status
+  const label = context === 'kyc'
+    ? (kycStatusLabels[status] ?? statusLabels[status] ?? status)
+    : (statusLabels[status] ?? status)
   return (
     <span className={cn(
       'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',

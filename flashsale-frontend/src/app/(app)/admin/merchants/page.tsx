@@ -29,6 +29,7 @@ export default function AdminMerchantsPage() {
   const { data: merchants, loading, error, refetch } = useAdminMerchants(activeTab)
   const { approve, loading: approving } = useApproveMerchant()
   const { reject, loading: rejecting } = useRejectMerchant()
+  const filteredMerchants = merchants.filter((m) => m.kycStatus === activeTab)
 
   const handleApprove = async (id: string) => {
     try { await approve(id); refetch(); setSelectedMerchant(null); setConfirmApprove(null) } catch {}
@@ -68,7 +69,7 @@ export default function AdminMerchantsPage() {
           <p className="text-white/60 text-sm mb-4">{error}</p>
           <button onClick={refetch} className="btn-glass text-sm px-4 py-2">Thử lại</button>
         </div>
-      ) : merchants.length === 0 ? (
+      ) : filteredMerchants.length === 0 ? (
         <EmptyState icon={Store} title="Không có nhà bán hàng nào" description="Không có nhà bán hàng nào trong danh mục này" />
       ) : (
         <div className="glass rounded-2xl overflow-hidden">
@@ -82,14 +83,14 @@ export default function AdminMerchantsPage() {
                 </tr>
               </thead>
               <tbody>
-                {merchants.map((m) => (
+                {filteredMerchants.map((m) => (
                   <tr key={m.id} onClick={() => setSelectedMerchant(m)}
                     className={`border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors ${m.kycStatus === 'PENDING' ? 'border-l-2 border-l-yellow-500/50' : ''}`}>
                     <td className="px-4 py-3 text-white font-medium text-sm">{m.businessName}</td>
                     <td className="px-4 py-3 text-white/60 text-sm">{m.email}</td>
                     <td className="px-4 py-3 text-white/50 text-xs font-mono">{m.taxCode}</td>
                     <td className="px-4 py-3 text-white/50 text-xs">{formatDate(m.createdAt)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={m.kycStatus} /></td>
+                    <td className="px-4 py-3"><StatusBadge status={m.kycStatus} context="kyc" /></td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2 flex-wrap justify-end">
                         <Link href={`/admin/merchant-profiles/${m.id}`} className="text-xs px-3 py-1.5 rounded-xl bg-indigo-500/15 text-indigo-300 border border-indigo-500/20 hover:bg-indigo-500/25 transition-all">
@@ -117,7 +118,7 @@ export default function AdminMerchantsPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               {selectedMerchant?.businessName}
-              {selectedMerchant && <StatusBadge status={selectedMerchant.kycStatus} />}
+              {selectedMerchant && <StatusBadge status={selectedMerchant.kycStatus} context="kyc" />}
             </DialogTitle>
           </DialogHeader>
           {selectedMerchant && (
@@ -131,7 +132,7 @@ export default function AdminMerchantsPage() {
                 <p className="text-white/40 text-xs font-semibold uppercase">Thông tin doanh nghiệp</p>
                 <div className="flex justify-between text-sm"><span className="text-white/50">Tên</span><span className="text-white">{selectedMerchant.businessName}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-white/50">MST</span><span className="text-white font-mono">{selectedMerchant.taxCode}</span></div>
-                <div className="flex justify-between text-sm items-center"><span className="text-white/50">Trạng thái KYC</span><StatusBadge status={selectedMerchant.kycStatus} /></div>
+                <div className="flex justify-between text-sm items-center"><span className="text-white/50">Trạng thái KYC</span><StatusBadge status={selectedMerchant.kycStatus} context="kyc" /></div>
               </div>
 
               {selectedMerchant.kycStatus === 'PENDING' && (
