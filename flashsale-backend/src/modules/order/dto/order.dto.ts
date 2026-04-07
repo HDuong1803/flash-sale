@@ -1,11 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator'
+import {
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Min
+} from 'class-validator'
 import { Type } from 'class-transformer'
 import { OrderStatus } from '@prisma/client'
 
 export class PurchaseDto {
-  @ApiProperty({ description: 'ID sản phẩm trong chiến dịch', example: 'uuid' })
-  @IsUUID()
+  @ApiProperty({ description: 'ID sản phẩm trong chiến dịch', example: 'cuid' })
+  @IsString()
+  @IsNotEmpty()
   campaignProductId: string
 
   @ApiProperty({ description: 'Số lượng muốn mua', example: 1 })

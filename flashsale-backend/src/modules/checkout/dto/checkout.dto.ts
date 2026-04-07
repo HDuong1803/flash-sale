@@ -1,13 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsEnum, IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator'
 import { PaymentMethod } from '@prisma/client'
 
 export class CheckoutDto {
   @ApiProperty({
     description: 'ID giữ chỗ (nhận từ GET /orders/result/:requestId)',
-    example: 'uuid'
+    example: 'cuid'
   })
-  @IsUUID()
+  @IsString()
+  @IsNotEmpty()
   reservationId: string
 
   @ApiProperty({
