@@ -46,7 +46,8 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
   const stockRemaining = metrics?.stockRemaining ?? 0
   const stockTotal = metrics?.stockTotal ?? 1
   const stockPct = stockTotal > 0 ? (stockRemaining / stockTotal) * 100 : 0
-  const isSoldOut = stockRemaining === 0
+  // Chỉ báo hết hàng khi đã nhận được data từ SSE (metrics !== null)
+  const isSoldOut = metrics !== null && stockRemaining === 0
   const listCampaign = myCampaigns.find((c) => c.id === id)
   const displayStatus = listCampaign?.status ?? campaign?.status
 
@@ -88,12 +89,16 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
       {/* Metrics grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Stock */}
-        <div className={cn('glass rounded-2xl p-5 space-y-3 relative overflow-hidden', stockPct < 20 && !isSoldOut && 'bg-red-500/5', isSoldOut && 'bg-red-500/10')}>
+        <div className={cn('glass rounded-2xl p-5 space-y-3 relative overflow-hidden', stockPct < 20 && !isSoldOut && metrics !== null && 'bg-red-500/5', isSoldOut && 'bg-red-500/10')}>
           <p className="text-white/50 text-sm">Tồn kho còn lại</p>
-          <p className={cn('text-3xl font-bold animate-number-pop', isSoldOut ? 'text-red-400' : stockPct < 20 ? 'text-red-300' : 'text-white')}>
-            {stockRemaining.toLocaleString()}
-          </p>
-          <StockProgressBar remaining={stockRemaining} total={stockTotal} size="sm" />
+          {metrics === null ? (
+            <div className="h-9 w-20 bg-white/10 rounded-lg animate-pulse" />
+          ) : (
+            <p className={cn('text-3xl font-bold animate-number-pop', isSoldOut ? 'text-red-400' : stockPct < 20 ? 'text-red-300' : 'text-white')}>
+              {stockRemaining.toLocaleString()}
+            </p>
+          )}
+          <StockProgressBar remaining={metrics === null ? 1 : stockRemaining} total={stockTotal} size="sm" />
           {isSoldOut && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
               <span className="glass-strong text-red-300 font-bold text-sm px-4 py-2 rounded-xl">HẾT HÀNG</span>
