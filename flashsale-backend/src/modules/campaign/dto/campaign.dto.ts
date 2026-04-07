@@ -135,8 +135,8 @@ export class CampaignQueryDto {
 }
 
 export class CampaignResponseDto {
-  @ApiProperty({ example: 'uuid' }) id: string
-  @ApiProperty({ example: 'uuid' }) merchantId: string
+  @ApiProperty({ example: 'cuid' }) id: string
+  @ApiProperty({ example: 'cuid' }) merchantId: string
   @ApiProperty({ example: 'Flash Sale iPhone 15' }) name: string
   @ApiProperty({ required: false, nullable: true }) description: string | null
   @ApiProperty({ example: 'DRAFT', enum: CampaignStatus })
@@ -169,9 +169,9 @@ export class CommissionCategoryResponseDto {
 }
 
 export class CampaignProductResponseDto {
-  @ApiProperty({ example: 'uuid' }) id: string
-  @ApiProperty({ example: 'uuid' }) campaignId: string
-  @ApiProperty({ example: 'uuid' }) productId: string
+  @ApiProperty({ example: 'cuid' }) id: string
+  @ApiProperty({ example: 'cuid' }) campaignId: string
+  @ApiProperty({ example: 'cuid' }) productId: string
   @ApiProperty({ example: 24990000 }) salePrice: number
   @ApiProperty({ example: 50 }) saleQuantity: number
   @ApiProperty({ example: 50 }) remainingQuantity: number

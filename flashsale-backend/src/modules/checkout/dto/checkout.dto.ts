@@ -34,6 +34,6 @@ export class CheckoutResponseDto {
   })
   paymentUrl: string
 
-  @ApiProperty({ example: 'uuid' })
+  @ApiProperty({ example: 'cuid' })
   paymentId: string
 }

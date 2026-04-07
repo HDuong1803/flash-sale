@@ -4,7 +4,7 @@ import { Type } from 'class-transformer'
 import { PaymentStatus } from '@prisma/client'
 
 export class PaymentWebhookDto {
-  @ApiProperty({ description: 'ID thanh toán', example: 'uuid' })
+  @ApiProperty({ description: 'ID thanh toán', example: 'cuid' })
   @IsString()
   paymentId: string
 
@@ -40,6 +40,6 @@ export class PaymentStatusResponseDto {
   @ApiProperty({ enum: PaymentStatus, example: PaymentStatus.PENDING })
   status: PaymentStatus
 
-  @ApiProperty({ example: 'uuid', nullable: true })
+  @ApiProperty({ example: 'cuid', nullable: true })
   orderId: string | null
 }

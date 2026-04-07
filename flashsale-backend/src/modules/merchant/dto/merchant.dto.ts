@@ -61,7 +61,7 @@ export class MerchantRevenueDailyDto {
 }
 
 export class MerchantRevenueByCampaignDto {
-  @ApiProperty({ example: 'uuid' }) campaignId: string
+  @ApiProperty({ example: 'cuid' }) campaignId: string
   @ApiProperty({ example: 'Flash Sale Mỹ Phẩm T3' }) campaignName: string
   @ApiProperty({
     example: 'ENDED',
@@ -73,7 +73,7 @@ export class MerchantRevenueByCampaignDto {
 }
 
 export class MerchantRevenueTopProductDto {
-  @ApiProperty({ example: 'uuid' }) productId: string
+  @ApiProperty({ example: 'cuid' }) productId: string
   @ApiProperty({ example: 'Son môi Dior Rouge 999' }) productName: string
   @ApiProperty({ example: 4500000 }) revenue: number
   @ApiProperty({ example: 5 }) quantity: number
@@ -132,8 +132,8 @@ export class ApplyMerchantDto {
 }
 
 export class MerchantProfileResponseDto {
-  @ApiProperty({ example: 'uuid' }) id: string
-  @ApiProperty({ example: 'uuid' }) userId: string
+  @ApiProperty({ example: 'cuid' }) id: string
+  @ApiProperty({ example: 'cuid' }) userId: string
   @ApiProperty({ example: 'Cửa hàng ABC' }) businessName: string
   @ApiProperty({ example: '0312345678' }) taxCode: string
   @ApiProperty({

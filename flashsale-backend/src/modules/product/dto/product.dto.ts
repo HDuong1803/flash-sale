@@ -192,7 +192,7 @@ export class ProductDetailResponseDto extends ProductResponseDto {
 }
 
 export class InventoryResponseDto {
-  @ApiProperty({ example: 'uuid' }) productId: string
+  @ApiProperty({ example: 'cuid' }) productId: string
   @ApiProperty({ example: 100, description: 'Tổng tồn kho' }) quantity: number
   @ApiProperty({ example: 5, description: 'Đang giữ chỗ' }) reserved: number
   @ApiProperty({ example: 95, description: 'Khả dụng (quantity - reserved)' })

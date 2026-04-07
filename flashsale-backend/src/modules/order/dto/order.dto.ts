@@ -48,7 +48,7 @@ export class OrderQueryDto {
 
 export class PurchaseResponseDto {
   @ApiProperty({
-    example: 'uuid',
+    example: 'cuid',
     description: 'ID yêu cầu để truy vấn kết quả'
   })
   requestId: string
@@ -62,7 +62,7 @@ export class PurchaseResultResponseDto {
   })
   status: string
 
-  @ApiProperty({ required: false, nullable: true, example: 'uuid' })
+  @ApiProperty({ required: false, nullable: true, example: 'cuid' })
   reservationId?: string
 
   @ApiProperty({
@@ -81,9 +81,9 @@ export class PurchaseResultResponseDto {
 }
 
 export class OrderResponseDto {
-  @ApiProperty({ example: 'uuid' }) id: string
-  @ApiProperty({ example: 'uuid' }) customerId: string
-  @ApiProperty({ example: 'uuid' }) merchantId: string
+  @ApiProperty({ example: 'cuid' }) id: string
+  @ApiProperty({ example: 'cuid' }) customerId: string
+  @ApiProperty({ example: 'cuid' }) merchantId: string
   @ApiProperty({
     example: 'CONFIRMED',
     enum: OrderStatus

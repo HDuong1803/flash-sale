@@ -130,7 +130,7 @@ export class ActivityItemDto {
 }
 
 export class DlqJobResponseDto {
-  @ApiProperty({ example: 'uuid' }) id: string
+  @ApiProperty({ example: 'cuid' }) id: string
   @ApiProperty({ example: 'ORDER_PROCESSING' }) type: string
   @ApiProperty({ example: 3 }) retryCount: number
   @ApiProperty({ example: 'Redis timeout' }) errorMessage: string
