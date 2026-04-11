@@ -22,6 +22,7 @@ import { RolesGuard } from '@common/guards/roles.guard'
 import { Roles } from '@common/decorators/roles.decorator'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { MerchantService } from '../services/merchant.service'
+import { MerchantConnectService } from '../services/merchant-connect.service'
 import {
   ApplyMerchantDto,
   MerchantOrderQueryDto,
@@ -39,7 +40,10 @@ const moduleName = 'merchants'
 @UseInterceptors(ResponseInterceptor)
 @ApiBearerAuth('JWT-auth')
 export class MerchantController {
-  constructor(private readonly merchantService: MerchantService) {}
+  constructor(
+    private readonly merchantService: MerchantService,
+    private readonly merchantConnectService: MerchantConnectService
+  ) {}
 
   @ApiOperation({ summary: 'Gửi đơn đăng ký trở thành Merchant' })
   @ApiBody({ type: ApplyMerchantDto })
@@ -166,5 +170,89 @@ export class MerchantController {
     @Query() query: MerchantOrderQueryDto
   ): Promise<unknown[]> {
     return this.merchantService.getOrders(user.userId, query)
+  }
+
+  // ─── Stripe Connect ────────────────────────────────────────────────────────
+
+  @ApiOperation({
+    summary:
+      'Bắt đầu kết nối Stripe Connect (tạo account + lấy onboarding URL)',
+    description:
+      'Idempotent: nếu đã có account thì chỉ tạo lại Account Link mới. ' +
+      'Frontend redirect merchant đến onboardingUrl để hoàn tất KYC trên Stripe.'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'URL onboarding Stripe Express'
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Merchant chưa được duyệt KYC'
+  })
+  @Post('stripe/connect')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('MERCHANT')
+  async initiateStripeConnect(
+    @CurrentUser() user: { userId: string }
+  ): Promise<{ onboardingUrl: string }> {
+    return this.merchantConnectService.initiateOnboarding(user.userId)
+  }
+
+  @ApiOperation({
+    summary:
+      'Sync trạng thái Stripe Connect sau khi merchant hoàn tất onboarding',
+    description:
+      'Gọi sau khi Stripe redirect về return_url. ' +
+      'Trả về status mới nhất; nếu chưa hoàn tất sẽ có onboardingUrl để tiếp tục.'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Trạng thái Connect mới nhất'
+  })
+  @Post('stripe/connect/sync')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('MERCHANT')
+  async syncStripeConnect(
+    @CurrentUser() user: { userId: string }
+  ): Promise<unknown> {
+    return this.merchantConnectService.syncConnectStatus(user.userId)
+  }
+
+  @ApiOperation({
+    summary: 'Lấy trạng thái kết nối Stripe hiện tại (không gọi Stripe API)'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponse({ status: HttpStatus.OK, description: 'Connect status' })
+  @Get('stripe/connect/status')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('MERCHANT')
+  async getStripeConnectStatus(
+    @CurrentUser() user: { userId: string }
+  ): Promise<unknown> {
+    return this.merchantConnectService.getConnectStatus(user.userId)
+  }
+
+  @ApiOperation({
+    summary: 'Lấy link vào Stripe Express Dashboard để quản lý payout'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponse({ status: HttpStatus.OK, description: 'URL Stripe Dashboard' })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Chưa hoàn tất kết nối Stripe'
+  })
+  @Get('stripe/dashboard')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('MERCHANT')
+  async getStripeDashboardLink(
+    @CurrentUser() user: { userId: string }
+  ): Promise<{ url: string }> {
+    return this.merchantConnectService.getDashboardLink(user.userId)
   }
 }

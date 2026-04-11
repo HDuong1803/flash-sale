@@ -47,6 +47,24 @@ export class StripeService implements PaymentGatewayProvider {
     form.append('metadata[paymentId]', input.paymentId)
     form.append('metadata[gateway]', PaymentMethod.STRIPE)
 
+    // Stripe Connect: Destination Charges
+    // Tiền vào platform trước, Stripe auto-transfer sang merchant sau khi trừ fee
+    if (input.destinationAccountId) {
+      form.append(
+        'payment_intent_data[transfer_data][destination]',
+        input.destinationAccountId
+      )
+      if (
+        input.applicationFeeAmount !== undefined &&
+        input.applicationFeeAmount > 0
+      ) {
+        form.append(
+          'payment_intent_data[application_fee_amount]',
+          String(Math.round(input.applicationFeeAmount))
+        )
+      }
+    }
+
     const response = await axios.post(
       'https://api.stripe.com/v1/checkout/sessions',
       form.toString(),

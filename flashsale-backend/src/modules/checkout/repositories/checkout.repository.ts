@@ -17,7 +17,19 @@ export class CheckoutRepository {
       select: {
         salePrice: true,
         campaignId: true,
-        campaign: { select: { status: true } }
+        campaign: {
+          select: {
+            status: true,
+            commissionRate: true,
+            merchant: {
+              select: {
+                stripeAccountId: true,
+                stripeAccountStatus: true,
+                stripeChargesEnabled: true
+              }
+            }
+          }
+        }
       }
     })
   }

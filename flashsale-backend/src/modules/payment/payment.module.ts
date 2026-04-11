@@ -3,6 +3,7 @@ import { PaymentController } from './controllers/payment.controller'
 import { PaymentService } from './services/payment.service'
 import { SagaCoordinatorService } from './services/saga-coordinator.service'
 import { StripeService } from './services/stripe.service'
+import { StripeConnectService } from './services/stripe-connect.service'
 import { PaymentGatewayRegistry } from './services/payment-gateway.registry'
 import { PaymentGatewayConfigService } from './services/payment-gateway-config.service'
 import { PaymentRecoveryService } from './services/payment-recovery.service'
@@ -17,14 +18,15 @@ import { NotificationModule } from '@modules/notification/notification.module'
     PaymentService,
     SagaCoordinatorService,
     StripeService,
+    StripeConnectService,
     PaymentGatewayRegistry,
     PaymentGatewayConfigService,
     PaymentRepository,
     PaymentRecoveryService
   ],
-  // Export để SchedulerModule inject PaymentRecoveryService vào recovery cron job
   exports: [
     StripeService,
+    StripeConnectService,
     PaymentGatewayRegistry,
     PaymentGatewayConfigService,
     PaymentRecoveryService

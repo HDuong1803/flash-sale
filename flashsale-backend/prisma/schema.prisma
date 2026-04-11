@@ -85,19 +85,29 @@ model MerchantProfile {
   phone           String?   @map("phone") @db.VarChar(20)
   address         String?   @map("address") @db.Text
   kycStatus       KycStatus @default(PENDING) @map("kyc_status")
-  rejectionReason String?   @map("rejection_reason") @db.Text // Admin ghi lý do từ chối, merchant xem được
-  approvedAt      DateTime? @map("approved_at") @db.Timestamp(6) // Thời điểm được admin duyệt
-  approvedBy      String?   @map("approved_by") @db.VarChar(36) // ID của admin đã duyệt (audit trail)
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  rejectionReason String?   @map("rejection_reason") @db.Text
+  approvedAt      DateTime? @map("approved_at") @db.Timestamp(6)
+  approvedBy      String?   @map("approved_by") @db.VarChar(36)
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campaigns Campaign[]
-  orders    Order[]
-  products  Product[]
+  // Stripe Connect (Destination Charges model)
+  stripeAccountId      String?   @map("stripe_account_id") @db.VarChar(255)
+  stripeAccountStatus  String    @default("NOT_CONNECTED") @map("stripe_account_status") @db.VarChar(50)
+  stripeChargesEnabled Boolean   @default(false) @map("stripe_charges_enabled")
+  stripePayoutsEnabled Boolean   @default(false) @map("stripe_payouts_enabled")
+  stripeConnectedAt    DateTime? @map("stripe_connected_at") @db.Timestamp(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaigns         Campaign[]
+  orders            Order[]
+  products          Product[]
   commissionLedgers CommissionLedger[]
 
-  @@index([kycStatus]) // Admin query WHERE kycStatus = 'PENDING'
+  @@index([kycStatus])
+  @@index([stripeAccountId])
+  @@index([stripeAccountStatus])
   @@map("merchant_profiles")
 }
 

@@ -315,4 +315,35 @@ export class MerchantRepository {
       }))
     }))
   }
+
+  // ─── Stripe Connect ────────────────────────────────────────────────────────
+
+  async updateStripeConnect(
+    merchantId: string,
+    data: {
+      stripeAccountId?: string
+      stripeAccountStatus?: string
+      stripeChargesEnabled?: boolean
+      stripePayoutsEnabled?: boolean
+      stripeConnectedAt?: Date | null
+    }
+  ): Promise<void> {
+    await this.prisma.merchantProfile.update({
+      where: { id: merchantId },
+      data
+    })
+  }
+
+  async findStripeConnectStatus(merchantId: string) {
+    return this.prisma.merchantProfile.findUnique({
+      where: { id: merchantId },
+      select: {
+        stripeAccountId: true,
+        stripeAccountStatus: true,
+        stripeChargesEnabled: true,
+        stripePayoutsEnabled: true,
+        stripeConnectedAt: true
+      }
+    })
+  }
 }

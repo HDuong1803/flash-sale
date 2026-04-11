@@ -6,6 +6,10 @@ export interface CreatePaymentLinkInput {
   description: string
   returnUrl: string
   cancelUrl: string
+  /** Stripe Connect: connected account ID của merchant */
+  destinationAccountId?: string
+  /** Stripe Connect: phí nền tảng (VND, zero-decimal) */
+  applicationFeeAmount?: number
 }
 
 export interface PaymentGatewayProvider {

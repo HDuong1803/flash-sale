@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -11,14 +12,18 @@ import { CheckoutRepository } from '../repositories/checkout.repository'
 import { CheckoutDto } from '../dto/checkout.dto'
 import { PaymentGatewayRegistry } from '@modules/payment/services/payment-gateway.registry'
 import { PaymentGatewayConfigService } from '@modules/payment/services/payment-gateway-config.service'
+import { StripeConnectService } from '@modules/payment/services/stripe-connect.service'
 
 @Injectable()
 export class CheckoutService {
+  private readonly logger = new Logger(CheckoutService.name)
+
   constructor(
     private readonly checkoutRepository: CheckoutRepository,
     private readonly redis: RedisService,
     private readonly paymentGatewayRegistry: PaymentGatewayRegistry,
     private readonly paymentGatewayConfigService: PaymentGatewayConfigService,
+    private readonly stripeConnectService: StripeConnectService,
     private readonly configService: ConfigService
   ) {}
 
@@ -78,14 +83,51 @@ export class CheckoutService {
       )
     )
 
+    // 5. Resolve Stripe Connect params for this merchant
+    const connectParams = this.resolveConnectParams(cp, Number(payment.amount))
+
     return {
       paymentUrl: await this.buildPaymentUrl(
         payment.id,
         payment.method,
         Number(payment.amount),
-        gatewayConfig.config as Record<string, unknown> | null
+        gatewayConfig.config as Record<string, unknown> | null,
+        connectParams
       ),
       paymentId: payment.id
+    }
+  }
+
+  /**
+   * Lấy destinationAccountId và applicationFeeAmount nếu merchant đã kết nối Stripe.
+   * Nếu chưa kết nối → thanh toán vào platform account, không transfer (fallback an toàn).
+   */
+  private resolveConnectParams(
+    cp: Awaited<ReturnType<CheckoutRepository['findCampaignProduct']>>,
+    grossAmount: number
+  ): { destinationAccountId?: string; applicationFeeAmount?: number } {
+    const merchant = cp?.campaign?.merchant
+    if (
+      !merchant?.stripeAccountId ||
+      merchant.stripeAccountStatus !== 'ACTIVE' ||
+      !merchant.stripeChargesEnabled
+    ) {
+      this.logger.warn({
+        event: 'stripe_connect_fallback',
+        reason: 'merchant not connected or not active',
+        status: merchant?.stripeAccountStatus
+      })
+      return {}
+    }
+
+    const rate = cp?.campaign?.commissionRate
+      ? Number(cp.campaign.commissionRate)
+      : 0
+    const fee = this.stripeConnectService.calculateFee(grossAmount, rate)
+
+    return {
+      destinationAccountId: merchant.stripeAccountId,
+      applicationFeeAmount: fee
     }
   }
 
@@ -93,7 +135,11 @@ export class CheckoutService {
     paymentId: string,
     method: PaymentMethod,
     amount: number,
-    gatewayConfig?: Record<string, unknown> | null
+    gatewayConfig?: Record<string, unknown> | null,
+    connectParams?: {
+      destinationAccountId?: string
+      applicationFeeAmount?: number
+    }
   ): Promise<string> {
     const frontendUrl = this.configService.get<string>(
       'frontend.FRONTEND_URL',
@@ -108,7 +154,8 @@ export class CheckoutService {
         amount,
         description: `FlashSale ${paymentId}`,
         returnUrl,
-        cancelUrl
+        cancelUrl,
+        ...connectParams
       },
       gatewayConfig
     )
