@@ -7,6 +7,18 @@ services:
     # command: npm run start:dev
     env_file:
       - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgres://twendee_user:twdWork2025@host.docker.internal:5432/twendee_work_dev_new?schema=public}
+      DIRECT_DATABASE_URL: ${DIRECT_DATABASE_URL_DOCKER:-postgres://twendee_user:twdWork2025@host.docker.internal:5432/twendee_work_dev_new}
+      RABBITMQ_URL: ${RABBITMQ_URL_DOCKER:-amqp://user:pass@host.docker.internal:5672}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_started
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
       - 5686:5686
     volumes:
@@ -17,12 +29,13 @@ services:
   postgres:
     container_name: flashsale_postgres
     image: postgres
+    profiles: ['local-db']
     ports:
-      - '5432:5432'
+      - '${POSTGRES_HOST_PORT:-55432}:5432'
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-flashsale}
       PGDATA: /data/postgres
       TZ: 'Etc/UTC'
     volumes:
@@ -32,7 +45,11 @@ services:
     networks:
       - ${NETWORK}
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER} -d ${DB_NAME}']
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-flashsale}'
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,12 +61,12 @@ services:
     ports:
       - '6432:6432'
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-flashsale}
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_NAME: ${DB_NAME}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_NAME: ${POSTGRES_DB:-flashsale}
       POOL_MODE: transaction
       MAX_CLIENT_CONN: 200
       DEFAULT_POOL_SIZE: 20
@@ -57,8 +74,8 @@ services:
       RESERVE_POOL_SIZE: 5
       MAX_DB_CONNECTIONS: 100
       AUTH_TYPE: md5
-      ADMIN_USERS: ${DB_USER}
-      STATS_USERS: ${DB_USER}
+      ADMIN_USERS: ${POSTGRES_USER:-postgres}
+      STATS_USERS: ${POSTGRES_USER:-postgres}
     volumes:
       - ./docker/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
       - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
