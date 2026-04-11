@@ -1,5 +1,12 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { MerchantApplication, MerchantProfile, MerchantRevenue, MerchantStats, RevenueDateRange } from '@/types'
+import type {
+  MerchantApplication,
+  MerchantProfile,
+  MerchantRevenue,
+  MerchantStats,
+  RevenueDateRange,
+  StripeConnectStatusResponse,
+} from '@/types'
 
 export interface ApplyMerchantDto {
   businessName: string
@@ -24,6 +31,22 @@ class MerchantService {
   }
   getRevenue(range: RevenueDateRange): Promise<MerchantRevenue> {
     return withRetry(() => apiClient.get('/merchants/revenue', { params: range }))
+  }
+
+  initiateStripeConnect(): Promise<{ onboardingUrl: string }> {
+    return apiClient.post('/merchants/stripe/connect')
+  }
+
+  syncStripeConnect(): Promise<StripeConnectStatusResponse> {
+    return apiClient.post('/merchants/stripe/connect/sync')
+  }
+
+  getStripeConnectStatus(): Promise<StripeConnectStatusResponse> {
+    return withRetry(() => apiClient.get('/merchants/stripe/connect/status'))
+  }
+
+  getStripeDashboardLink(): Promise<{ url: string }> {
+    return apiClient.get('/merchants/stripe/dashboard')
   }
 }
 

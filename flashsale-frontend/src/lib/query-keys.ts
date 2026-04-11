@@ -16,6 +16,7 @@ export const queryKeys = {
     pendingCount: () => ['merchants', 'pending-count'] as const,
     applicationStatus: () => ['merchants', 'application-status'] as const,
     stats: () => ['merchants', 'stats'] as const,
+    stripeConnectStatus: () => ['merchants', 'stripe-connect-status'] as const,
   },
   orders: {
     all: ['orders'] as const,

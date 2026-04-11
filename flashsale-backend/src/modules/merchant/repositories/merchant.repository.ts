@@ -3,15 +3,20 @@ import {
   CampaignStatus,
   KycStatus,
   MerchantProfile,
-  OrderStatus
+  OrderStatus,
+  Prisma
 } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
+
+export type MerchantProfileWithUser = Prisma.MerchantProfileGetPayload<{
+  include: { user: { select: { email: true; fullName: true } } }
+}>
 
 @Injectable()
 export class MerchantRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findByUserId(userId: string): Promise<MerchantProfile | null> {
+  async findByUserId(userId: string): Promise<MerchantProfileWithUser | null> {
     return this.prisma.merchantProfile.findUnique({
       where: { userId },
       include: { user: { select: { email: true, fullName: true } } }

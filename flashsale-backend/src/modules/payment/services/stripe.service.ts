@@ -8,6 +8,16 @@ import type {
 } from './payment-gateway.types'
 import * as crypto from 'crypto'
 
+/**
+ * StripeService — Provider thanh toán qua Stripe Checkout.
+ *
+ * Implements PaymentGatewayProvider để plug-in vào payment gateway
+ * selector. Service này xử lý 2 luồng:
+ *  1. Tạo Checkout Session (one-time payment) với hỗ trợ Destination Charges
+ *     cho Stripe Connect (tiền vào platform → Stripe tự transfer sang merchant).
+ *  2. Verify webhook signature bằng HMAC-SHA256 với timing-safe comparison
+ *     để chống timing attack.
+ */
 @Injectable()
 export class StripeService implements PaymentGatewayProvider {
   readonly method = PaymentMethod.STRIPE
@@ -15,10 +25,27 @@ export class StripeService implements PaymentGatewayProvider {
 
   constructor(private readonly configService: ConfigService) {}
 
+  /**
+   * Tạo Stripe Checkout Session và trả về URL thanh toán.
+   *
+   * WHY Checkout Session thay vì PaymentIntent trực tiếp:
+   *   - Stripe hosted page xử lý toàn bộ UX thanh toán (3DS, card validation, v.v.)
+   *   - Platform không cần PCI DSS compliance vì không touch card data trực tiếp
+   *
+   * HOW Destination Charges (Stripe Connect):
+   *   - `transfer_data[destination]` = stripeAccountId của merchant
+   *   - `application_fee_amount` = phần platform giữ lại (VND, zero-decimal)
+   *   - Stripe tự chuyển (total - fee) sang merchant sau khi capture
+   *
+   * @param input          Thông tin đơn hàng cần thanh toán
+   * @param gatewayConfig  Override API key (multi-tenant / test mode)
+   * @returns              URL Stripe Checkout để redirect user
+   */
   async createPaymentLink(
     input: CreatePaymentLinkInput,
     gatewayConfig?: Record<string, unknown> | null
   ): Promise<string> {
+    // Ưu tiên key từ gatewayConfig (multi-tenant config), fallback về env
     const apiKey =
       (gatewayConfig?.stripeSecretKey as string | undefined) ||
       this.configService.get<string>('stripe.STRIPE_SECRET_KEY', '')
@@ -27,13 +54,17 @@ export class StripeService implements PaymentGatewayProvider {
       throw new BadRequestException('Thiếu STRIPE_SECRET_KEY')
     }
 
+    // Append paymentId vào success/cancel URL để backend có thể xử lý callback
     const successUrl = `${input.returnUrl}?status=success&paymentId=${input.paymentId}`
     const cancelUrl = `${input.cancelUrl}?status=cancelled&paymentId=${input.paymentId}`
 
+    // Stripe API dùng application/x-www-form-urlencoded (không phải JSON)
     const form = new URLSearchParams()
     form.append('mode', 'payment')
     form.append('success_url', successUrl)
     form.append('cancel_url', cancelUrl)
+
+    // VND là zero-decimal currency — unit_amount = số VND nguyên (không x100)
     form.append('line_items[0][price_data][currency]', 'vnd')
     form.append(
       'line_items[0][price_data][product_data][name]',
@@ -44,16 +75,23 @@ export class StripeService implements PaymentGatewayProvider {
       String(Math.round(input.amount))
     )
     form.append('line_items[0][quantity]', '1')
+
+    // Metadata để webhook handler xác định đơn hàng tương ứng
     form.append('metadata[paymentId]', input.paymentId)
     form.append('metadata[gateway]', PaymentMethod.STRIPE)
 
-    // Stripe Connect: Destination Charges
-    // Tiền vào platform trước, Stripe auto-transfer sang merchant sau khi trừ fee
+    // ── Stripe Connect: Destination Charges ──────────────────────────────────
+    // Mô hình: tiền vào platform account trước, Stripe tự-transfer sang merchant.
+    // Điều này cho phép platform giữ lại application_fee trước khi release.
+    // Chỉ áp dụng khi merchant đã hoàn tất Stripe Express onboarding (ACTIVE).
     if (input.destinationAccountId) {
       form.append(
         'payment_intent_data[transfer_data][destination]',
         input.destinationAccountId
       )
+
+      // application_fee_amount: phần platform giữ lại (commission).
+      // Nếu = 0 hoặc undefined → bỏ qua, Stripe transfer toàn bộ cho merchant.
       if (
         input.applicationFeeAmount !== undefined &&
         input.applicationFeeAmount > 0
@@ -88,6 +126,23 @@ export class StripeService implements PaymentGatewayProvider {
     return url
   }
 
+  /**
+   * Xác thực chữ ký webhook từ Stripe.
+   *
+   * WHY timing-safe comparison:
+   *   Nếu dùng `===` hoặc `.equals()` thông thường, attacker có thể đo thời gian
+   *   phản hồi để đoán từng byte của HMAC (timing attack). crypto.timingSafeEqual
+   *   đảm bảo comparison luôn tốn đúng một lượng thời gian bất kể kết quả.
+   *
+   * HOW Stripe webhook signature:
+   *   Header `Stripe-Signature` format: `t=<timestamp>,v1=<hmac>`
+   *   Signed payload = `<timestamp>.<raw-body-utf8>`
+   *   HMAC = SHA-256 với key = STRIPE_WEBHOOK_SECRET
+   *
+   * @param payload          Raw request body Buffer (chưa parse JSON)
+   * @param signatureHeader  Giá trị của header `Stripe-Signature`
+   * @returns                true nếu signature hợp lệ
+   */
   verifyWebhookSignature(payload: Buffer, signatureHeader?: string): boolean {
     const webhookSecret = this.configService.get<string>(
       'stripe.STRIPE_WEBHOOK_SECRET',
@@ -99,6 +154,7 @@ export class StripeService implements PaymentGatewayProvider {
     const timestamp = this.extractTimestamp(signatureHeader)
     if (!signature || !timestamp) return false
 
+    // Stripe signed payload: "<timestamp>.<raw_body>"
     const signedPayload = `${timestamp}.${payload.toString('utf8')}`
     const expected = crypto
       .createHmac('sha256', webhookSecret)
@@ -107,8 +163,11 @@ export class StripeService implements PaymentGatewayProvider {
 
     const signatureBuf = Buffer.from(signature, 'hex')
     const expectedBuf = Buffer.from(expected, 'hex')
+
+    // Nếu độ dài khác nhau → lỗi format, không cần compare (và timingSafeEqual sẽ throw)
     if (signatureBuf.length !== expectedBuf.length) return false
 
+    // Wrap Buffer vào Uint8Array để tương thích với timingSafeEqual signature
     return crypto.timingSafeEqual(
       new Uint8Array(
         signatureBuf.buffer,
@@ -123,6 +182,10 @@ export class StripeService implements PaymentGatewayProvider {
     )
   }
 
+  /**
+   * Tách timestamp `t=<value>` từ Stripe-Signature header.
+   * Format header: `t=1614556800,v1=<hmac>,v0=<hmac-legacy>`
+   */
   private extractTimestamp(signatureHeader: string): string | null {
     const part = signatureHeader
       .split(',')
@@ -130,6 +193,10 @@ export class StripeService implements PaymentGatewayProvider {
     return part ? part.split('=')[1] ?? null : null
   }
 
+  /**
+   * Tách chữ ký v1 `v1=<hmac>` từ Stripe-Signature header.
+   * v1 là SHA-256 HMAC — v0 là legacy, không dùng.
+   */
   private extractV1Signature(signatureHeader: string): string | null {
     const part = signatureHeader
       .split(',')

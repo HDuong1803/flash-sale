@@ -22,7 +22,10 @@ import { RolesGuard } from '@common/guards/roles.guard'
 import { Roles } from '@common/decorators/roles.decorator'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { MerchantService } from '../services/merchant.service'
-import { MerchantConnectService } from '../services/merchant-connect.service'
+import {
+  MerchantConnectService,
+  MerchantStripeConnectStatusResponse
+} from '../services/merchant-connect.service'
 import {
   ApplyMerchantDto,
   MerchantOrderQueryDto,
@@ -218,7 +221,7 @@ export class MerchantController {
   @Roles('MERCHANT')
   async syncStripeConnect(
     @CurrentUser() user: { userId: string }
-  ): Promise<unknown> {
+  ): Promise<MerchantStripeConnectStatusResponse> {
     return this.merchantConnectService.syncConnectStatus(user.userId)
   }
 
@@ -233,7 +236,7 @@ export class MerchantController {
   @Roles('MERCHANT')
   async getStripeConnectStatus(
     @CurrentUser() user: { userId: string }
-  ): Promise<unknown> {
+  ): Promise<MerchantStripeConnectStatusResponse> {
     return this.merchantConnectService.getConnectStatus(user.userId)
   }
 

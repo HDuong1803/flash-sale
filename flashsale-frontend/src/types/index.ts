@@ -16,6 +16,12 @@ export type PaymentStatus =
   | 'REFUNDED'    // Đã hoàn tiền
   | 'CANCELLED'   // User huỷ trong quá trình thanh toán
 export type PaymentMethod = 'VNPAY' | 'MOMO' | 'STRIPE'
+export type StripeAccountStatus =
+  | 'NOT_CONNECTED'
+  | 'PENDING'
+  | 'ACTIVE'
+  | 'RESTRICTED'
+  | 'DISABLED'
 export type NotificationType =
   | 'RESERVATION_EXPIRING'
   | 'ORDER_CONFIRMED'
@@ -218,6 +224,14 @@ export interface MerchantProfile extends Merchant {
   description: string
   phone: string
   address: string
+}
+
+export interface StripeConnectStatusResponse {
+  status: StripeAccountStatus
+  chargesEnabled: boolean
+  payoutsEnabled: boolean
+  connectedAt?: string | null
+  onboardingUrl?: string
 }
 
 export interface Notification {
