@@ -101,7 +101,7 @@ jobs:
             echo "🔄 Updating source code..."
             git fetch origin develop
             git checkout develop
-            git pull --ff-only origin develop
+            git merge --ff-only origin/develop
 
             echo "🏗️ Building Docker image..."
             docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" -f docker/Dockerfile .
