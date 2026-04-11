@@ -1003,6 +1003,19 @@ async function main(): Promise<void> {
   ])
   console.log('✅ Pre-registrations: 6 đăng ký nhận thông báo')
 
+  // ── Payment Gateway Configs ────────────────────────────────────────────────
+  await prisma.paymentGatewayConfig.upsert({
+    where: { gateway: 'STRIPE' },
+    update: {},
+    create: {
+      gateway: 'STRIPE',
+      displayName: 'Stripe',
+      enabled: true,
+      isDefault: true
+    }
+  })
+  console.log('✅ Payment gateway: STRIPE (enabled, default)')
+
   // ── Tóm tắt ───────────────────────────────────────────────────────────────
   console.log('\n' + '─'.repeat(55))
   console.log('🎉 Seed hoàn tất!\n')

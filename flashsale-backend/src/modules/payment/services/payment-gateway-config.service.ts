@@ -1,14 +1,43 @@
 import {
   BadRequestException,
   Injectable,
-  NotFoundException
+  Logger,
+  NotFoundException,
+  OnModuleInit
 } from '@nestjs/common'
 import { PaymentMethod, Prisma } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
+const DEFAULT_GATEWAYS: Array<{
+  gateway: PaymentMethod
+  displayName: string
+  enabled: boolean
+  isDefault: boolean
+}> = [
+  {
+    gateway: PaymentMethod.STRIPE,
+    displayName: 'Stripe',
+    enabled: true,
+    isDefault: true
+  }
+]
+
 @Injectable()
-export class PaymentGatewayConfigService {
+export class PaymentGatewayConfigService implements OnModuleInit {
+  private readonly logger = new Logger(PaymentGatewayConfigService.name)
+
   constructor(private readonly prisma: PrismaService) {}
+
+  async onModuleInit() {
+    for (const gw of DEFAULT_GATEWAYS) {
+      await this.prisma.paymentGatewayConfig.upsert({
+        where: { gateway: gw.gateway },
+        create: gw,
+        update: {}
+      })
+    }
+    this.logger.log('Payment gateway configs initialized')
+  }
 
   async listAll() {
     return this.prisma.paymentGatewayConfig.findMany({
@@ -62,8 +91,6 @@ export class PaymentGatewayConfigService {
       config?: Record<string, unknown> | null
     }
   ) {
-    await this.getByGateway(gateway)
-
     return this.prisma.$transaction(async tx => {
       if (data.isDefault === true) {
         await tx.paymentGatewayConfig.updateMany({
@@ -83,26 +110,47 @@ export class PaymentGatewayConfigService {
         }
       }
 
-      const updated = await tx.paymentGatewayConfig.update({
-        where: { gateway },
-        data: {
-          ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
-          ...(data.isDefault !== undefined
-            ? { isDefault: data.isDefault }
-            : {}),
-          ...(data.displayName !== undefined
-            ? { displayName: data.displayName }
-            : {}),
-          ...(data.config !== undefined
-            ? {
-                config:
-                  data.config === null
-                    ? Prisma.JsonNull
-                    : (data.config as Prisma.InputJsonValue)
-              }
-            : {})
-        }
+      const updatePayload = {
+        ...(data.enabled !== undefined ? { enabled: data.enabled } : {}),
+        ...(data.isDefault !== undefined ? { isDefault: data.isDefault } : {}),
+        ...(data.displayName !== undefined
+          ? { displayName: data.displayName }
+          : {}),
+        ...(data.config !== undefined
+          ? {
+              config:
+                data.config === null
+                  ? Prisma.JsonNull
+                  : (data.config as Prisma.InputJsonValue)
+            }
+          : {})
+      }
+
+      const existing = await tx.paymentGatewayConfig.findUnique({
+        where: { gateway }
       })
+
+      const updated = existing
+        ? await tx.paymentGatewayConfig.update({
+            where: { gateway },
+            data: updatePayload
+          })
+        : await tx.paymentGatewayConfig.create({
+            data: {
+              gateway,
+              displayName: data.displayName ?? gateway,
+              enabled: data.enabled ?? false,
+              isDefault: data.isDefault ?? false,
+              ...(data.config !== undefined
+                ? {
+                    config:
+                      data.config === null
+                        ? Prisma.JsonNull
+                        : (data.config as Prisma.InputJsonValue)
+                  }
+                : {})
+            }
+          })
 
       if (updated.isDefault && !updated.enabled) {
         throw new BadRequestException(
