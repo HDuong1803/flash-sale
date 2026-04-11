@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException
+} from '@nestjs/common'
 import { ReservationStatus } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { ReservationRepository } from '../repositories/reservation.repository'
@@ -131,6 +136,34 @@ export class ReservationService {
     await this.redis.deleteReservation(reservationId)
     await this.redis.removeReservationExpiry(reservationId)
     await this.reservationRepository.markAsPaid(reservationId)
+  }
+
+  async cancelReservation(
+    reservationId: string,
+    customerId: string
+  ): Promise<void> {
+    const reservation =
+      await this.reservationRepository.findWithCampaignProductById(
+        reservationId
+      )
+
+    if (!reservation) {
+      throw new NotFoundException('Không tìm thấy giữ chỗ')
+    }
+    if (reservation.customerId !== customerId) {
+      throw new NotFoundException('Không tìm thấy giữ chỗ')
+    }
+    if (reservation.status !== 'HOLDING') {
+      throw new BadRequestException(
+        'Chỉ có thể huỷ giữ chỗ đang ở trạng thái HOLDING'
+      )
+    }
+
+    await this.releaseReservation(reservationId, 'USER_CANCELLED')
+  }
+
+  async getActiveForCustomer(customerId: string) {
+    return this.reservationRepository.findActiveByCustomerId(customerId)
   }
 
   async getDetailForCustomer(reservationId: string, customerId: string) {

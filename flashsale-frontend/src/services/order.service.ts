@@ -13,6 +13,18 @@ export interface OrderFilters {
   limit?: number
 }
 
+export interface ActiveReservation {
+  id: string
+  expiredAt: string
+  quantity: number
+  campaignProduct: {
+    id: string
+    salePrice: number
+    campaign: { id: string; name: string; status: string }
+    product: { name: string; images: Array<{ photo: { url: string } }> }
+  }
+}
+
 export interface ReservationDetail {
   id: string
   status: 'HOLDING' | 'PAID' | 'EXPIRED' | 'CANCELLED' | 'FAILED'
@@ -59,6 +71,12 @@ class OrderService {
   }
   getReservation(reservationId: string): Promise<ReservationDetail> {
     return withRetry(() => apiClient.get(`/reservations/${reservationId}`))
+  }
+  cancelReservation(reservationId: string): Promise<{ message: string }> {
+    return apiClient.delete(`/reservations/${reservationId}`)
+  }
+  getActiveReservations(): Promise<ActiveReservation[]> {
+    return withRetry(() => apiClient.get('/reservations/me/active'))
   }
 }
 

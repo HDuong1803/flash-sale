@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { ShoppingBag, AlertCircle } from 'lucide-react'
+import { ShoppingBag, AlertCircle, Clock } from 'lucide-react'
 import { useMyOrders } from '@/hooks/queries/useMyOrders'
+import { useActiveReservations } from '@/hooks/queries/useActiveReservations'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
+import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { OrderStatus } from '@/types'
 
@@ -25,6 +27,7 @@ export default function OrdersPage() {
   const { data: orders, loading, error, refetch } = useMyOrders(
     activeTab !== 'ALL' ? { status: activeTab } : undefined
   )
+  const { data: activeReservations, refetch: refetchReservations } = useActiveReservations()
   const totalOrders = orders.length
   const completedOrders = orders.filter((o) => o.status === 'DONE').length
   const pendingOrders = orders.filter((o) => o.status === 'PENDING' || o.status === 'CONFIRMED').length
@@ -52,6 +55,54 @@ export default function OrdersPage() {
             <p className="text-white/45 text-xs">Tổng chi tiêu</p>
             <p className="text-white font-bold text-lg">{formatCurrency(totalSpent)}</p>
           </div>
+        </div>
+      )}
+
+      {/* Pending reservations */}
+      {activeReservations.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Clock size={16} className="text-amber-400" />
+            <h2 className="text-amber-300 font-semibold text-sm">Chờ thanh toán ({activeReservations.length})</h2>
+          </div>
+          {activeReservations.map((r) => {
+            const imgUrl = r.campaignProduct.product.images[0]?.photo.url ?? null
+            const totalAmount = r.campaignProduct.salePrice * r.quantity
+            return (
+              <div key={r.id} className="glass rounded-2xl p-4 border border-amber-500/20 bg-amber-500/5">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden glass flex-shrink-0 relative">
+                    {imgUrl ? (
+                      <Image src={imgUrl} alt={r.campaignProduct.product.name} fill className="object-cover" sizes="64px" />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <ShoppingBag size={20} className="text-white/20" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-amber-300 text-xs font-medium mb-0.5">Chờ thanh toán</p>
+                    <p className="text-white font-medium text-sm truncate">{r.campaignProduct.product.name}</p>
+                    <p className="text-white/40 text-xs">{r.campaignProduct.campaign.name}</p>
+                    <div className="flex items-center gap-1 mt-1 text-white/50 text-xs">
+                      <Clock size={11} />
+                      <span>Hết hạn sau: </span>
+                      <CountdownTimer targetDate={r.expiredAt} size="sm" onExpire={refetchReservations} />
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <p className="text-indigo-300 font-bold text-sm">{formatCurrency(totalAmount)}</p>
+                    <Link
+                      href={`/checkout?reservationId=${r.id}&expiredAt=${encodeURIComponent(r.expiredAt)}`}
+                      className="btn-primary text-xs px-3 py-1.5"
+                    >
+                      Thanh toán
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

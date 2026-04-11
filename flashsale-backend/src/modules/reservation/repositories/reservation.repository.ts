@@ -102,6 +102,39 @@ export class ReservationRepository {
     })
   }
 
+  async findActiveByCustomerId(customerId: string) {
+    return this.prisma.reservation.findMany({
+      where: {
+        customerId,
+        status: 'HOLDING',
+        expiredAt: { gt: new Date() }
+      },
+      select: {
+        id: true,
+        expiredAt: true,
+        quantity: true,
+        campaignProduct: {
+          select: {
+            id: true,
+            salePrice: true,
+            campaign: { select: { id: true, name: true, status: true } },
+            product: {
+              select: {
+                name: true,
+                images: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { photo: { select: { url: true } } }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { expiredAt: 'asc' }
+    })
+  }
+
   async findDetailByIdForCustomer(reservationId: string, customerId: string) {
     return this.prisma.reservation.findFirst({
       where: { id: reservationId, customerId },

@@ -7,6 +7,7 @@ import { CheckCircle, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePurchaseResult } from '@/hooks/queries/usePurchaseResult'
 import { useCampaigns } from '@/hooks/queries/useCampaigns'
+import { useCancelReservation } from '@/hooks/mutations/useCancelReservation'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { CampaignCard } from '@/components/customer/CampaignCard'
 
@@ -15,9 +16,19 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
   const router = useRouter()
 
   const { data, error, errorCode, attemptCount, stop } = usePurchaseResult(requestId)
+  const { cancel: cancelReservation, loading: cancelling } = useCancelReservation()
 
   const { data: campaigns } = useCampaigns()
   const otherCampaigns = (campaigns ?? []).filter((c) => c.status === 'ACTIVE').slice(0, 3)
+
+  const handleCancel = async () => {
+    if (!data?.reservationId) {
+      router.push('/campaigns')
+      return
+    }
+    const ok = await cancelReservation(data.reservationId)
+    if (ok) router.push('/campaigns')
+  }
 
   const isProcessing = !data || data.status === 'PROCESSING'
   const isReserved = data?.status === 'RESERVED'
@@ -114,9 +125,18 @@ export default function PurchaseWaitingPage({ params }: { params: Promise<{ requ
               >
                 Tiến hành thanh toán
               </Link>
-              <Link href="/campaigns" className="text-white/40 text-sm hover:text-white/60 transition-colors">
-                Hủy
-              </Link>
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="text-white/40 text-sm hover:text-white/60 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+              >
+                {cancelling ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    Đang huỷ...
+                  </>
+                ) : 'Huỷ giữ chỗ'}
+              </button>
             </div>
           </>
         )}

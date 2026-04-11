@@ -52,6 +52,22 @@ export class OrderGatewayService {
       ttlSeconds
     )
     if (newCount === -1) {
+      // Kiểm tra xem user có HOLDING reservation đang chờ thanh toán không
+      const existingReservation =
+        await this.orderRepository.findHoldingReservation(
+          userId,
+          dto.campaignProductId
+        )
+      if (existingReservation) {
+        throw new BadRequestException(
+          JSON.stringify({
+            code: 'RESERVATION_EXISTS',
+            message: 'Bạn đã có đơn đặt chỗ chưa thanh toán cho sản phẩm này',
+            reservationId: existingReservation.id,
+            expiredAt: existingReservation.expiredAt.toISOString()
+          })
+        )
+      }
       throw new BadRequestException(
         `Bạn chỉ được mua tối đa ${cp.perUserLimit} sản phẩm`
       )

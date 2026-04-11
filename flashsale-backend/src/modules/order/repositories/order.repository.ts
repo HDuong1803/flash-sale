@@ -26,6 +26,22 @@ export class OrderRepository {
     })
   }
 
+  async findHoldingReservation(
+    userId: string,
+    campaignProductId: string
+  ): Promise<{ id: string; expiredAt: Date } | null> {
+    return this.prisma.reservation.findFirst({
+      where: {
+        customerId: userId,
+        campaignProductId,
+        status: ReservationStatus.HOLDING,
+        expiredAt: { gt: new Date() }
+      },
+      select: { id: true, expiredAt: true },
+      orderBy: { expiredAt: 'desc' }
+    })
+  }
+
   async findById(id: string): Promise<Order | null> {
     const order = await this.prisma.order.findUnique({
       where: { id },

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { use } from 'react'
-import { Store, AlertCircle, ArrowLeft, Minus, Plus, Info, Loader2, ImageOff } from 'lucide-react'
+import { Store, AlertCircle, ArrowLeft, Minus, Plus, Info, Loader2, ImageOff, Clock } from 'lucide-react'
 import { useCampaign } from '@/hooks/queries/useCampaign'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
@@ -33,6 +33,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [thumbErrors, setThumbErrors] = useState<Record<string, boolean>>({})
   // null = chưa có override (dùng giá trị từ API), true/false = user vừa bấm nút
   const [preRegisteredOverride, setPreRegisteredOverride] = useState<boolean | null>(null)
+  const [pendingReservation, setPendingReservation] = useState<{ id: string; expiredAt: string } | null>(null)
 
   const product = campaign?.campaignProducts?.[selectedProductIdx]
   // Derived: ưu tiên override local, fallback về giá trị API
@@ -59,7 +60,19 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     try {
       const { requestId } = await purchase(product.id, quantity)
       router.push(`/purchase/waiting/${requestId}`)
-    } catch { /* toast shown */ }
+    } catch (err) {
+      // Nếu backend báo có reservation đang chờ, hiển thị nút tiếp tục
+      if (err instanceof Error) {
+        try {
+          const parsed = JSON.parse(err.message) as { code: string; reservationId: string; expiredAt: string }
+          if (parsed.code === 'RESERVATION_EXISTS') {
+            setPendingReservation({ id: parsed.reservationId, expiredAt: parsed.expiredAt })
+            return
+          }
+        } catch { /* not JSON */ }
+      }
+      /* other errors: toast shown by hook */
+    }
   }
 
   const handlePreRegister = async () => {
@@ -236,8 +249,33 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               </div>
             )}
 
+            {/* Pending reservation banner */}
+            {pendingReservation && (
+              <div className="glass rounded-xl p-4 border border-amber-500/30 bg-amber-500/10 space-y-3">
+                <div className="flex items-center gap-2 text-amber-300">
+                  <Clock size={16} />
+                  <span className="text-sm font-medium">Bạn có giữ chỗ chưa thanh toán</span>
+                </div>
+                <p className="text-white/60 text-xs">Hết hạn lúc: {new Date(pendingReservation.expiredAt).toLocaleTimeString('vi-VN')}</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => router.push(`/checkout?reservationId=${pendingReservation.id}&expiredAt=${encodeURIComponent(pendingReservation.expiredAt)}`)}
+                    className="btn-primary flex-1 text-sm py-2"
+                  >
+                    Tiếp tục thanh toán
+                  </button>
+                  <button
+                    onClick={() => setPendingReservation(null)}
+                    className="btn-glass text-sm py-2 px-3 text-white/50"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* CTA */}
-            {isActive && !isSoldOut && (
+            {isActive && !isSoldOut && !pendingReservation && (
               <button onClick={handleBuy} disabled={buyLoading} className="btn-primary w-full disabled:opacity-50">
                 {buyLoading ? (
                   <span className="flex items-center justify-center gap-2">

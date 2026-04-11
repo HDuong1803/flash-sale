@@ -1,7 +1,17 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { orderService } from '@/services/order.service'
+import { ApiError } from '@/lib/api-client'
 import { getOrCreateKey, clearKey } from '@/lib/idempotency'
+
+function isReservationExistsError(err: ApiError): boolean {
+  try {
+    const parsed = JSON.parse(err.message) as { code?: string }
+    return parsed.code === 'RESERVATION_EXISTS'
+  } catch {
+    return false
+  }
+}
 
 export function usePurchase() {
   const [loading, setLoading] = useState(false)
@@ -14,6 +24,10 @@ export function usePurchase() {
       clearKey(`purchase:${campaignProductId}`)
       return result
     } catch (err) {
+      // RESERVATION_EXISTS — không toast, ném lên để page xử lý
+      if (err instanceof ApiError && isReservationExistsError(err)) {
+        throw err
+      }
       toast.error(err instanceof Error ? err.message : 'Mua hàng thất bại')
       throw err
     } finally {
