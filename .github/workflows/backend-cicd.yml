@@ -90,7 +90,7 @@ jobs:
           script: |
             set -euo pipefail
 
-            APP_DIR="project/flash-sale/flashsale-backend"
+            APP_DIR="/home/decot-api/project/flash-sale/flashsale-backend"
             IMAGE_TAG="${{ github.sha }}"
             IMAGE_NAME="flashsale-backend"
             CONTAINER_NAME="flashsale_backend"
