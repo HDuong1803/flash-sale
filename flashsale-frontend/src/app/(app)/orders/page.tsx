@@ -31,7 +31,7 @@ export default function OrdersPage() {
   const totalOrders = orders.length
   const completedOrders = orders.filter((o) => o.status === 'DONE').length
   const pendingOrders = orders.filter((o) => o.status === 'PENDING' || o.status === 'CONFIRMED').length
-  const totalSpent = orders.reduce((sum, o) => sum + o.totalAmount, 0)
+  const totalSpent = orders.reduce((sum, o) => sum + Number(o.totalAmount) || 0, 0)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
