@@ -114,10 +114,11 @@ export class StripeConnectService {
     form.append('type', 'express')
     form.append('country', params.country ?? 'VN')
     form.append('email', params.email)
-    // Yêu cầu 2 capabilities cần thiết để nhận Destination Charges:
-    //   card_payments — xử lý card transaction qua platform
-    //   transfers     — nhận transfer từ platform account
-    form.append('capabilities[card_payments][requested]', 'true')
+    // WHY only `transfers` (không request `card_payments`):
+    //   Mô hình Destination Charges — platform account xử lý card payment,
+    //   Stripe tự-transfer (total - fee) sang merchant connected account.
+    //   `card_payments` chỉ cần khi connected account trực tiếp nhận card payment.
+    //   VN không hỗ trợ `card_payments` trên connected accounts (Stripe 400 error).
     form.append('capabilities[transfers][requested]', 'true')
     form.append('business_profile[name]', params.businessName)
     // Không ép payout schedule = manual.
