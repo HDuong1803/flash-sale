@@ -103,6 +103,7 @@ export interface CampaignProduct {
   saleQuantity: number
   remainingQuantity: number
   perUserLimit: number
+  userPaidQuantity?: number
 }
 
 export interface CommissionCategory {

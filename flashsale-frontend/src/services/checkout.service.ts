@@ -5,6 +5,7 @@ export interface CheckoutDto {
   reservationId: string
   shippingAddress: string
   paymentMethod: PaymentMethod
+  clientOrigin?: string
 }
 
 export interface CheckoutResponse {

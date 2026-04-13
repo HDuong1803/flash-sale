@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator'
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUrl
+} from 'class-validator'
 import { PaymentMethod } from '@prisma/client'
 
 export class CheckoutDto {
@@ -26,6 +32,16 @@ export class CheckoutDto {
   })
   @IsEnum(PaymentMethod)
   paymentMethod: PaymentMethod
+
+  @ApiProperty({
+    description:
+      'Origin frontend hiện tại để redirect về đúng domain sau khi thanh toán',
+    example: 'https://flash-sale-one.vercel.app',
+    required: false
+  })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  clientOrigin?: string
 }
 
 export class CheckoutResponseDto {

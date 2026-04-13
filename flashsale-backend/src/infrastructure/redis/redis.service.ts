@@ -341,24 +341,31 @@ export class RedisService {
   async incrementPurchaseCount(
     campaignProductId: string,
     userId: string,
+    quantity: number,
     limit: number,
     ttlSeconds = 86400
   ): Promise<number> {
     const script = `
-      local new = redis.call('INCR', KEYS[1])
-      if new == 1 then
-        redis.call('EXPIRE', KEYS[1], ARGV[2])
+      local inc = tonumber(ARGV[1])
+      local limit = tonumber(ARGV[2])
+      local ttl = tonumber(ARGV[3])
+      local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+      local new = current + inc
+      if current == 0 then
+        redis.call('EXPIRE', KEYS[1], ttl)
       end
-      if new > tonumber(ARGV[1]) then
-        redis.call('DECR', KEYS[1])
+      if new > limit then
         return -1
       end
+      redis.call('SET', KEYS[1], new)
+      redis.call('EXPIRE', KEYS[1], ttl)
       return new
     `
     const result = await this._redisClient.eval(
       script,
       1,
       `purchase_limit:${campaignProductId}:${userId}`,
+      String(quantity),
       String(limit),
       String(ttlSeconds)
     )
@@ -370,13 +377,32 @@ export class RedisService {
    */
   async decrementPurchaseCount(
     campaignProductId: string,
-    userId: string
+    userId: string,
+    quantity = 1
   ): Promise<void> {
     const key = `purchase_limit:${campaignProductId}:${userId}`
-    const current = await this._redisClient.get(key)
-    if (current !== null && parseInt(current) > 0) {
-      await this._redisClient.decr(key)
-    }
+    const script = `
+      local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+      if current <= 0 then
+        return 0
+      end
+
+      local dec = tonumber(ARGV[1])
+      local next = current - dec
+      if next <= 0 then
+        redis.call('DEL', KEYS[1])
+        return 0
+      end
+
+      local ttl = redis.call('TTL', KEYS[1])
+      redis.call('SET', KEYS[1], next)
+      if ttl > 0 then
+        redis.call('EXPIRE', KEYS[1], ttl)
+      end
+      return next
+    `
+
+    await this._redisClient.eval(script, 1, key, String(quantity))
   }
 
   async incrementMetricCounter(

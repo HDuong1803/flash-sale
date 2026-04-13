@@ -4,6 +4,7 @@ import {
   CampaignProduct,
   CampaignStatus,
   OrderStatus,
+  ReservationStatus,
   PreRegistration
 } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
@@ -17,6 +18,8 @@ export type CampaignWithProducts = Campaign & {
   campaignProducts: Array<
     CampaignProduct & {
       product: { name: string; imageUrl: string | null; originalPrice: number }
+      /** Tổng số lượng user hiện tại đã mua thành công (status=PAID) */
+      userPaidQuantity?: number
     }
   >
   merchant: { businessName: string }
@@ -99,12 +102,38 @@ export class CampaignRepository {
     const mapped = mapCampaignProducts(raw)
 
     if (userId) {
-      const preReg = await this.prisma.preRegistration.findUnique({
-        where: {
-          customerId_campaignId: { customerId: userId, campaignId: id }
-        },
-        select: { id: true }
-      })
+      const [preReg, paidByProduct] = await Promise.all([
+        this.prisma.preRegistration.findUnique({
+          where: {
+            customerId_campaignId: { customerId: userId, campaignId: id }
+          },
+          select: { id: true }
+        }),
+        this.prisma.reservation.groupBy({
+          by: ['campaignProductId'],
+          where: {
+            customerId: userId,
+            status: ReservationStatus.PAID,
+            campaignProductId: {
+              in: mapped.campaignProducts.map(cp => cp.id)
+            }
+          },
+          _sum: { quantity: true }
+        })
+      ])
+
+      const paidMap = new Map(
+        paidByProduct.map(item => [
+          item.campaignProductId,
+          item._sum.quantity ?? 0
+        ])
+      )
+
+      mapped.campaignProducts = mapped.campaignProducts.map(cp => ({
+        ...cp,
+        userPaidQuantity: paidMap.get(cp.id) ?? 0
+      }))
+
       mapped.isPreRegistered = preReg !== null
     }
 

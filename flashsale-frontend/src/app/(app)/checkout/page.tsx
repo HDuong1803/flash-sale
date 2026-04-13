@@ -43,35 +43,17 @@ function CheckoutContent() {
   } = useReservationDetail(reservationId)
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [expiredDialog, setExpiredDialog] = useState(false)
-  const [expiredAt, setExpiredAt] = useState<string | null>(null)
-  const [fallbackExpiredAt, setFallbackExpiredAt] = useState<string | null>(null)
 
   useEffect(() => {
     if (!reservationId) router.replace('/campaigns')
   }, [reservationId, router])
 
-  useEffect(() => {
-    const expiredAtParam = searchParams.get('expiredAt')
-    if (expiredAtParam) setExpiredAt(expiredAtParam)
-  }, [searchParams])
-
-  useEffect(() => {
-    if (reservation?.expiredAt) setExpiredAt(reservation.expiredAt)
-  }, [reservation?.expiredAt])
-
-  useEffect(() => {
-    if (!fallbackExpiredAt) {
-      setFallbackExpiredAt(new Date(Date.now() + 15 * 60 * 1000).toISOString())
-    }
-  }, [fallbackExpiredAt])
-
-  useEffect(() => {
-    if (methods.length === 0) return
-    if (!selectedMethod || !methods.some(m => m.method === selectedMethod)) {
-      const defaultMethod = methods.find(m => m.isDefault)?.method ?? methods[0]?.method ?? null
-      setSelectedMethod(defaultMethod)
-    }
-  }, [methods, selectedMethod])
+  const defaultMethod =
+    methods.find(m => m.isDefault)?.method ?? methods[0]?.method ?? null
+  const effectiveSelectedMethod =
+    selectedMethod && methods.some(m => m.method === selectedMethod)
+      ? selectedMethod
+      : defaultMethod
 
   const { register, handleSubmit, formState: { errors } } = useForm<CheckoutForm>({
     resolver: zodResolver(schema),
@@ -79,12 +61,13 @@ function CheckoutContent() {
   })
 
   const onSubmit = async (formData: CheckoutForm) => {
-    if (!reservationId || !selectedMethod || reservation?.status !== 'HOLDING') return
+    if (!reservationId || !effectiveSelectedMethod || reservation?.status !== 'HOLDING') return
     try {
       const { paymentUrl } = await checkout({
         reservationId,
         shippingAddress: `${formData.address}, ${formData.city}`,
-        paymentMethod: selectedMethod,
+        paymentMethod: effectiveSelectedMethod,
+        clientOrigin: window.location.origin,
       } as CheckoutDto)
       window.location.assign(paymentUrl)
     } catch { /* handled by hook */ }
@@ -120,7 +103,8 @@ function CheckoutContent() {
   }
 
   const totalAmount = reservation?.totalAmount ?? 0
-  const targetExpiredAt = expiredAt ?? fallbackExpiredAt
+  const expiredAtFromQuery = searchParams.get('expiredAt')
+  const targetExpiredAt = reservation?.expiredAt ?? expiredAtFromQuery
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -176,14 +160,14 @@ function CheckoutContent() {
                       type="button"
                       onClick={() => setSelectedMethod(method.method)}
                       className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all ${
-                        selectedMethod === method.method
+                        effectiveSelectedMethod === method.method
                           ? 'border-indigo-500/60 bg-indigo-500/10'
                           : 'border-white/10 glass hover:border-white/20'
                       }`}
                     >
-                      <Building2 size={24} className={selectedMethod === method.method ? 'text-indigo-300' : 'text-white/50'} />
+                      <Building2 size={24} className={effectiveSelectedMethod === method.method ? 'text-indigo-300' : 'text-white/50'} />
                       <div className="text-left">
-                        <p className={`font-medium text-sm ${selectedMethod === method.method ? 'text-indigo-300' : 'text-white'}`}>
+                        <p className={`font-medium text-sm ${effectiveSelectedMethod === method.method ? 'text-indigo-300' : 'text-white'}`}>
                           {method.displayName}
                         </p>
                         <p className="text-white/40 text-xs">{method.method}</p>
@@ -193,7 +177,7 @@ function CheckoutContent() {
                           Mặc định
                         </span>
                       )}
-                      <div className={`ml-auto w-4 h-4 rounded-full border-2 ${selectedMethod === method.method ? 'border-indigo-400 bg-indigo-400' : 'border-white/30'}`} />
+                      <div className={`ml-auto w-4 h-4 rounded-full border-2 ${effectiveSelectedMethod === method.method ? 'border-indigo-400 bg-indigo-400' : 'border-white/30'}`} />
                     </button>
                   ))
                 )}
@@ -265,7 +249,7 @@ function CheckoutContent() {
             <button
               type="submit"
               form="checkout-form"
-              disabled={loading || methodsLoading || reservationLoading || !selectedMethod || methods.length === 0 || reservation?.status !== 'HOLDING'}
+              disabled={loading || methodsLoading || reservationLoading || !effectiveSelectedMethod || methods.length === 0 || reservation?.status !== 'HOLDING'}
               className="btn-primary w-full disabled:opacity-50"
             >
               {loading ? (

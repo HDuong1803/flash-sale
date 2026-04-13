@@ -86,12 +86,13 @@ export class OrderGatewayService {
     if (cp.campaign.status !== CampaignStatus.ACTIVE)
       throw new BadRequestException('Flash Sale chưa bắt đầu hoặc đã kết thúc')
 
-    // [Step 3] Atomic INCR per-user purchase counter — chống race condition vượt giới hạn mua.
+    // [Step 3] Atomic INCRBY per-user purchase counter — chống race condition vượt giới hạn mua.
     //
     // Vấn đề nếu không dùng atomic: 2 request song song cùng đọc counter=0, cùng thấy < limit,
     // cùng increment → counter lên 2 dù limit=1 (TOCTOU race condition).
     //
-    // Giải pháp: Lua script trong Redis thực hiện CHECK + INCREMENT như một lệnh duy nhất,
+    // Giải pháp: Lua script trong Redis thực hiện CHECK + INCRBY(quantity)
+    // như một lệnh duy nhất,
     // không thể bị interleave bởi lệnh Redis khác.
     //
     // TTL = thời gian còn lại của campaign (tối thiểu 60 giây) hoặc 24h nếu không có endTime.
@@ -103,6 +104,7 @@ export class OrderGatewayService {
     const newCount = await this.redis.incrementPurchaseCount(
       dto.campaignProductId,
       userId,
+      dto.quantity,
       cp.perUserLimit,
       ttlSeconds
     )
@@ -158,7 +160,11 @@ export class OrderGatewayService {
     if (!claimed) {
       // Key đã tồn tại — một concurrent request khác đã claim trước (trong vài milliseconds).
       // Rollback: hoàn trả counter đã increment ở Step 3 trước khi từ chối request này.
-      await this.redis.decrementPurchaseCount(dto.campaignProductId, userId)
+      await this.redis.decrementPurchaseCount(
+        dto.campaignProductId,
+        userId,
+        dto.quantity
+      )
 
       // Cố gắng trả về requestId của request đã claim thành công (best-effort).
       const existingRequestId = await this.redis.getPurchaseRequestIdempotency(
@@ -187,7 +193,11 @@ export class OrderGatewayService {
       // Rollback chain: expire idempotency key ngay lập tức (TTL=1 giây) + hoàn trả counter.
       // Không xóa key trực tiếp vì atomic SET NX đã claim — set TTL=1 là cách an toàn nhất.
       await this.redis.setPurchaseRequestIdempotency(idempotencyKey, '', 1) // expire ngay
-      await this.redis.decrementPurchaseCount(dto.campaignProductId, userId)
+      await this.redis.decrementPurchaseCount(
+        dto.campaignProductId,
+        userId,
+        dto.quantity
+      )
       throw new BadRequestException(
         'Hệ thống đang quá tải, vui lòng thử lại sau'
       )

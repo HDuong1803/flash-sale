@@ -6,6 +6,10 @@ export interface CreatePaymentLinkInput {
   description: string
   returnUrl: string
   cancelUrl: string
+  /** Customer email để prefill trên Stripe Checkout */
+  customerEmail?: string
+  /** Customer full name để prefill qua Stripe Customer object */
+  customerName?: string
   /** Stripe Connect: connected account ID của merchant */
   destinationAccountId?: string
   /** Stripe Connect: phí nền tảng (VND, zero-decimal) */

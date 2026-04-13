@@ -25,6 +25,37 @@ export class StripeService implements PaymentGatewayProvider {
 
   constructor(private readonly configService: ConfigService) {}
 
+  private async createCheckoutCustomer(
+    apiKey: string,
+    email: string,
+    fullName?: string
+  ): Promise<string | null> {
+    const form = new URLSearchParams()
+    form.append('email', email)
+    if (fullName) {
+      form.append('name', fullName)
+    }
+
+    try {
+      const res = await axios.post<{ id?: string }>(
+        'https://api.stripe.com/v1/customers',
+        form.toString(),
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15000
+        }
+      )
+
+      return res.data?.id ?? null
+    } catch {
+      // Không fail checkout nếu Stripe customer prefill thất bại.
+      return null
+    }
+  }
+
   /**
    * Tạo Stripe Checkout Session và trả về URL thanh toán.
    *
@@ -63,6 +94,22 @@ export class StripeService implements PaymentGatewayProvider {
     form.append('mode', 'payment')
     form.append('success_url', successUrl)
     form.append('cancel_url', cancelUrl)
+
+    if (input.customerEmail) {
+      const customerId = await this.createCheckoutCustomer(
+        apiKey,
+        input.customerEmail,
+        input.customerName
+      )
+
+      if (customerId) {
+        // Dùng customer khi có sẵn để Stripe prefill cả tên + email.
+        // Không gửi đồng thời customer_email để tránh xung đột tham số.
+        form.append('customer', customerId)
+      } else {
+        form.append('customer_email', input.customerEmail)
+      }
+    }
 
     // VND là zero-decimal currency — unit_amount = số VND nguyên (không x100)
     form.append('line_items[0][price_data][currency]', 'vnd')

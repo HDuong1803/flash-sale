@@ -19,6 +19,7 @@ export class CheckoutRepository {
         campaignId: true,
         campaign: {
           select: {
+            name: true,
             status: true,
             commissionRate: true,
             merchant: {
@@ -30,6 +31,19 @@ export class CheckoutRepository {
             }
           }
         }
+      }
+    })
+  }
+
+  async findCustomerSummary(userId: string): Promise<{
+    fullName: string
+    email: string
+  } | null> {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        fullName: true,
+        email: true
       }
     })
   }

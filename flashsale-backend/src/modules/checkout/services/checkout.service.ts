@@ -85,12 +85,16 @@ export class CheckoutService {
 
     // 5. Resolve Stripe Connect params for this merchant
     const connectParams = this.resolveConnectParams(cp, Number(payment.amount))
+    const customer = await this.checkoutRepository.findCustomerSummary(userId)
 
     return {
       paymentUrl: await this.buildPaymentUrl(
         payment.id,
         payment.method,
         Number(payment.amount),
+        cp.campaign.name,
+        customer,
+        dto.clientOrigin,
         gatewayConfig.config as Record<string, unknown> | null,
         connectParams
       ),
@@ -135,16 +139,16 @@ export class CheckoutService {
     paymentId: string,
     method: PaymentMethod,
     amount: number,
+    campaignName: string,
+    customer: { fullName: string; email: string } | null,
+    clientOrigin: string | undefined,
     gatewayConfig?: Record<string, unknown> | null,
     connectParams?: {
       destinationAccountId?: string
       applicationFeeAmount?: number
     }
   ): Promise<string> {
-    const clientUrl = this.configService.get<string>(
-      'application.CLIENT_URL_SERVER',
-      ''
-    )
+    const clientUrl = this.resolveClientUrl(clientOrigin)
 
     const returnUrl = `${clientUrl}/payment/return`
     const cancelUrl = `${clientUrl}/payment/cancel`
@@ -153,13 +157,39 @@ export class CheckoutService {
       {
         paymentId,
         amount,
-        description: `FlashSale ${paymentId}`,
+        description: `Flash Sale - ${campaignName}`,
         returnUrl,
         cancelUrl,
+        customerEmail: customer?.email,
+        customerName: customer?.fullName,
         ...connectParams
       },
       gatewayConfig
     )
+  }
+
+  /**
+   * Chỉ chấp nhận redirect về các origin frontend đã cấu hình để tránh open redirect.
+   */
+  private resolveClientUrl(clientOrigin?: string): string {
+    const serverUrl = this.configService.get<string>(
+      'application.CLIENT_URL_SERVER',
+      ''
+    )
+    const localUrl = this.configService.get<string>(
+      'application.CLIENT_URL_LOCAL',
+      ''
+    )
+
+    const allowList = [serverUrl, localUrl]
+      .map(url => url?.trim())
+      .filter((url): url is string => Boolean(url))
+
+    if (clientOrigin && allowList.includes(clientOrigin.trim())) {
+      return clientOrigin.trim()
+    }
+
+    return serverUrl || localUrl || ''
   }
 
   async getPaymentMethods() {

@@ -69,7 +69,8 @@ export class ReservationService {
       // Restore per-user purchase counter so user can retry
       await this.redis.decrementPurchaseCount(
         resv.campaignProductId,
-        resv.customerId
+        resv.customerId,
+        parseInt(resv.quantity)
       )
       await this.redis.deleteReservation(reservationId)
     } else {
@@ -85,7 +86,8 @@ export class ReservationService {
         )
         await this.redis.decrementPurchaseCount(
           dbResv.campaignProduct.id,
-          dbResv.customerId
+          dbResv.customerId,
+          dbResv.quantity
         )
         this.logger.warn({
           event: 'reservation_redis_fallback',

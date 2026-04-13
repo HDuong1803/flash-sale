@@ -136,7 +136,11 @@ export class OrderWorker implements OnModuleInit {
       // 1. Campaign stock chưa được pre-load vào Redis (initialization chưa chạy)
       // 2. Redis bị restart và chưa được restore
       // Rollback: hoàn trả purchase counter để user không bị "khóa" quota
-      await this.redis.decrementPurchaseCount(campaignProductId, userId)
+      await this.redis.decrementPurchaseCount(
+        campaignProductId,
+        userId,
+        quantity
+      )
       const result = { status: 'SOLD_OUT', reason: 'Chiến dịch chưa bắt đầu' }
       await this.saveResult(requestId, idempotencyKey, result)
       return
@@ -146,7 +150,11 @@ export class OrderWorker implements OnModuleInit {
       // Tồn kho không đủ — sold out. remaining có thể âm nếu nhiều workers
       // cùng decrement đồng thời và một trong số đó "thắng" cái slot cuối cùng.
       // Rollback purchase counter để user có thể thử mua sản phẩm khác hoặc lần sau.
-      await this.redis.decrementPurchaseCount(campaignProductId, userId)
+      await this.redis.decrementPurchaseCount(
+        campaignProductId,
+        userId,
+        quantity
+      )
       const result = { status: 'SOLD_OUT', reason: 'Sản phẩm đã hết hàng' }
       await this.saveResult(requestId, idempotencyKey, result)
       this.logger.log(`SOLD_OUT: campaignProductId=${campaignProductId}`)
@@ -202,7 +210,11 @@ export class OrderWorker implements OnModuleInit {
       if (isFinalAttempt) {
         // Final fail: hoàn trả counter để user có thể retry với request mới,
         // sau đó lưu kết quả cuối cùng cho polling API.
-        await this.redis.decrementPurchaseCount(campaignProductId, userId)
+        await this.redis.decrementPurchaseCount(
+          campaignProductId,
+          userId,
+          quantity
+        )
 
         const result = {
           status: 'SOLD_OUT',

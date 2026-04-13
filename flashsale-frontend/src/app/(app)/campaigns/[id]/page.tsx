@@ -45,6 +45,13 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     product && isScheduled && product.remainingQuantity === 0 && product.saleQuantity > 0
       ? product.saleQuantity
       : (product?.remainingQuantity ?? 0)
+  const alreadyPaidQuantity = product?.userPaidQuantity ?? 0
+  const maxSelectableByLimit = product
+    ? Math.max(0, product.perUserLimit - alreadyPaidQuantity)
+    : 0
+  const maxSelectableQuantity = product
+    ? Math.max(0, Math.min(maxSelectableByLimit, displayRemaining))
+    : 0
   const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
   const isSoldOut = campaign?.status === 'ACTIVE' ? (displayRemaining <= 0) : false
   const isActive = campaign?.status === 'ACTIVE'
@@ -52,6 +59,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const handleSelectProduct = (idx: number) => {
     setSelectedProductIdx(idx)
     setMainImgError(false)
+    setQuantity(1)
   }
 
   const handleBuy = async () => {
@@ -228,7 +236,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
 
             {/* Quantity */}
-            {product && product.perUserLimit > 1 && !isSoldOut && (
+            {product && product.perUserLimit > 1 && !isSoldOut && maxSelectableQuantity > 0 && (
               <div className="flex items-center gap-3">
                 <span className="text-white/60 text-sm">Số lượng:</span>
                 <div className="flex items-center glass rounded-xl overflow-hidden">
@@ -240,12 +248,18 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   </button>
                   <span className="px-4 py-2 text-white font-medium min-w-[3rem] text-center">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(Math.min(product.perUserLimit, quantity + 1))}
+                    onClick={() => setQuantity(Math.min(maxSelectableQuantity, quantity + 1))}
                     className="px-3 py-2 text-white/60 hover:text-white hover:bg-white/10 transition-all"
                   >
                     <Plus size={14} />
                   </button>
                 </div>
+              </div>
+            )}
+
+            {product && product.perUserLimit > 1 && maxSelectableQuantity <= 0 && (
+              <div className="glass rounded-xl p-3 border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs">
+                Bạn đã đạt giới hạn mua cho sản phẩm này ({alreadyPaidQuantity}/{product.perUserLimit}).
               </div>
             )}
 
@@ -275,7 +289,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
 
             {/* CTA */}
-            {isActive && !isSoldOut && !pendingReservation && (
+            {isActive && !isSoldOut && !pendingReservation && maxSelectableQuantity > 0 && (
               <button onClick={handleBuy} disabled={buyLoading} className="btn-primary w-full disabled:opacity-50">
                 {buyLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -322,7 +336,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             {product && product.perUserLimit > 1 && (
               <div className="flex items-center gap-1.5 text-white/40 text-xs">
                 <Info size={12} />
-                <span>Tối đa {product.perUserLimit} sản phẩm/người</span>
+                <span>
+                  Tối đa {product.perUserLimit} sản phẩm/người.
+                  {alreadyPaidQuantity > 0 ? ` Đã mua: ${alreadyPaidQuantity}.` : ''}
+                  {maxSelectableQuantity > 0 ? ` Còn có thể mua: ${maxSelectableQuantity}.` : ''}
+                </span>
               </div>
             )}
           </div>
