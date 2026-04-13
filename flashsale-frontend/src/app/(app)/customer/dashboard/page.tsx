@@ -16,7 +16,7 @@ export default function CustomerDashboardPage() {
   const confirmedOrders = orders?.filter(o => o.status === 'CONFIRMED' || o.status === 'DONE').length ?? 0
   const pendingOrders = orders?.filter((o) => o.status === 'PENDING' || o.status === 'SHIPPING').length ?? 0
   const cancelledOrders = orders?.filter((o) => o.status === 'CANCELLED').length ?? 0
-  const totalSpent = orders?.reduce((sum, o) => sum + (o.totalAmount ?? 0), 0) ?? 0
+  const totalSpent = orders?.reduce((sum, o) => sum + Number(o.totalAmount) || 0, 0) ?? 0
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
