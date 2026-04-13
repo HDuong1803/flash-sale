@@ -9,7 +9,8 @@ export const config = {
     CLIENT_URL_SERVER: process.env.CLIENT_URL_SERVER,
     BACKEND_URL_SERVER: process.env.BACKEND_URL_SERVER,
     CLIENT_URL_LOCAL: process.env.CLIENT_URL_LOCAL,
-    BACKEND_URL_LOCAL: process.env.BACKEND_URL_LOCAL
+    BACKEND_URL_LOCAL: process.env.BACKEND_URL_LOCAL,
+    COOKIE_CROSS_SITE: process.env.COOKIE_CROSS_SITE
   },
 
   database: {

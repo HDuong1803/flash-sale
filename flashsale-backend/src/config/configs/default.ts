@@ -7,7 +7,8 @@ export const config = {
     isProd: false,
     CLIENT_URL: '',
     SERVER_URL: '',
-    CLIENT_API_HOST: ''
+    CLIENT_API_HOST: '',
+    COOKIE_CROSS_SITE: 'false'
   },
 
   database: {

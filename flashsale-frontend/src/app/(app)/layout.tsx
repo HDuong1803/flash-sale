@@ -10,7 +10,7 @@ import { AnimatedBackground } from '@/components/shared/AnimatedBackground'
 import { cn } from '@/lib/utils'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthContext()
+  const { isAuthenticated, isHydrating } = useAuthContext()
   const { sidebarCollapsed, setSidebarCollapsed, openAuthModal } = useUiContext()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -43,7 +43,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Suspense fallback={<div className="fixed top-0 left-0 right-0 z-50 glass border-b border-white/10 h-16" />}>
         <TopHeader />
       </Suspense>
-      {isAuthenticated && <AppSidebar />}
+      {(isAuthenticated || isHydrating) && <AppSidebar />}
 
       {/* Mobile overlay backdrop — shown when sidebar is open on mobile */}
       {isAuthenticated && isMobile && sidebarOpen && (

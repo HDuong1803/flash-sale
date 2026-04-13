@@ -65,7 +65,12 @@ export class AuthController {
     secure: boolean
   } {
     // Cross-site HTTPS (frontend domain != backend domain) requires SameSite=None + Secure.
-    if (this.isProd) {
+    // Also applies when COOKIE_CROSS_SITE=true (e.g. staging with NODE_ENV=development).
+    const isCrossSite =
+      this.isProd ||
+      this.configService.get<string>('application.COOKIE_CROSS_SITE', '') ===
+        'true'
+    if (isCrossSite) {
       return { sameSite: 'none', secure: true }
     }
 
