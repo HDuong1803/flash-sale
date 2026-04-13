@@ -30,6 +30,7 @@ import {
 import { PaymentGatewayConfigService } from '@modules/payment/services/payment-gateway-config.service'
 import { ReservationService } from '@modules/reservation/services/reservation.service'
 import { PaymentMethod } from '@prisma/client'
+import { ConfigService } from '@nestjs/config'
 
 @Injectable()
 export class AdminService {
@@ -39,6 +40,7 @@ export class AdminService {
     private readonly adminRepository: AdminRepository,
     private readonly redis: RedisService,
     private readonly rabbitmq: RabbitMQService,
+    private readonly configService: ConfigService,
     private readonly campaignRepository: CampaignRepository,
     private readonly rescheduleRequestRepository: RescheduleRequestRepository,
     private readonly notificationService: NotificationService,
@@ -605,7 +607,10 @@ export class AdminService {
     const { merchant } = details.campaign
     const formattedNewStart = this.formatDateTime(newStartTime)
     const formattedExpiry = this.formatDateTime(expiresAt)
-    const frontendUrl = process.env.FRONTEND_URL ?? ''
+    const clientUrl = this.configService.get<string>(
+      'application.CLIENT_URL_SERVER',
+      ''
+    )
 
     try {
       await this.notificationService.createNotification(merchant.userId, {
@@ -628,7 +633,7 @@ export class AdminService {
         campaignName: details.campaign.name,
         newStartTime: formattedNewStart,
         expiresAt: formattedExpiry,
-        dashboardUrl: `${frontendUrl}/merchant/reschedule-requests`
+        dashboardUrl: `${clientUrl}/merchant/reschedule-requests`
       })
     } catch (err: unknown) {
       this.logger.error(

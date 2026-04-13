@@ -149,8 +149,8 @@ export class PaymentController {
   @Public()
   @Redirect()
   async returnFromPayment(@Query() query: Record<string, string>) {
-    const frontendUrl = this.configService.get<string>(
-      'frontend.FRONTEND_URL',
+    const clientUrl = this.configService.get<string>(
+      'application.CLIENT_URL_SERVER',
       ''
     )
 
@@ -162,7 +162,7 @@ export class PaymentController {
     if (query['orderId']) safeParams.set('orderId', query['orderId'])
 
     return {
-      url: `${frontendUrl}/payment/return?${safeParams}`,
+      url: `${clientUrl}/payment/return?${safeParams}`,
       statusCode: 302
     }
   }

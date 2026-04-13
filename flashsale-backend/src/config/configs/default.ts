@@ -37,10 +37,6 @@ export const config = {
     GRAFANA_LOKI_URL: ''
   },
 
-  frontend: {
-    FRONTEND_URL: ''
-  },
-
   redis: {
     REDIS_HOST: 'localhost',
     REDIS_PORT: '6379',

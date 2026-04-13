@@ -2,6 +2,19 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import axios from 'axios'
 
+/** Extract human-readable message from Stripe error response */
+function stripeErrorMessage(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as
+      | { error?: { message?: string; code?: string; type?: string } }
+      | undefined
+    const msg = data?.error?.message
+    const code = data?.error?.code ?? data?.error?.type
+    return code ? `${msg ?? err.message} (${code})` : msg ?? err.message
+  }
+  return err instanceof Error ? err.message : String(err)
+}
+
 /**
  * Các trạng thái có thể có của một Stripe Connected Account.
  *
@@ -111,17 +124,31 @@ export class StripeConnectService {
     // Với Destination Charges, merchant nên nhận payout theo cycle mặc định của Stripe
     // (thường T+2 tại nhiều thị trường) để tránh phải vận hành manual payout nội bộ.
 
-    const res = await axios.post<StripeAccountResponse>(
-      `${this.baseUrl}/accounts`,
-      form.toString(),
-      {
-        headers: {
-          ...this.authHeader(),
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 15_000
-      }
-    )
+    let res: Awaited<ReturnType<typeof axios.post<StripeAccountResponse>>>
+    try {
+      res = await axios.post<StripeAccountResponse>(
+        `${this.baseUrl}/accounts`,
+        form.toString(),
+        {
+          headers: {
+            ...this.authHeader(),
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15_000
+        }
+      )
+    } catch (err: unknown) {
+      this.logger.error({
+        event: 'stripe_create_account_error',
+        status: axios.isAxiosError(err) ? err.response?.status : undefined,
+        error: axios.isAxiosError(err) ? err.response?.data : String(err),
+        email: params.email,
+        country: params.country ?? 'VN'
+      })
+      throw new BadRequestException(
+        `Không thể tạo tài khoản Stripe Connect: ${stripeErrorMessage(err)}`
+      )
+    }
 
     this.logger.log({
       event: 'stripe_connect_account_created',
@@ -160,17 +187,30 @@ export class StripeConnectService {
     // account_onboarding: luồng KYC lần đầu (hoặc bổ sung thêm info)
     form.append('type', 'account_onboarding')
 
-    const res = await axios.post<AccountLinkResponse>(
-      `${this.baseUrl}/account_links`,
-      form.toString(),
-      {
-        headers: {
-          ...this.authHeader(),
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 15_000
-      }
-    )
+    let res: Awaited<ReturnType<typeof axios.post<AccountLinkResponse>>>
+    try {
+      res = await axios.post<AccountLinkResponse>(
+        `${this.baseUrl}/account_links`,
+        form.toString(),
+        {
+          headers: {
+            ...this.authHeader(),
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15_000
+        }
+      )
+    } catch (err: unknown) {
+      this.logger.error({
+        event: 'stripe_account_link_error',
+        status: axios.isAxiosError(err) ? err.response?.status : undefined,
+        error: axios.isAxiosError(err) ? err.response?.data : String(err),
+        accountId: params.accountId
+      })
+      throw new BadRequestException(
+        `Không thể tạo Stripe onboarding link: ${stripeErrorMessage(err)}`
+      )
+    }
 
     return res.data.url
   }
@@ -209,13 +249,26 @@ export class StripeConnectService {
    * @returns          Account data với charges_enabled, payouts_enabled, requirements
    */
   async retrieveAccount(accountId: string): Promise<StripeAccountResponse> {
-    const res = await axios.get<StripeAccountResponse>(
-      `${this.baseUrl}/accounts/${accountId}`,
-      {
-        headers: this.authHeader(),
-        timeout: 15_000
-      }
-    )
+    let res: Awaited<ReturnType<typeof axios.get<StripeAccountResponse>>>
+    try {
+      res = await axios.get<StripeAccountResponse>(
+        `${this.baseUrl}/accounts/${accountId}`,
+        {
+          headers: this.authHeader(),
+          timeout: 15_000
+        }
+      )
+    } catch (err: unknown) {
+      this.logger.error({
+        event: 'stripe_retrieve_account_error',
+        status: axios.isAxiosError(err) ? err.response?.status : undefined,
+        error: axios.isAxiosError(err) ? err.response?.data : String(err),
+        accountId
+      })
+      throw new BadRequestException(
+        `Không thể lấy thông tin Stripe account: ${stripeErrorMessage(err)}`
+      )
+    }
     return res.data
   }
 

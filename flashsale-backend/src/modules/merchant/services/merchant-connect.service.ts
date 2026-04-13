@@ -151,16 +151,16 @@ export class MerchantConnectService {
     }
 
     // ── Tạo Account Link (luôn tạo mới — TTL 5 phút) ─────────────────────────
-    const frontendUrl = this.configService.get<string>(
-      'frontend.FRONTEND_URL',
+    const clientUrl = this.configService.get<string>(
+      'application.CLIENT_URL_SERVER',
       ''
     )
     const onboardingUrl = await this.stripeConnectService.createAccountLink({
       accountId: stripeAccountId,
       // refresh_url: khi link hết hạn, Stripe redirect về đây → frontend gọi lại initiate
-      refreshUrl: `${frontendUrl}/merchant/settings?stripe=refresh`,
+      refreshUrl: `${clientUrl}/merchant/settings?stripe=refresh`,
       // return_url: sau khi merchant submit form KYC → Stripe redirect về đây → frontend gọi sync
-      returnUrl: `${frontendUrl}/merchant/settings?stripe=return`
+      returnUrl: `${clientUrl}/merchant/settings?stripe=return`
     })
 
     return { onboardingUrl }
@@ -222,14 +222,14 @@ export class MerchantConnectService {
     // (Account Link cũ đã hết hạn sau 5 phút hoặc sau khi dùng)
     let onboardingUrl: string | undefined
     if (newStatus === 'PENDING' || newStatus === 'RESTRICTED') {
-      const frontendUrl = this.configService.get<string>(
-        'frontend.FRONTEND_URL',
+      const clientUrl = this.configService.get<string>(
+        'application.CLIENT_URL_SERVER',
         ''
       )
       onboardingUrl = await this.stripeConnectService.createAccountLink({
         accountId: merchant.stripeAccountId,
-        refreshUrl: `${frontendUrl}/merchant/settings?stripe=refresh`,
-        returnUrl: `${frontendUrl}/merchant/settings?stripe=return`
+        refreshUrl: `${clientUrl}/merchant/settings?stripe=refresh`,
+        returnUrl: `${clientUrl}/merchant/settings?stripe=return`
       })
     }
 

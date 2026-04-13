@@ -315,11 +315,11 @@ export class EmailService {
     merchantName: string,
     applicantEmail: string
   ): Promise<void> {
-    const frontendUrl = this.configService.get('frontend.FRONTEND_URL')
+    const clientUrl = this.configService.get('application.CLIENT_URL_SERVER')
     await this.send(adminEmail, EmailTemplate.MERCHANT_APPLICATION_ADMIN, {
       merchantName,
       applicantEmail,
-      adminUrl: `${frontendUrl}/admin/merchants`
+      adminUrl: `${clientUrl}/admin/merchants`
     })
   }
 
@@ -377,7 +377,7 @@ export class EmailService {
     totalPrice: number
     campaignName: string
   }): Promise<void> {
-    const frontendUrl = this.configService.get('frontend.FRONTEND_URL')
+    const clientUrl = this.configService.get('application.CLIENT_URL_SERVER')
     await this.send(params.to, EmailTemplate.ORDER_CONFIRMED, {
       name: params.name,
       orderId: params.orderId,
@@ -387,7 +387,7 @@ export class EmailService {
       campaignName: params.campaignName,
       formattedUnitPrice: this.formatCurrency(params.unitPrice),
       formattedTotalPrice: this.formatCurrency(params.totalPrice),
-      orderUrl: `${frontendUrl}/orders/${params.orderId}`
+      orderUrl: `${clientUrl}/orders/${params.orderId}`
     })
   }
 
@@ -409,13 +409,13 @@ export class EmailService {
     productName: string
     reason?: string
   }): Promise<void> {
-    const frontendUrl = this.configService.get('frontend.FRONTEND_URL')
+    const clientUrl = this.configService.get('application.CLIENT_URL_SERVER')
     await this.send(params.to, EmailTemplate.ORDER_CANCELLED, {
       name: params.name,
       orderId: params.orderId,
       productName: params.productName,
       reason: params.reason ?? '',
-      orderUrl: `${frontendUrl}/orders/${params.orderId}`
+      orderUrl: `${clientUrl}/orders/${params.orderId}`
     })
   }
 

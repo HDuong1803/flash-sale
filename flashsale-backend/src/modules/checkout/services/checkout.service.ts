@@ -141,12 +141,13 @@ export class CheckoutService {
       applicationFeeAmount?: number
     }
   ): Promise<string> {
-    const frontendUrl = this.configService.get<string>(
-      'frontend.FRONTEND_URL',
+    const clientUrl = this.configService.get<string>(
+      'application.CLIENT_URL_SERVER',
       ''
     )
-    const returnUrl = `${frontendUrl}/payment/return`
-    const cancelUrl = `${frontendUrl}/payment/cancel`
+
+    const returnUrl = `${clientUrl}/payment/return`
+    const cancelUrl = `${clientUrl}/payment/cancel`
     return this.paymentGatewayRegistry.createPaymentLink(
       method,
       {

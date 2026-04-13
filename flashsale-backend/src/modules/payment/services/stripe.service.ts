@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PaymentMethod } from '@prisma/client'
-import axios from 'axios'
+import axios, { type AxiosResponse } from 'axios'
 import type {
   CreatePaymentLinkInput,
   PaymentGatewayProvider
@@ -103,19 +103,36 @@ export class StripeService implements PaymentGatewayProvider {
       }
     }
 
-    const response = await axios.post(
-      'https://api.stripe.com/v1/checkout/sessions',
-      form.toString(),
-      {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 15000
+    let response: AxiosResponse<{ url?: string }>
+    try {
+      response = await axios.post(
+        'https://api.stripe.com/v1/checkout/sessions',
+        form.toString(),
+        {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15000
+        }
+      )
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        this.logger.error({
+          event: 'stripe_api_error',
+          status: err.response?.status,
+          error: err.response?.data,
+          paymentId: input.paymentId
+        })
+        const message =
+          (err.response?.data as { error?: { message?: string } })?.error
+            ?.message ?? err.message
+        throw new BadRequestException(`Stripe lỗi: ${message}`)
       }
-    )
+      throw err
+    }
 
-    const url = response.data?.url as string | undefined
+    const url = response.data?.url
     if (!url) throw new BadRequestException('Stripe không trả về checkout URL')
 
     this.logger.log({
