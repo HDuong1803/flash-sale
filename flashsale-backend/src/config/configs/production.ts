@@ -126,7 +126,8 @@ export const config = {
 
   stripe: {
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_CONNECT_COUNTRY: process.env.STRIPE_CONNECT_COUNTRY
   },
 
   timeouts: {

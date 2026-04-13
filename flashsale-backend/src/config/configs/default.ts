@@ -62,7 +62,8 @@ export const config = {
 
   stripe: {
     STRIPE_SECRET_KEY: '',
-    STRIPE_WEBHOOK_SECRET: ''
+    STRIPE_WEBHOOK_SECRET: '',
+    STRIPE_CONNECT_COUNTRY: 'VN'
   },
 
   timeouts: {

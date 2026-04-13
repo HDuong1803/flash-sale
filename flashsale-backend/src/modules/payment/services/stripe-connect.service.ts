@@ -110,15 +110,22 @@ export class StripeConnectService {
     businessName: string
     country?: string
   }): Promise<string> {
+    // STRIPE_CONNECT_COUNTRY: set 'US' for demo/test (full capabilities),
+    // omit or set 'VN' for production Vietnam merchants.
+    const country =
+      params.country ??
+      this.configService.get<string>('stripe.STRIPE_CONNECT_COUNTRY', 'VN')
+
     const form = new URLSearchParams()
     form.append('type', 'express')
-    form.append('country', params.country ?? 'VN')
+    form.append('country', country)
     form.append('email', params.email)
-    // WHY only `transfers` (không request `card_payments`):
-    //   Mô hình Destination Charges — platform account xử lý card payment,
-    //   Stripe tự-transfer (total - fee) sang merchant connected account.
-    //   `card_payments` chỉ cần khi connected account trực tiếp nhận card payment.
-    //   VN không hỗ trợ `card_payments` trên connected accounts (Stripe 400 error).
+
+    // VN chỉ hỗ trợ `transfers` (Destination Charges model — platform xử lý card).
+    // US và hầu hết quốc gia khác hỗ trợ cả `card_payments` + `transfers`.
+    if (country !== 'VN') {
+      form.append('capabilities[card_payments][requested]', 'true')
+    }
     form.append('capabilities[transfers][requested]', 'true')
     form.append('business_profile[name]', params.businessName)
     // Không ép payout schedule = manual.
