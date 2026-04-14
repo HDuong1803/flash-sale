@@ -7,6 +7,8 @@ import type {
   FinanceTrendItem, CommissionCategoryBreakdown, PaymentGatewayConfig, PaymentMethod,
   CampaignMonitorOverview, CampaignMonitorTimelineItem,
   AdminMerchantOverview, AdminUserDetail,
+  BenchmarkResult, BenchmarkComparison, RunBenchmarkParams,
+  FraudStats, FraudEvent, IpBlacklistEntry,
 } from '@/types'
 
 class AdminService {
@@ -136,6 +138,67 @@ class AdminService {
     bucketMinutes?: number
   }): Promise<CampaignMonitorTimelineItem[]> {
     return withRetry(() => apiClient.get('/admin/campaign-monitor/timeline', { params }))
+  }
+
+  // ─── Benchmark API ──────────────────────────────────────────────────────────
+
+  /**
+   * Chạy benchmark so sánh 3 strategies: NO_LOCK, DB_LOCK, REDIS_LUA.
+   * Chạy tuần tự nên có thể mất vài giây — không dùng withRetry vì là POST mutation.
+   */
+  runBenchmarkAll(params: RunBenchmarkParams): Promise<BenchmarkComparison> {
+    return apiClient.post('/admin/benchmark/run-all', params)
+  }
+
+  /**
+   * Chạy benchmark một strategy cụ thể.
+   */
+  runBenchmarkOne(params: RunBenchmarkParams & { strategy: string }): Promise<BenchmarkResult> {
+    return apiClient.post('/admin/benchmark/run', params)
+  }
+
+  /**
+   * Lấy stock audit log — lịch sử mọi thao tác stock.
+   */
+  getStockAuditLogs(params?: {
+    productId?: string
+    isOversell?: boolean
+    strategy?: string
+    page?: number
+    limit?: number
+  }): Promise<{ data: unknown[]; total: number }> {
+    return withRetry(() => apiClient.get('/admin/benchmark/audit-logs', { params }))
+  }
+
+  // ─── Fraud API ──────────────────────────────────────────────────────────────
+
+  /** Thống kê fraud (tổng events, blocked, block rate, top IPs). */
+  getFraudStats(hours = 24): Promise<FraudStats> {
+    return withRetry(() => apiClient.get('/admin/fraud/stats', { params: { hours } }))
+  }
+
+  /** Danh sách fraud events có phân trang. */
+  getFraudEvents(params?: {
+    page?: number
+    limit?: number
+    blocked?: boolean
+  }): Promise<{ data: FraudEvent[]; total: number }> {
+    return withRetry(() => apiClient.get('/admin/fraud/events', { params }))
+  }
+
+  /** Danh sách IP đang bị blacklist. */
+  getIpBlacklist(): Promise<IpBlacklistEntry[]> {
+    return withRetry(() => apiClient.get('/admin/fraud/blacklist'))
+  }
+
+  /** Thêm IP vào blacklist. */
+  blacklistIp(ip: string, reason: string, hours?: number): Promise<void> {
+    return apiClient.post('/admin/fraud/blacklist', { ip, reason, hours })
+  }
+
+  /** Xóa IP khỏi blacklist. */
+  removeFromBlacklist(ip: string): Promise<void> {
+    return apiClient.delete(`/admin/fraud/blacklist/${ip}`)
   }
 }
 

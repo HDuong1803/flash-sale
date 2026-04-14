@@ -28,6 +28,7 @@ import { PurchaseRateLimitGuard } from '@common/guards/purchase-rate-limit.guard
 import { Roles } from '@common/decorators/roles.decorator'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { OrderGatewayService } from '../services/order-gateway.service'
+import { FraudGuard } from '@modules/fraud/fraud.guard'
 import {
   OrderQueryDto,
   OrderResponseDto,
@@ -70,7 +71,7 @@ export class OrderController {
   })
   @Post('purchase')
   @HttpCode(HttpStatus.ACCEPTED)
-  @UseGuards(RolesGuard, IdempotencyGuard, PurchaseRateLimitGuard)
+  @UseGuards(RolesGuard, FraudGuard, IdempotencyGuard, PurchaseRateLimitGuard)
   @Roles('CUSTOMER', 'MERCHANT')
   async purchase(
     @CurrentUser() user: { userId: string },

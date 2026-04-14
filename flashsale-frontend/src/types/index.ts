@@ -61,6 +61,8 @@ export type Permission =
   | 'admin_system'
   | 'admin_action_logs'
   | 'admin_outbox'
+  | 'admin_benchmark'
+  | 'admin_fraud'
 
 // ─── Domain interfaces ───────────────────────────────────────────────────────
 
@@ -644,4 +646,182 @@ export interface AdminUserDetail {
   recentOrders: AdminUserDetailRecentOrder[]
   preRegistrations: AdminUserDetailPreRegistration[]
   topCampaigns: AdminUserDetailTopCampaign[]
+}
+
+// ─── Benchmark Types (Distributed Lock Demo) ────────────────────────────────
+
+export type LockStrategy = 'NO_LOCK' | 'DB_LOCK' | 'REDIS_LUA'
+
+/** Kết quả benchmark một strategy */
+export interface BenchmarkResult {
+  strategy: LockStrategy
+  concurrentUsers: number
+  stockAmount: number
+  /** Số request mua thành công */
+  succeeded: number
+  /** Số request bị SOLD_OUT */
+  failed: number
+  /** Số request lỗi (exception) */
+  errors: number
+  /** Số lần oversell phát hiện (stock âm) */
+  oversellCount: number
+  /** Tồn kho cuối sau benchmark */
+  finalStock: number | null
+  /** Tồn kho kỳ vọng (max 0, stockAmount - concurrentUsers) */
+  expectedFinalStock: number
+  /** true khi oversellCount=0 và finalStock >= 0 */
+  isCorrect: boolean
+  /** Tổng thời gian chạy (ms) */
+  totalTimeMs: number
+  /** Throughput (requests/giây) */
+  throughputRPS: number
+  avgLatencyMs: number
+  p50LatencyMs: number
+  p95LatencyMs: number
+  p99LatencyMs: number
+}
+
+/** So sánh 3 strategies */
+export interface BenchmarkComparison {
+  noLock: BenchmarkResult
+  dbLock: BenchmarkResult
+  redisLua: BenchmarkResult
+  /** Luôn là 'REDIS_LUA' */
+  recommendation: LockStrategy
+  /** Chuỗi kết luận human-readable */
+  conclusion: string
+}
+
+/** Params gửi lên API */
+export interface RunBenchmarkParams {
+  campaignProductId: string
+  concurrentUsers: number
+  stockAmount: number
+}
+
+// ─── Fraud Types ──────────────────────────────────────────────────────────────
+
+export interface FraudEvent {
+  id: string
+  userId?: string | null
+  ipAddress: string
+  userAgent: string
+  requestType: string
+  riskScore: number
+  blocked: boolean
+  blockReason?: string | null
+  triggeredRules: string[]
+  signals: Record<string, unknown>
+  campaignId?: string | null
+  createdAt: string
+}
+
+export interface FraudStats {
+  total: number
+  blocked: number
+  blockRate: number
+  topIps: { ip: string; count: number }[]
+}
+
+export interface IpBlacklistEntry {
+  id: string
+  ipAddress: string
+  reason: string
+  createdBy: string
+  expiresAt: string | null
+  createdAt: string
+}
+
+// ─── Analytics Types ──────────────────────────────────────────────────────────
+
+/** Snapshot tồn kho/doanh thu tại một thời điểm */
+export interface AnalyticsSnapshot {
+  id: string
+  campaignProductId: string
+  stockRemaining: number
+  stockRatio: number
+  totalSold: number
+  totalRevenue: number
+  conversionRate: number
+  revenueVelocity: number
+  snapshotAt: string
+}
+
+/** Một bước trong funnel chuyển đổi */
+export interface FunnelStep {
+  step: string
+  count: number
+  conversionRate: number
+  dropoffRate: number
+}
+
+/** Heatmap số lượng thanh toán theo giờ trong ngày */
+export interface HeatmapHour {
+  hour: number
+  count: number
+}
+
+/** Tổng quan một campaign */
+export interface CampaignOverview {
+  campaignId: string
+  stockRemaining: number
+  stockRatio: number
+  totalSold: number
+  totalRevenue: number
+  conversionRate: number
+  revenueVelocity: number
+  snapshotAt: string
+}
+
+/** Kết quả dự đoán hết hàng */
+export interface StockoutPrediction {
+  campaignProductId: string
+  stockRemaining: number
+  trend: 'STABLE' | 'DECLINING' | 'ACCELERATING' | 'SOLD_OUT'
+  /** Thời điểm dự đoán hết hàng, null nếu không dự đoán được trong 2h */
+  stockoutAt: string | null
+  /** R² của regression (0–1, càng cao càng tin cậy) */
+  confidence: number
+  /** Số snapshot dùng để tính */
+  dataPoints: number
+  computedAt: string
+}
+
+// ─── Pricing Types ────────────────────────────────────────────────────────────
+
+export type PricingStrategy = 'STOCK_BASED' | 'VELOCITY_BASED' | 'TIME_BASED' | 'COMPOSITE'
+export type PriceAction = 'INCREASE' | 'DECREASE'
+
+export interface PricingRule {
+  id: string
+  campaignProductId: string
+  name: string
+  strategy: PricingStrategy
+  priority: number
+  isActive: boolean
+  stockRatioLow?: number | null
+  stockRatioHigh?: number | null
+  stockAction?: PriceAction | null
+  velocityMin?: number | null
+  velocityMax?: number | null
+  velocityAction?: PriceAction | null
+  minutesBeforeEnd?: number | null
+  timeAction?: PriceAction | null
+  adjustmentPct: number
+  minPrice: number
+  maxPrice: number
+  createdAt: string
+}
+
+export interface PriceHistoryEntry {
+  id: string
+  oldPrice: number
+  newPrice: number
+  changePct: number
+  reason: string
+  triggeredBy: string
+  stockAtChange: number
+  velocityAtChange: number
+  timeRemainingMin: number
+  createdAt: string
 }

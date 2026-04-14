@@ -35,6 +35,8 @@ const ADMIN_PERMISSIONS: Permission[] = [
   'admin_system',
   'admin_action_logs',
   'admin_outbox',
+  'admin_benchmark',
+  'admin_fraud',
 ]
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
