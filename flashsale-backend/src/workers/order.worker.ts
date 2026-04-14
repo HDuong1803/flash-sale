@@ -278,8 +278,29 @@ export class OrderWorker implements OnModuleInit {
     idempotencyKey: string,
     result: object
   ): Promise<void> {
-    await this.redis.setPurchaseResult(requestId, result)
-    await this.redis.setPurchaseFinalResultByIdempotency(idempotencyKey, result)
+    const maxAttempts = 3
+    let lastError: unknown
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await this.redis.setPurchaseResult(requestId, result)
+        await this.redis.setPurchaseFinalResultByIdempotency(
+          idempotencyKey,
+          result
+        )
+        return
+      } catch (err: unknown) {
+        lastError = err
+        if (attempt < maxAttempts) {
+          await wait(100 * attempt)
+          continue
+        }
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('Không thể lưu purchase result vào Redis')
   }
 
   /**
@@ -333,4 +354,8 @@ export class OrderWorker implements OnModuleInit {
       timestamp: new Date().toISOString()
     })
   }
+}
+
+async function wait(ms: number): Promise<void> {
+  await new Promise(resolve => setTimeout(resolve, ms))
 }

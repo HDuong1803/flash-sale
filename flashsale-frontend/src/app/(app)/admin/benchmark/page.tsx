@@ -392,9 +392,9 @@ export default function AdminBenchmarkPage() {
 
           {/* 3 strategy cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StrategyCard result={result.noLock} isWinner={false} />
-            <StrategyCard result={result.dbLock} isWinner={false} />
-            <StrategyCard result={result.redisLua} isWinner={true} />
+            <StrategyCard result={result.noLock} isWinner={result.recommendation === 'NO_LOCK'} />
+            <StrategyCard result={result.dbLock} isWinner={result.recommendation === 'DB_LOCK'} />
+            <StrategyCard result={result.redisLua} isWinner={result.recommendation === 'REDIS_LUA'} />
           </div>
 
           {/* So sánh throughput visual */}
@@ -441,7 +441,7 @@ export default function AdminBenchmarkPage() {
             <p className="text-white/70 text-sm leading-relaxed">{result.conclusion}</p>
             <div className="flex items-center gap-2 text-xs text-white/40">
               <CheckCircle size={12} className="text-emerald-400" />
-              <span>Khuyến nghị production: <span className="font-mono text-emerald-300">REDIS_LUA</span></span>
+              <span>Khuyến nghị production: <span className="font-mono text-emerald-300">{result.recommendation}</span></span>
             </div>
           </div>
         </div>

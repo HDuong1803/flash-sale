@@ -71,7 +71,35 @@ export class PredictionService {
       24 // 24 điểm × 5 phút = 2 giờ gần nhất
     )
 
-    const currentStock = snapshots.at(-1)?.stockRemaining ?? 0
+    if (snapshots.length === 0) {
+      const fallbackStock =
+        await this.analyticsRepo.getCampaignProductRemaining(campaignProductId)
+      const currentStock = Math.max(0, fallbackStock)
+
+      if (currentStock === 0) {
+        return this.buildPrediction(
+          campaignProductId,
+          0,
+          'SOLD_OUT',
+          0,
+          null,
+          1,
+          0
+        )
+      }
+
+      return this.buildPrediction(
+        campaignProductId,
+        currentStock,
+        'STABLE',
+        0,
+        null,
+        0,
+        0
+      )
+    }
+
+    const currentStock = snapshots.at(-1)!.stockRemaining
 
     // Trường hợp đặc biệt: hàng đã hết
     if (currentStock === 0) {

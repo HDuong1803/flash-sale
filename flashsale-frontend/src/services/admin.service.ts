@@ -174,8 +174,8 @@ class AdminService {
   // ─── Fraud API ──────────────────────────────────────────────────────────────
 
   /** Thống kê fraud (tổng events, blocked, block rate, top IPs). */
-  getFraudStats(hours = 24): Promise<FraudStats> {
-    return withRetry(() => apiClient.get('/admin/fraud/stats', { params: { hours } }))
+  getFraudStats(period: '1h' | '6h' | '24h' | '7d' | '30d' = '24h'): Promise<FraudStats> {
+    return withRetry(() => apiClient.get('/admin/fraud/stats', { params: { period } }))
   }
 
   /** Danh sách fraud events có phân trang. */
@@ -193,8 +193,8 @@ class AdminService {
   }
 
   /** Thêm IP vào blacklist. */
-  blacklistIp(ip: string, reason: string, hours?: number): Promise<void> {
-    return apiClient.post('/admin/fraud/blacklist', { ip, reason, hours })
+  blacklistIp(ipAddress: string, reason: string, hours?: number): Promise<void> {
+    return apiClient.post('/admin/fraud/blacklist', { ipAddress, reason, hours })
   }
 
   /** Xóa IP khỏi blacklist. */

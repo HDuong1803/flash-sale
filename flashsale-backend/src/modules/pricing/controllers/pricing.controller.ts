@@ -6,6 +6,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
   Query,
@@ -27,6 +28,7 @@ import { RolesGuard } from '@common/guards/roles.guard'
 import { Roles } from '@common/decorators/roles.decorator'
 import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
+import { RedisService } from '@infrastructure/redis/redis.service'
 import { PricingEngineService } from '../services/pricing-engine.service'
 import { PricingRepository } from '../repositories/pricing.repository'
 import {
@@ -43,9 +45,12 @@ const moduleName = 'pricing'
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AccessTokenGuard, RolesGuard)
 export class PricingController {
+  private readonly logger = new Logger(PricingController.name)
+
   constructor(
     private readonly pricingEngine: PricingEngineService,
-    private readonly pricingRepo: PricingRepository
+    private readonly pricingRepo: PricingRepository,
+    private readonly redis: RedisService
   ) {}
 
   // ─── Merchant endpoints ──────────────────────────────────────────────────────
@@ -186,6 +191,27 @@ export class PricingController {
         decision,
         'ADMIN_MANUAL'
       )
+
+      const target = await this.pricingRepo.findProductWithRules(
+        campaignProductId
+      )
+      if (target) {
+        try {
+          await this.redis.publishDashboardEvent(target.campaignId, {
+            type: 'PRICE_UPDATE',
+            campaignProductId,
+            oldPrice: decision.oldPrice,
+            newPrice: decision.newPrice,
+            reason: decision.reason,
+            timestamp: new Date().toISOString()
+          })
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err)
+          this.logger.warn(
+            `Không thể publish PRICE_UPDATE cho campaignProduct ${campaignProductId}: ${msg}`
+          )
+        }
+      }
     }
 
     return decision

@@ -35,7 +35,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [thumbErrors, setThumbErrors] = useState<Record<string, boolean>>({})
   // null = chưa có override (dùng giá trị từ API), true/false = user vừa bấm nút
   const [preRegisteredOverride, setPreRegisteredOverride] = useState<boolean | null>(null)
-  const [pendingReservation, setPendingReservation] = useState<{ id: string; expiredAt: string } | null>(null)
+  const [pendingReservation, setPendingReservation] = useState<{
+    id: string
+    expiredAt: string
+    campaignProductId: string
+  } | null>(null)
 
   // Hook nhận cập nhật real-time từ WebSocket (chỉ active khi campaign đã load)
   const { stockMap, priceMap, isConnected } = useStockSocket(campaign?.id)
@@ -74,6 +78,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const isActive = campaign?.status === 'ACTIVE'
   // Đang nhận real-time update (chỉ có nghĩa khi campaign đang ACTIVE)
   const isLive = isActive && isConnected
+  const hasPendingForSelectedProduct = !!(
+    pendingReservation && product && pendingReservation.campaignProductId === product.id
+  )
 
   const handleSelectProduct = (idx: number) => {
     setSelectedProductIdx(idx)
@@ -93,7 +100,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         const reservationId = err.metadata?.reservationId
         const expiredAt = err.metadata?.expiredAt
         if (reservationId && expiredAt) {
-          setPendingReservation({ id: reservationId, expiredAt })
+          setPendingReservation({
+            id: reservationId,
+            expiredAt,
+            campaignProductId: product.id
+          })
           return
         }
       }
@@ -313,7 +324,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
 
             {/* Pending reservation banner */}
-            {pendingReservation && (
+            {hasPendingForSelectedProduct && pendingReservation && (
               <div className="glass rounded-xl p-4 border border-amber-500/30 bg-amber-500/10 space-y-3">
                 <div className="flex items-center gap-2 text-amber-300">
                   <Clock size={16} />
@@ -338,7 +349,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             )}
 
             {/* CTA */}
-            {isActive && !isSoldOut && !pendingReservation && maxSelectableQuantity > 0 && (
+            {isActive && !isSoldOut && !hasPendingForSelectedProduct && maxSelectableQuantity > 0 && (
               <button onClick={handleBuy} disabled={buyLoading} className="btn-primary w-full disabled:opacity-50">
                 {buyLoading ? (
                   <span className="flex items-center justify-center gap-2">

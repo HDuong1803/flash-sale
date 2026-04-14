@@ -52,7 +52,12 @@ let socket: Socket | null = null
  * Namespace '/ws' phải khớp với @WebSocketGateway({ namespace: '/ws' }) ở backend.
  */
 function getSocket(): Socket {
-  if (socket?.connected) return socket
+  if (socket) {
+    if (!socket.connected) {
+      socket.connect()
+    }
+    return socket
+  }
 
   const url = process.env.NEXT_PUBLIC_WS_URL ?? 'http://localhost:3000'
 
@@ -64,31 +69,30 @@ function getSocket(): Socket {
     reconnectionDelay: 1000,
     reconnectionDelayMax: 10_000,
     // Timeout kết nối ban đầu
-    timeout: 5000
+    timeout: 5000,
+    autoConnect: false
   })
 
   socket.on('connect', () => {
     // Log để debug connection lifecycle — không phải console.log để production
     if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
       console.debug('[WS] Connected:', socket?.id)
     }
   })
 
   socket.on('disconnect', (reason) => {
     if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
       console.debug('[WS] Disconnected:', reason)
     }
   })
 
   socket.on('connect_error', (err) => {
     if (process.env.NODE_ENV === 'development') {
-      // eslint-disable-next-line no-console
       console.debug('[WS] Connection error:', err.message)
     }
   })
 
+  socket.connect()
   return socket
 }
 

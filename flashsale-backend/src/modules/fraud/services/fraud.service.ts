@@ -238,7 +238,14 @@ export class FraudService {
       if (cached === 1) {
         return true
       }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      this.logger.warn(
+        `Không thể đọc blacklist cache cho IP ${ipAddress}: ${msg}`
+      )
+    }
 
+    try {
       const fromDb = await this.fraudRepo.findActiveBlacklistEntry(ipAddress)
       if (fromDb) {
         const ttlSeconds = fromDb.expiresAt
@@ -248,7 +255,15 @@ export class FraudService {
             )
           : PERMANENT_BLACKLIST_CACHE_SECONDS
 
-        await this.redis.client.set(redisKey, '1', 'EX', ttlSeconds)
+        try {
+          await this.redis.client.set(redisKey, '1', 'EX', ttlSeconds)
+        } catch (cacheErr: unknown) {
+          const cacheMsg =
+            cacheErr instanceof Error ? cacheErr.message : String(cacheErr)
+          this.logger.warn(
+            `Không thể ghi blacklist cache cho IP ${ipAddress}: ${cacheMsg}`
+          )
+        }
         return true
       }
 

@@ -343,6 +343,28 @@ export class RedisService {
     return Number(result) === 1
   }
 
+  async extendLockToken(
+    key: string,
+    token: string,
+    ttlMs: number
+  ): Promise<boolean> {
+    const script = `
+      if redis.call('GET', KEYS[1]) == ARGV[1] then
+        return redis.call('PEXPIRE', KEYS[1], ARGV[2])
+      end
+      return 0
+    `
+
+    const result = await this._redisClient.eval(
+      script,
+      1,
+      `lock:${key}`,
+      token,
+      String(ttlMs)
+    )
+    return Number(result) === 1
+  }
+
   // ─── Per-user Purchase Limit (atomic check-and-increment) ────────────────
 
   /**

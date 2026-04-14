@@ -14,6 +14,7 @@ const CRON_LOCK_KEY = 'pricing:cron:lock'
  * Đảm bảo lock tự hết hạn nếu process crash giữa chừng.
  */
 const CRON_LOCK_TTL_S = 240
+const LOCK_HEARTBEAT_INTERVAL_MS = 60_000
 
 @Injectable()
 export class PricingSchedulerService {
@@ -57,6 +58,8 @@ export class PricingSchedulerService {
       return
     }
 
+    const stopHeartbeat = this.startLockHeartbeat(lockToken)
+
     try {
       // Lấy danh sách tất cả campaign product có pricing rule đang ACTIVE
       const targets = await this.pricingRepo.findActivePricingTargets()
@@ -84,9 +87,30 @@ export class PricingSchedulerService {
         `Pricing cron hoàn tất: ${applied} đã đánh giá, ${failed} lỗi`
       )
     } finally {
+      stopHeartbeat()
       // Luôn release lock dù có lỗi hay không
       await this.redis.releaseLockToken(CRON_LOCK_KEY, lockToken)
     }
+  }
+
+  private startLockHeartbeat(token: string): () => void {
+    const interval = setInterval(() => {
+      void this.redis
+        .extendLockToken(CRON_LOCK_KEY, token, CRON_LOCK_TTL_S * 1000)
+        .then(extended => {
+          if (!extended) {
+            this.logger.warn(
+              'Pricing cron lock không thể gia hạn, có thể đã hết hạn hoặc bị thay thế'
+            )
+          }
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          this.logger.warn(`Lỗi khi gia hạn pricing cron lock: ${msg}`)
+        })
+    }, LOCK_HEARTBEAT_INTERVAL_MS)
+
+    return () => clearInterval(interval)
   }
 
   /**
