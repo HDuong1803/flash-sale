@@ -17,6 +17,10 @@ interface CreateFraudEventData {
   campaignId?: string
 }
 
+export interface ActiveBlacklistEntry {
+  expiresAt: Date | null
+}
+
 @Injectable()
 export class FraudRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -176,13 +180,20 @@ export class FraudRepository {
   /**
    * Kiểm tra IP có đang trong blacklist không (còn hiệu lực, chưa hết hạn).
    */
-  async isBlacklisted(ip: string): Promise<boolean> {
-    const entry = await this.prisma.ipBlacklist.findFirst({
+  async findActiveBlacklistEntry(
+    ip: string
+  ): Promise<ActiveBlacklistEntry | null> {
+    return this.prisma.ipBlacklist.findFirst({
       where: {
         ipAddress: ip,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }]
-      }
+      },
+      select: { expiresAt: true }
     })
+  }
+
+  async isBlacklisted(ip: string): Promise<boolean> {
+    const entry = await this.findActiveBlacklistEntry(ip)
     return entry !== null
   }
 }

@@ -7,7 +7,7 @@ import { GeneratorService } from '..'
 export class RequestMiddleware implements NestMiddleware {
   constructor(private readonly generateService: GeneratorService) {}
   use(req: Request, res: Response, next: NextFunction) {
-    const generatedId = this.generateService.uuid()
+    const generatedId = this.generateService.cuid()
     // Add the ID to the request object
     ;(req as RequestInterface).id = generatedId
     next()

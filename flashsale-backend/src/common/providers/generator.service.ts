@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common'
-import { nanoid } from 'nanoid'
+import { createId } from '@paralleldrive/cuid2'
 import { createHash, randomBytes } from 'crypto'
 
 @Injectable()
 export class GeneratorService {
-  public uuid(len = 16): string {
-    return nanoid(len)
+  public cuid(): string {
+    return createId()
   }
 
   public createRefreshTokenId(): string {
-    return this.uuid()
+    return this.cuid()
   }
 
   public fileName(imageBuffer: string): string {

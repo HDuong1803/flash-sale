@@ -52,7 +52,7 @@ export class OrderController {
   })
   @ApiHeader({
     name: 'X-Idempotency-Key',
-    description: 'UUID duy nhất để tránh đặt trùng đơn (bắt buộc)',
+    description: 'CUID duy nhất để tránh đặt trùng đơn (bắt buộc)',
     required: true
   })
   @ApiBody({ type: PurchaseDto })

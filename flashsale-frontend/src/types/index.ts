@@ -699,6 +699,26 @@ export interface RunBenchmarkParams {
   stockAmount: number
 }
 
+export interface BenchmarkAuditLog {
+  id: string
+  productId: string
+  delta: number
+  stockBefore: number
+  stockAfter: number
+  reason: string
+  referenceId: string | null
+  triggeredBy: string | null
+  isOversell: boolean
+  strategy: LockStrategy
+  executionTimeUs: number
+  createdAt: string
+}
+
+export interface BenchmarkAuditLogResponse {
+  data: BenchmarkAuditLog[]
+  total: number
+}
+
 // ─── Fraud Types ──────────────────────────────────────────────────────────────
 
 export interface FraudEvent {

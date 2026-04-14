@@ -41,8 +41,8 @@ export class AnalyticsSchedulerService {
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async runSnapshotCycle(): Promise<void> {
-    const acquired = await this.acquireLock()
-    if (!acquired) {
+    const lockToken = await this.acquireLock()
+    if (!lockToken) {
       this.logger.debug(
         'Analytics cron: instance khác đang chạy, bỏ qua chu kỳ này'
       )
@@ -53,7 +53,7 @@ export class AnalyticsSchedulerService {
       await this.snapshotActiveCampaigns()
     } finally {
       // Luôn release lock dù có lỗi hay không
-      await this.releaseLock()
+      await this.releaseLock(lockToken)
     }
   }
 
@@ -107,16 +107,16 @@ export class AnalyticsSchedulerService {
    * Trả về true nếu giành được lock, false nếu instance khác đang giữ.
    * Nếu Redis lỗi → fail-safe: bỏ qua chu kỳ (không throw, không chạy trùng).
    */
-  private async acquireLock(): Promise<boolean> {
+  private async acquireLock(): Promise<string | null> {
     try {
-      return await this.redis.acquireLock(
+      return await this.redis.acquireLockToken(
         CRON_LOCK_KEY,
         LOCK_TTL_SECONDS * 1000 // acquireLock nhận ms
       )
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       this.logger.error(`Không thể acquire analytics cron lock: ${msg}`)
-      return false // fail-safe: bỏ qua chu kỳ thay vì chạy trùng
+      return null // fail-safe: bỏ qua chu kỳ thay vì chạy trùng
     }
   }
 
@@ -124,9 +124,9 @@ export class AnalyticsSchedulerService {
    * Release distributed lock sau khi hoàn thành chu kỳ.
    * Nếu lỗi → chỉ log warn, không throw (lock sẽ tự hết hạn sau TTL).
    */
-  private async releaseLock(): Promise<void> {
+  private async releaseLock(token: string): Promise<void> {
     try {
-      await this.redis.releaseLock(CRON_LOCK_KEY)
+      await this.redis.releaseLockToken(CRON_LOCK_KEY, token)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       this.logger.warn(`Không thể release analytics cron lock: ${msg}`)

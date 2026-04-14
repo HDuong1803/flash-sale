@@ -1,5 +1,7 @@
+import { createId } from '@paralleldrive/cuid2'
+
 export function createIdempotencyKey(): string {
-  return crypto.randomUUID()
+  return createId()
 }
 
 export function getOrCreateKey(action: string): string {

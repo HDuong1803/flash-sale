@@ -8,6 +8,7 @@ import type {
   CampaignMonitorOverview, CampaignMonitorTimelineItem,
   AdminMerchantOverview, AdminUserDetail,
   BenchmarkResult, BenchmarkComparison, RunBenchmarkParams,
+  BenchmarkAuditLogResponse, LockStrategy,
   FraudStats, FraudEvent, IpBlacklistEntry,
 } from '@/types'
 
@@ -153,7 +154,7 @@ class AdminService {
   /**
    * Chạy benchmark một strategy cụ thể.
    */
-  runBenchmarkOne(params: RunBenchmarkParams & { strategy: string }): Promise<BenchmarkResult> {
+  runBenchmarkOne(params: RunBenchmarkParams & { strategy: LockStrategy }): Promise<BenchmarkResult> {
     return apiClient.post('/admin/benchmark/run', params)
   }
 
@@ -163,10 +164,10 @@ class AdminService {
   getStockAuditLogs(params?: {
     productId?: string
     isOversell?: boolean
-    strategy?: string
+    strategy?: LockStrategy
     page?: number
     limit?: number
-  }): Promise<{ data: unknown[]; total: number }> {
+  }): Promise<BenchmarkAuditLogResponse> {
     return withRetry(() => apiClient.get('/admin/benchmark/audit-logs', { params }))
   }
 

@@ -1,11 +1,17 @@
 import axios, { AxiosInstance, AxiosError } from 'axios'
 import * as Sentry from '@sentry/nextjs'
 
+export type ApiErrorMetadata = {
+  reservationId?: string
+  expiredAt?: string
+}
+
 export class ApiError extends Error {
   constructor(
     public statusCode: number,
     public code: string,
     message: string,
+    public metadata?: ApiErrorMetadata,
   ) {
     super(message)
     this.name = 'ApiError'
@@ -67,6 +73,42 @@ type BackendError = {
   data: null
   timestamp: string
   path: string
+}
+
+type ParsedStructuredBackendMessage = {
+  code?: string
+  message: string
+  metadata?: ApiErrorMetadata
+}
+
+function parseStructuredBackendMessage(rawMessage: string): ParsedStructuredBackendMessage {
+  try {
+    const parsed = JSON.parse(rawMessage) as {
+      code?: unknown
+      message?: unknown
+      reservationId?: unknown
+      expiredAt?: unknown
+    }
+    if (!parsed || typeof parsed !== 'object') {
+      return { message: rawMessage }
+    }
+
+    const metadata: ApiErrorMetadata = {}
+    if (typeof parsed.reservationId === 'string') {
+      metadata.reservationId = parsed.reservationId
+    }
+    if (typeof parsed.expiredAt === 'string') {
+      metadata.expiredAt = parsed.expiredAt
+    }
+
+    return {
+      code: typeof parsed.code === 'string' ? parsed.code : undefined,
+      message: typeof parsed.message === 'string' ? parsed.message : rawMessage,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    }
+  } catch {
+    return { message: rawMessage }
+  }
 }
 
 function isBackendSuccess(raw: unknown): raw is BackendSuccess {
@@ -160,12 +202,19 @@ apiClient.interceptors.response.use(
     }
 
     // All other errors — read the flat message field from the error shape
-    const message = error.response?.data?.message ?? 'Có lỗi xảy ra'
+    const rawMessage = error.response?.data?.message ?? 'Có lỗi xảy ra'
+    const parsedMessage = parseStructuredBackendMessage(rawMessage)
     const backendCode =
       error.response?.data?.code ??
+      parsedMessage.code ??
       (error.response?.data as unknown as { error?: { code?: string } })?.error
         ?.code
-    throw new ApiError(status, backendCode ?? statusToCode(status), message)
+    throw new ApiError(
+      status,
+      backendCode ?? statusToCode(status),
+      parsedMessage.message,
+      parsedMessage.metadata,
+    )
   },
 )
 

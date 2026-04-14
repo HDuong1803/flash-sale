@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as amqplib from 'amqplib'
-import * as crypto from 'crypto'
+import { createId } from '@paralleldrive/cuid2'
 import { LockStrategy } from '@prisma/client'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { RETRY_HEADER } from '@infrastructure/rabbitmq/rabbitmq.constants'
@@ -183,7 +183,7 @@ export class OrderWorker implements OnModuleInit {
     // Tại thời điểm này, stock đã được "reserved" trong Redis cho user này.
     // Phải tạo Reservation record ngay lập tức để track việc giữ chỗ này.
     // reservationId được generate ở Worker (không phải Gateway) để tách biệt concerns.
-    const reservationId = crypto.randomUUID()
+    const reservationId = createId()
 
     try {
       // [Step 2a] Tạo reservation (write Redis + DB, theo thứ tự Redis-first).
@@ -195,25 +195,6 @@ export class OrderWorker implements OnModuleInit {
         quantity,
         idempotencyKey
       })
-
-      // [Step 2b] Tính thời gian hết hạn và write kết quả RESERVED cho client poll.
-      // expiredAt = now + 10 phút (phải khớp với TTL trong ReservationService).
-      // Client dùng expiredAt để hiển thị đếm ngược "Thanh toán trong X phút".
-      const expiredAt = new Date(Date.now() + 10 * 60 * 1000)
-      const result = {
-        status: 'RESERVED',
-        reservationId,
-        expiredAt: expiredAt.toISOString()
-      }
-      await this.saveResult(requestId, idempotencyKey, result)
-
-      // [Step 2c] Publish event lên Redis Pub/Sub để SSE dashboard cập nhật real-time.
-      // Dashboard merchant cần biết ngay khi stock thay đổi để hiển thị thanh tiến độ.
-      await this.publishDashboardUpdate(campaignProductId, remaining)
-
-      this.logger.log(
-        `RESERVED: reservationId=${reservationId}, remaining=${remaining}`
-      )
     } catch (err: unknown) {
       // [Rollback] Reservation creation thất bại sau khi đã decrement stock.
       // Phải INCR stock lại ngay để tránh phantom sold-out.
@@ -244,6 +225,40 @@ export class OrderWorker implements OnModuleInit {
 
       throw err // let RabbitMQ republish for retry
     }
+
+    // [Step 2b] Tính thời gian hết hạn và write kết quả RESERVED cho client poll.
+    // Lưu ý: từ thời điểm reservation đã tạo thành công, KHÔNG rollback stock nữa.
+    // Các bước sau là side-effects và phải fail-safe.
+    const expiredAt = new Date(Date.now() + 10 * 60 * 1000)
+    const result = {
+      status: 'RESERVED',
+      reservationId,
+      expiredAt: expiredAt.toISOString()
+    }
+
+    try {
+      await this.saveResult(requestId, idempotencyKey, result)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
+      this.logger.warn(
+        `Không thể lưu purchase result cho requestId=${requestId}: ${message}`
+      )
+    }
+
+    // [Step 2c] Publish event lên Redis Pub/Sub để dashboard cập nhật real-time.
+    // Lỗi publish không được ảnh hưởng business state đã commit.
+    try {
+      await this.publishDashboardUpdate(campaignProductId, remaining)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Lỗi không xác định'
+      this.logger.warn(
+        `Không thể publish dashboard update cho requestId=${requestId}: ${message}`
+      )
+    }
+
+    this.logger.log(
+      `RESERVED: reservationId=${reservationId}, remaining=${remaining}`
+    )
   }
 
   /**

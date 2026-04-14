@@ -2,12 +2,16 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { FunnelStep } from '@prisma/client'
 import {
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   IsObject,
   IsIP,
-  MaxLength
+  Max,
+  MaxLength,
+  Min
 } from 'class-validator'
+import { Type } from 'class-transformer'
 
 // ─── Request DTOs ──────────────────────────────────────────────────────────────
 
@@ -218,6 +222,10 @@ export class TimeSeriesQueryDto {
     example: 48
   })
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(288)
   limit?: number
 }
 

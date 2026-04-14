@@ -103,12 +103,12 @@ export class FraudController {
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async blacklistIp(
     @Body() dto: BlacklistIpDto,
-    @CurrentUser() user: { id: string }
+    @CurrentUser() user: { userId: string }
   ): Promise<{ ok: boolean }> {
     await this.fraudService.blacklistIp(
       dto.ipAddress,
       dto.reason,
-      user.id,
+      user.userId,
       dto.hours
     )
     return { ok: true }

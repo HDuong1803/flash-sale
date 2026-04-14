@@ -16,5 +16,5 @@
 
 # Instructions for generating password hashes:
 # 1. For MD5: echo -n 'md5'; echo -n 'passwordusername' | md5sum | cut -d' ' -f1
-# 2. For SCRAM-SHA-256: Use PostgreSQL's gen_random_uuid() or external tools
+# 2. For SCRAM-SHA-256: Use PostgreSQL password tooling or external SCRAM generators
 # 3. Example: SELECT encode(digest('password' || 'username', 'md5'), 'hex');

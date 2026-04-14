@@ -1,6 +1,7 @@
 import { Logger } from '@common/logger'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { createId } from '@paralleldrive/cuid2'
 import Redis from 'ioredis'
 
 @Injectable()
@@ -310,18 +311,36 @@ export class RedisService {
    * Dùng cho scheduler cron jobs: ngăn hai instance chạy cùng lúc khi deploy nhiều pod.
    */
   async acquireLock(key: string, ttlMs: number): Promise<boolean> {
-    const result = await this._redisClient.set(
-      `lock:${key}`,
-      '1',
-      'PX',
-      ttlMs,
-      'NX'
-    )
-    return result === 'OK'
+    const token = await this.acquireLockToken(key, ttlMs)
+    return token !== null
   }
 
   async releaseLock(key: string): Promise<void> {
     await this._redisClient.del(`lock:${key}`)
+  }
+
+  async acquireLockToken(key: string, ttlMs: number): Promise<string | null> {
+    const token = createId()
+    const result = await this._redisClient.set(
+      `lock:${key}`,
+      token,
+      'PX',
+      ttlMs,
+      'NX'
+    )
+    return result === 'OK' ? token : null
+  }
+
+  async releaseLockToken(key: string, token: string): Promise<boolean> {
+    const script = `
+      if redis.call('GET', KEYS[1]) == ARGV[1] then
+        return redis.call('DEL', KEYS[1])
+      end
+      return 0
+    `
+
+    const result = await this._redisClient.eval(script, 1, `lock:${key}`, token)
+    return Number(result) === 1
   }
 
   // ─── Per-user Purchase Limit (atomic check-and-increment) ────────────────

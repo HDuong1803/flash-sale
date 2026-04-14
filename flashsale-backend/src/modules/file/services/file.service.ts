@@ -14,7 +14,7 @@ export class FileService {
   async createPhoto(file: Express.Multer.File): Promise<UploadPhotoOutputDto> {
     const uploaded = await this.fileUploadService.uploadFile(file)
 
-    const fileEntityId = this.generatorService.uuid()
+    const fileEntityId = this.generatorService.cuid()
     await this.fileRepository.createFileEntity({
       id: fileEntityId,
       fileName: file.originalname,
@@ -26,7 +26,7 @@ export class FileService {
       description: ''
     })
 
-    const photoId = this.generatorService.uuid()
+    const photoId = this.generatorService.cuid()
     const photo = await this.fileRepository.createPhoto({
       id: photoId,
       url: uploaded.fileUrl,

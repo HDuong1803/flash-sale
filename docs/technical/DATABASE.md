@@ -36,7 +36,7 @@ sessions
 
 | Column | Type | Constraints | Description |
 |--------|------|------------|-------------|
-| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
+| `id` | VARCHAR(36) | PK, CUID (`@default(cuid())`) | |
 | `email` | VARCHAR(320) | NOT NULL, UNIQUE | Lowercased at write time |
 | `password_hash` | VARCHAR(60) | NOT NULL | bcrypt, 12 rounds |
 | `name` | VARCHAR(100) | NOT NULL | Display name |
@@ -59,8 +59,8 @@ sessions
 
 | Column | Type | Constraints | Description |
 |--------|------|------------|-------------|
-| `id` | UUID | PK, DEFAULT gen_random_uuid() | |
-| `user_id` | UUID | NOT NULL, FK → users.id ON DELETE CASCADE | |
+| `id` | VARCHAR(36) | PK, CUID (`@default(cuid())`) | |
+| `user_id` | VARCHAR(36) | NOT NULL, FK → users.id ON DELETE CASCADE | |
 | `token_hash` | VARCHAR(64) | NOT NULL, UNIQUE | SHA-256 of refresh token |
 | `expires_at` | TIMESTAMPTZ | NOT NULL | 7 days from creation |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | |

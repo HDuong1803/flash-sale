@@ -1,5 +1,6 @@
 import {
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -20,6 +21,7 @@ import { UserRole } from '@prisma/client'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { RolesGuard } from '@common/guards/roles.guard'
 import { Roles } from '@common/decorators/roles.decorator'
+import { CurrentUser } from '@common/decorators/current-user.decorator'
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
 import { AnalyticsService } from '../services/analytics.service'
 import { PredictionService } from '../services/prediction.service'
@@ -59,8 +61,10 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async getCampaignOverview(
-    @Param('campaignId') campaignId: string
+    @Param('campaignId') campaignId: string,
+    @CurrentUser() user: { userId: string; role: UserRole }
   ): Promise<CampaignOverviewResponseDto | null> {
+    await this.ensureCampaignAccess(campaignId, user)
     return this.analyticsService.getCampaignOverview(campaignId)
   }
 
@@ -82,8 +86,10 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async getFunnelData(
-    @Param('campaignId') campaignId: string
+    @Param('campaignId') campaignId: string,
+    @CurrentUser() user: { userId: string; role: UserRole }
   ): Promise<FunnelStepDto[]> {
+    await this.ensureCampaignAccess(campaignId, user)
     return this.analyticsService.getFunnelData(campaignId)
   }
 
@@ -114,8 +120,12 @@ export class AnalyticsController {
   async getTimeSeries(
     @Param('campaignId') campaignId: string,
     @Param('campaignProductId') campaignProductId: string,
-    @Query() query: TimeSeriesQueryDto
+    @Query() query: TimeSeriesQueryDto,
+    @CurrentUser() user: { userId: string; role: UserRole }
   ): Promise<SnapshotResponseDto[]> {
+    await this.ensureCampaignAccess(campaignId, user)
+    await this.ensureCampaignProductRelation(campaignId, campaignProductId)
+
     return this.analyticsService.getTimeSeries(
       campaignId,
       campaignProductId,
@@ -141,8 +151,10 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async getHourlyHeatmap(
-    @Param('campaignId') campaignId: string
+    @Param('campaignId') campaignId: string,
+    @CurrentUser() user: { userId: string; role: UserRole }
   ): Promise<HeatmapHourDto[]> {
+    await this.ensureCampaignAccess(campaignId, user)
     return this.analyticsService.getHourlyHeatmap(campaignId)
   }
 
@@ -170,8 +182,12 @@ export class AnalyticsController {
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async predictStockout(
-    @Param('campaignProductId') campaignProductId: string
+    @Param('campaignId') campaignId: string,
+    @Param('campaignProductId') campaignProductId: string,
+    @CurrentUser() user: { userId: string; role: UserRole }
   ): Promise<StockoutPredictionResponseDto> {
+    await this.ensureCampaignAccess(campaignId, user)
+    await this.ensureCampaignProductRelation(campaignId, campaignProductId)
     return this.predictionService.predictStockout(campaignProductId)
   }
 
@@ -216,5 +232,31 @@ export class AnalyticsController {
     // Since AnalyticsController only has AnalyticsService and PredictionService injected,
     // we add a method to AnalyticsService to list active product IDs.
     return this.analyticsService.getCampaignProductIds(campaignId)
+  }
+
+  private async ensureCampaignAccess(
+    campaignId: string,
+    user: { userId: string; role: UserRole }
+  ): Promise<void> {
+    const allowed = await this.analyticsService.canAccessCampaign(
+      campaignId,
+      user
+    )
+    if (!allowed) {
+      throw new ForbiddenException('Không có quyền truy cập campaign này')
+    }
+  }
+
+  private async ensureCampaignProductRelation(
+    campaignId: string,
+    campaignProductId: string
+  ): Promise<void> {
+    const ok = await this.analyticsService.isCampaignProductInCampaign(
+      campaignId,
+      campaignProductId
+    )
+    if (!ok) {
+      throw new ForbiddenException('Campaign product không thuộc campaign')
+    }
   }
 }

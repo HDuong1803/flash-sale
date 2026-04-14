@@ -7,6 +7,7 @@ import {
   Logger
 } from '@nestjs/common'
 import { Request } from 'express'
+import { IUserFromRequest } from '@common/decorators/current-user.decorator'
 import { FraudService } from './services/fraud.service'
 import { extractIp, parseBehaviorSignals } from './rules/fraud-rules'
 
@@ -49,8 +50,8 @@ export class FraudGuard implements CanActivate {
     )
 
     // userId có thể undefined nếu guard chạy trước auth (thực tế chạy sau AccessTokenGuard)
-    const user = (req as unknown as { user?: { id: string } }).user
-    const userId = user?.id
+    const user = (req as unknown as { user?: IUserFromRequest }).user
+    const userId = user?.userId
 
     // campaignId lấy từ body (đã được NestJS body parser xử lý trước khi guard chạy)
     const campaignId = (req.body as { campaignProductId?: string })

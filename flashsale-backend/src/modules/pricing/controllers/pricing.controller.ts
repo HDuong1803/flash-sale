@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
@@ -64,8 +65,11 @@ export class PricingController {
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không đủ quyền' })
   async createRule(
     @Param('campaignProductId') campaignProductId: string,
-    @Body() dto: CreatePricingRuleDto
+    @Body() dto: CreatePricingRuleDto,
+    @CurrentUser() user: { userId: string; role: UserRole }
   ) {
+    await this.ensureCampaignProductAccess(campaignProductId, user)
+
     return this.pricingRepo.createRule({
       campaignProductId,
       name: dto.name,
@@ -96,7 +100,11 @@ export class PricingController {
     type: [PricingRuleResponseDto]
   })
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
-  async getRules(@Param('campaignProductId') campaignProductId: string) {
+  async getRules(
+    @Param('campaignProductId') campaignProductId: string,
+    @CurrentUser() user: { userId: string; role: UserRole }
+  ) {
+    await this.ensureCampaignProductAccess(campaignProductId, user)
     return this.pricingRepo.findRules(campaignProductId)
   }
 
@@ -146,8 +154,10 @@ export class PricingController {
   @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
   async getPriceHistory(
     @Param('campaignProductId') campaignProductId: string,
+    @CurrentUser() user: { userId: string; role: UserRole },
     @Query('limit') limit?: number
   ) {
+    await this.ensureCampaignProductAccess(campaignProductId, user)
     return this.pricingRepo.findPriceHistory(campaignProductId, limit)
   }
 
@@ -179,5 +189,24 @@ export class PricingController {
     }
 
     return decision
+  }
+
+  private async ensureCampaignProductAccess(
+    campaignProductId: string,
+    user: { userId: string; role: UserRole }
+  ): Promise<void> {
+    if (user.role === UserRole.ADMIN) {
+      return
+    }
+
+    const allowed = await this.pricingRepo.isCampaignProductOwnedByMerchant(
+      campaignProductId,
+      user.userId
+    )
+    if (!allowed) {
+      throw new ForbiddenException(
+        'Không có quyền truy cập campaign product này'
+      )
+    }
   }
 }

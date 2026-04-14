@@ -1,7 +1,12 @@
-import { Injectable, Logger } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException
+} from '@nestjs/common'
+import { createId } from '@paralleldrive/cuid2'
 import { LockStrategy } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
-import { StockAuditRepository } from '@modules/order/repositories/stock-audit.repository'
 import { BenchmarkRepository } from '../repositories/benchmark.repository'
 import {
   BenchmarkResultDto,
@@ -37,8 +42,7 @@ export class BenchmarkService {
 
   constructor(
     private readonly redis: RedisService,
-    private readonly benchmarkRepo: BenchmarkRepository,
-    private readonly stockAuditRepo: StockAuditRepository
+    private readonly benchmarkRepo: BenchmarkRepository
   ) {}
 
   // ─── Public API ─────────────────────────────────────────────────────────────
@@ -46,58 +50,85 @@ export class BenchmarkService {
   async runScenario(dto: RunBenchmarkDto): Promise<BenchmarkResultDto> {
     const { campaignProductId, concurrentUsers, stockAmount, strategy } = dto
 
-    const runId = `${campaignProductId}-${Date.now()}`
-    const benchmarkStart = new Date()
+    const runId = `${campaignProductId}-${createId()}`
+    const shouldRestoreDbStock = strategy === LockStrategy.DB_LOCK
+    let dbOriginalStock: number | null = null
+
+    if (shouldRestoreDbStock) {
+      const context = await this.benchmarkRepo.getBenchmarkProductContext(
+        campaignProductId
+      )
+
+      if (!context) {
+        throw new NotFoundException('Campaign product không tồn tại')
+      }
+
+      if (context.campaignStatus === 'ACTIVE') {
+        throw new BadRequestException(
+          'Không cho phép chạy DB_LOCK benchmark trên campaign đang ACTIVE'
+        )
+      }
+
+      dbOriginalStock = context.remainingQuantity
+    }
 
     await this.initStock(runId, campaignProductId, stockAmount, strategy)
 
-    const startMs = Date.now()
-    const results = await this.runConcurrent(
-      runId,
-      campaignProductId,
-      concurrentUsers,
-      strategy
-    )
-    const totalTimeMs = Date.now() - startMs
+    try {
+      const startMs = Date.now()
+      const results = await this.runConcurrent(
+        runId,
+        campaignProductId,
+        concurrentUsers,
+        strategy
+      )
+      const totalTimeMs = Date.now() - startMs
 
-    const finalStock = await this.getFinalStock(
-      runId,
-      campaignProductId,
-      strategy
-    )
-    const oversellCount = await this.stockAuditRepo.countOversell(
-      campaignProductId,
-      benchmarkStart
-    )
-    const latency = computeLatency(results.map(r => r.latencyMs))
+      const finalStock = await this.getFinalStock(
+        runId,
+        campaignProductId,
+        strategy
+      )
+      const latency = computeLatency(results.map(r => r.latencyMs))
 
-    const succeeded = results.filter(r => r.outcome === 'SUCCESS').length
-    const failed = results.filter(r => r.outcome === 'SOLD_OUT').length
-    const errors = results.filter(r => r.outcome === 'ERROR').length
+      const succeeded = results.filter(r => r.outcome === 'SUCCESS').length
+      const failed = results.filter(r => r.outcome === 'SOLD_OUT').length
+      const errors = results.filter(r => r.outcome === 'ERROR').length
+      const oversellCount = Math.max(0, succeeded - stockAmount)
 
-    this.logger.log(
-      `Benchmark [${strategy}] done: ${succeeded} ok, ${failed} sold-out, ` +
-        `${errors} err, oversell=${oversellCount}, ${totalTimeMs}ms`
-    )
+      this.logger.log(
+        `Benchmark [${strategy}] done: ${succeeded} ok, ${failed} sold-out, ` +
+          `${errors} err, oversell=${oversellCount}, ${totalTimeMs}ms`
+      )
 
-    return {
-      strategy,
-      concurrentUsers,
-      stockAmount,
-      succeeded,
-      failed,
-      errors,
-      oversellCount,
-      finalStock,
-      expectedFinalStock: Math.max(0, stockAmount - concurrentUsers),
-      isCorrect:
-        oversellCount === 0 && (finalStock === null || finalStock >= 0),
-      totalTimeMs,
-      throughputRPS: Math.round((concurrentUsers / totalTimeMs) * 1000),
-      avgLatencyMs: latency.avg,
-      p50LatencyMs: latency.p50,
-      p95LatencyMs: latency.p95,
-      p99LatencyMs: latency.p99
+      return {
+        strategy,
+        concurrentUsers,
+        stockAmount,
+        succeeded,
+        failed,
+        errors,
+        oversellCount,
+        finalStock,
+        expectedFinalStock: Math.max(0, stockAmount - concurrentUsers),
+        isCorrect:
+          oversellCount === 0 && (finalStock === null || finalStock >= 0),
+        totalTimeMs,
+        throughputRPS: Math.round((concurrentUsers / totalTimeMs) * 1000),
+        avgLatencyMs: latency.avg,
+        p50LatencyMs: latency.p50,
+        p95LatencyMs: latency.p95,
+        p99LatencyMs: latency.p99
+      }
+    } finally {
+      await this.cleanupScenario(runId, strategy)
+
+      if (dbOriginalStock !== null) {
+        await this.benchmarkRepo.resetCampaignProductStock(
+          campaignProductId,
+          dbOriginalStock
+        )
+      }
     }
   }
 
@@ -134,7 +165,12 @@ export class BenchmarkService {
   ): Promise<void> {
     switch (strategy) {
       case LockStrategy.NO_LOCK:
-        await this.redis.client.set(benchKey(runId, 'nolock'), amount)
+        await this.redis.client.set(
+          benchKey(runId, 'nolock'),
+          amount,
+          'EX',
+          600
+        )
         break
       case LockStrategy.DB_LOCK:
         await this.benchmarkRepo.resetCampaignProductStock(
@@ -143,8 +179,22 @@ export class BenchmarkService {
         )
         break
       case LockStrategy.REDIS_LUA:
-        await this.redis.client.set(benchKey(runId, 'lua'), amount)
+        await this.redis.client.set(benchKey(runId, 'lua'), amount, 'EX', 600)
         break
+    }
+  }
+
+  private async cleanupScenario(
+    runId: string,
+    strategy: LockStrategy
+  ): Promise<void> {
+    if (strategy === LockStrategy.NO_LOCK) {
+      await this.redis.client.del(benchKey(runId, 'nolock'))
+      return
+    }
+
+    if (strategy === LockStrategy.REDIS_LUA) {
+      await this.redis.client.del(benchKey(runId, 'lua'))
     }
   }
 

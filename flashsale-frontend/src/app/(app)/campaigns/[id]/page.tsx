@@ -17,6 +17,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { CampaignCardSkeleton } from '@/components/shared/skeletons/CampaignCardSkeleton'
 import { formatCurrency, calculateDiscount, formatDate } from '@/lib/utils'
 import { useStockSocket } from '@/hooks/useStockSocket'
+import { ApiError } from '@/lib/api-client'
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -64,6 +65,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const maxSelectableQuantity = product
     ? Math.max(0, Math.min(maxSelectableByLimit, displayRemaining))
     : 0
+  const effectiveQuantity =
+    maxSelectableQuantity > 0
+      ? Math.max(1, Math.min(quantity, maxSelectableQuantity))
+      : 1
   const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, displayPrice) : 0
   const isSoldOut = campaign?.status === 'ACTIVE' ? (displayRemaining <= 0) : false
   const isActive = campaign?.status === 'ACTIVE'
@@ -80,18 +85,17 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     if (!isAuthenticated) { openAuthModal('login'); return }
     if (!product) return
     try {
-      const { requestId } = await purchase(product.id, quantity)
+      const { requestId } = await purchase(product.id, effectiveQuantity)
       router.push(`/purchase/waiting/${requestId}`)
     } catch (err) {
       // Nếu backend báo có reservation đang chờ, hiển thị nút tiếp tục
-      if (err instanceof Error) {
-        try {
-          const parsed = JSON.parse(err.message) as { code: string; reservationId: string; expiredAt: string }
-          if (parsed.code === 'RESERVATION_EXISTS') {
-            setPendingReservation({ id: parsed.reservationId, expiredAt: parsed.expiredAt })
-            return
-          }
-        } catch { /* not JSON */ }
+      if (err instanceof ApiError && err.code === 'RESERVATION_EXISTS') {
+        const reservationId = err.metadata?.reservationId
+        const expiredAt = err.metadata?.expiredAt
+        if (reservationId && expiredAt) {
+          setPendingReservation({ id: reservationId, expiredAt })
+          return
+        }
       }
       /* other errors: toast shown by hook */
     }
@@ -286,14 +290,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 <span className="text-white/60 text-sm">Số lượng:</span>
                 <div className="flex items-center glass rounded-xl overflow-hidden">
                   <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    onClick={() => setQuantity(Math.max(1, effectiveQuantity - 1))}
                     className="px-3 py-2 text-white/60 hover:text-white hover:bg-white/10 transition-all"
                   >
                     <Minus size={14} />
                   </button>
-                  <span className="px-4 py-2 text-white font-medium min-w-[3rem] text-center">{quantity}</span>
+                  <span className="px-4 py-2 text-white font-medium min-w-[3rem] text-center">{effectiveQuantity}</span>
                   <button
-                    onClick={() => setQuantity(Math.min(maxSelectableQuantity, quantity + 1))}
+                    onClick={() => setQuantity(Math.min(maxSelectableQuantity, effectiveQuantity + 1))}
                     className="px-3 py-2 text-white/60 hover:text-white hover:bg-white/10 transition-all"
                   >
                     <Plus size={14} />

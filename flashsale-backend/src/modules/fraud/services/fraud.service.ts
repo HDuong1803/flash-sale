@@ -37,6 +37,7 @@ const BLOCK_THRESHOLD = 0.75
 
 /** Score >= this → allow but flag for monitoring */
 const FLAG_THRESHOLD = 0.5
+const PERMANENT_BLACKLIST_CACHE_SECONDS = 300
 
 @Injectable()
 export class FraudService {
@@ -62,6 +63,18 @@ export class FraudService {
    * - Request chưa xác thực: các rule yêu cầu userId sẽ tự bỏ qua
    */
   async evaluate(params: EvaluateParams): Promise<FraudDecision> {
+    const blacklisted = await this.isIpBlacklisted(params.ipAddress)
+    if (blacklisted) {
+      return {
+        action: 'BLOCK',
+        score: 1,
+        reason: 'IP_BLACKLIST',
+        message:
+          'Yêu cầu bị từ chối do phát hiện hoạt động bất thường. Vui lòng thử lại sau.',
+        triggeredRules: ['IP_BLACKLIST']
+      }
+    }
+
     const triggeredRules: string[] = []
     let compositeScore = 0
 
@@ -215,5 +228,37 @@ export class FraudService {
     await this.fraudRepo.removeFromBlacklist(ip)
     await this.redis.client.del(`fraud:blacklist:${ip}`)
     this.logger.log(`IP removed from blacklist: ${ip}`)
+  }
+
+  private async isIpBlacklisted(ipAddress: string): Promise<boolean> {
+    const redisKey = `fraud:blacklist:${ipAddress}`
+
+    try {
+      const cached = await this.redis.client.exists(redisKey)
+      if (cached === 1) {
+        return true
+      }
+
+      const fromDb = await this.fraudRepo.findActiveBlacklistEntry(ipAddress)
+      if (fromDb) {
+        const ttlSeconds = fromDb.expiresAt
+          ? Math.max(
+              1,
+              Math.ceil((fromDb.expiresAt.getTime() - Date.now()) / 1000)
+            )
+          : PERMANENT_BLACKLIST_CACHE_SECONDS
+
+        await this.redis.client.set(redisKey, '1', 'EX', ttlSeconds)
+        return true
+      }
+
+      return false
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      this.logger.warn(
+        `Không thể kiểm tra blacklist cho IP ${ipAddress}: ${msg}`
+      )
+      return false
+    }
   }
 }

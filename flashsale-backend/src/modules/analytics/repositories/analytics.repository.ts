@@ -33,6 +33,46 @@ export interface CreateFunnelEventData {
 export class AnalyticsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async isCampaignOwnedByMerchant(
+    campaignId: string,
+    merchantUserId: string
+  ): Promise<boolean> {
+    const row = await this.prisma.campaign.findFirst({
+      where: {
+        id: campaignId,
+        merchant: {
+          userId: merchantUserId
+        }
+      },
+      select: { id: true }
+    })
+    return row !== null
+  }
+
+  async isCampaignProductInCampaign(
+    campaignId: string,
+    campaignProductId: string
+  ): Promise<boolean> {
+    const row = await this.prisma.campaignProduct.findFirst({
+      where: {
+        id: campaignProductId,
+        campaignId
+      },
+      select: { id: true }
+    })
+    return row !== null
+  }
+
+  async getCampaignProductRemaining(
+    campaignProductId: string
+  ): Promise<number> {
+    const row = await this.prisma.campaignProduct.findUnique({
+      where: { id: campaignProductId },
+      select: { remainingQuantity: true }
+    })
+    return row?.remainingQuantity ?? 0
+  }
+
   // ─── Thao tác Snapshot ───────────────────────────────────────────────────────
 
   /** Lưu một bản snapshot tại thời điểm hiện tại */
@@ -193,6 +233,38 @@ export class AnalyticsRepository {
       where: {
         reservation: { campaignProduct: { campaignId } },
         status: { not: 'CANCELLED' }
+      },
+      _sum: { totalAmount: true }
+    })
+    return Number(result._sum.totalAmount ?? 0)
+  }
+
+  async countProductPurchases(
+    campaignProductId: string,
+    since?: Date
+  ): Promise<number> {
+    return this.prisma.order.count({
+      where: {
+        reservation: {
+          campaignProductId
+        },
+        status: { not: 'CANCELLED' },
+        ...(since !== undefined && { createdAt: { gte: since } })
+      }
+    })
+  }
+
+  async sumProductRevenue(
+    campaignProductId: string,
+    since?: Date
+  ): Promise<number> {
+    const result = await this.prisma.order.aggregate({
+      where: {
+        reservation: {
+          campaignProductId
+        },
+        status: { not: 'CANCELLED' },
+        ...(since !== undefined && { createdAt: { gte: since } })
       },
       _sum: { totalAmount: true }
     })

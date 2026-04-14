@@ -23,7 +23,7 @@
 
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   subscribeToCamera,
   onConnectionChange,
@@ -62,12 +62,10 @@ export function useStockSocket(campaignId: string | undefined): UseStockSocketRe
   const [isConnected, setIsConnected] = useState<boolean>(isSocketConnected)
   const [lastUpdateAt, setLastUpdateAt] = useState<Date | null>(null)
 
-  // Dùng ref để tránh re-create cleanup function khi state thay đổi
-  const campaignIdRef = useRef(campaignId)
-  campaignIdRef.current = campaignId
-
   useEffect(() => {
-    if (!campaignId) return
+    if (!campaignId) {
+      return
+    }
 
     // Handler nhận stock update từ server
     const handleStockUpdate = (payload: StockUpdatePayload) => {

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { UserRole } from '@prisma/client'
 import { FunnelStep } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { AnalyticsRepository } from '../repositories/analytics.repository'
@@ -17,6 +18,7 @@ interface FunnelDataEntry {
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name)
+  private readonly maxFunnelEventsPerMinute = 30
 
   constructor(
     private readonly redis: RedisService,
@@ -58,6 +60,7 @@ export class AnalyticsService {
     // Chạy song song 7 truy vấn để giảm thời gian chờ DB
     const [
       redisStock,
+      fallbackDbStock,
       purchaseCount,
       revenue,
       viewCount,
@@ -66,8 +69,9 @@ export class AnalyticsService {
       purchasesLast5m
     ] = await Promise.all([
       this.redis.getStock(campaignProductId), // tồn kho thực từ Redis
-      this.analyticsRepo.countCampaignPurchases(campaignId, since),
-      this.analyticsRepo.sumCampaignRevenue(campaignId),
+      this.analyticsRepo.getCampaignProductRemaining(campaignProductId),
+      this.analyticsRepo.countProductPurchases(campaignProductId, since),
+      this.analyticsRepo.sumProductRevenue(campaignProductId, since),
       this.analyticsRepo.countFunnelStep(
         campaignId,
         FunnelStep.CAMPAIGN_VIEW,
@@ -83,10 +87,10 @@ export class AnalyticsService {
         FunnelStep.PURCHASE_ATTEMPT,
         since
       ),
-      this.analyticsRepo.countCampaignPurchases(campaignId, fiveMinAgo) // velocity
+      this.analyticsRepo.countProductPurchases(campaignProductId, fiveMinAgo) // velocity
     ])
 
-    const stockRemaining = Math.max(0, redisStock ?? 0)
+    const stockRemaining = Math.max(0, redisStock ?? fallbackDbStock)
     const stockRatio = stockTotal > 0 ? stockRemaining / stockTotal : 0
     const conversionRate = viewCount > 0 ? purchaseCount / viewCount : 0
 
@@ -178,6 +182,27 @@ export class AnalyticsService {
     return this.analyticsRepo.getCampaignProductIds(campaignId)
   }
 
+  async canAccessCampaign(
+    campaignId: string,
+    user: { userId: string; role: UserRole }
+  ): Promise<boolean> {
+    if (user.role === UserRole.ADMIN) {
+      return true
+    }
+
+    return this.analyticsRepo.isCampaignOwnedByMerchant(campaignId, user.userId)
+  }
+
+  async isCampaignProductInCampaign(
+    campaignId: string,
+    campaignProductId: string
+  ): Promise<boolean> {
+    return this.analyticsRepo.isCampaignProductInCampaign(
+      campaignId,
+      campaignProductId
+    )
+  }
+
   /**
    * Ghi nhận sự kiện funnel từ frontend — kiểu fire-and-forget.
    *
@@ -196,6 +221,17 @@ export class AnalyticsService {
     } = {}
   ): Promise<void> {
     try {
+      if (opts.ipAddress) {
+        const rateKey = `analytics:funnel:rate:${opts.ipAddress}:${sessionId}`
+        const current = await this.redis.client.incr(rateKey)
+        if (current === 1) {
+          await this.redis.client.expire(rateKey, 60)
+        }
+        if (current > this.maxFunnelEventsPerMinute) {
+          return
+        }
+      }
+
       await this.analyticsRepo.createFunnelEvent({
         sessionId,
         userId: opts.userId,

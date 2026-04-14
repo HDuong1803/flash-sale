@@ -46,7 +46,7 @@ export class CheckoutDto {
 
 export class CheckoutResponseDto {
   @ApiProperty({
-    example: 'https://payment.example.com?paymentId=uuid&method=STRIPE'
+    example: 'https://payment.example.com?paymentId=cuid&method=STRIPE'
   })
   paymentUrl: string
 

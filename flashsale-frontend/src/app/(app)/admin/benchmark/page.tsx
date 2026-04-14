@@ -194,12 +194,12 @@ export default function AdminBenchmarkPage() {
       setError('Vui lòng nhập Campaign Product ID để benchmark.')
       return
     }
-    if (concurrentUsers < 2 || concurrentUsers > 500) {
-      setError('Số concurrent users phải từ 2 đến 500.')
+    if (concurrentUsers < 10 || concurrentUsers > 1000) {
+      setError('Số concurrent users phải từ 10 đến 1000.')
       return
     }
-    if (stockAmount < 1 || stockAmount > 1000) {
-      setError('Stock amount phải từ 1 đến 1000.')
+    if (stockAmount < 1 || stockAmount > 500) {
+      setError('Stock amount phải từ 1 đến 500.')
       return
     }
 
@@ -292,35 +292,35 @@ export default function AdminBenchmarkPage() {
               className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-white/20 outline-none focus:ring-1 focus:ring-indigo-500/50"
             />
             <p className="text-white/30 text-xs">
-              Lấy từ trang chi tiết campaign, mục "Campaign Products"
+              Lấy từ trang chi tiết campaign, mục &quot;Campaign Products&quot;
             </p>
           </div>
 
           <div className="space-y-1">
             <label className="text-white/60 text-sm">
-              Concurrent Users <span className="text-white/30">(2–500)</span>
+              Concurrent Users <span className="text-white/30">(10–1000)</span>
             </label>
             <input
               type="number"
-              min={2}
-              max={500}
+              min={10}
+              max={1000}
               value={concurrentUsers}
               onChange={e => setConcurrentUsers(Number(e.target.value))}
               className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-indigo-500/50"
             />
             <p className="text-white/30 text-xs">
-              Số request đồng thời mô phỏng — nên {'>'} stockAmount để thấy race condition
+              Số request đồng thời mô phỏng — nên &gt; stockAmount để thấy race condition
             </p>
           </div>
 
           <div className="space-y-1">
             <label className="text-white/60 text-sm">
-              Stock Amount <span className="text-white/30">(1–1000)</span>
+              Stock Amount <span className="text-white/30">(1–500)</span>
             </label>
             <input
               type="number"
               min={1}
-              max={1000}
+              max={500}
               value={stockAmount}
               onChange={e => setStockAmount(Number(e.target.value))}
               className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-indigo-500/50"

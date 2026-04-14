@@ -70,6 +70,25 @@ export interface CampaignProductWithRules {
 export class PricingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  async isCampaignProductOwnedByMerchant(
+    campaignProductId: string,
+    merchantUserId: string
+  ): Promise<boolean> {
+    const row = await this.prisma.campaignProduct.findFirst({
+      where: {
+        id: campaignProductId,
+        campaign: {
+          merchant: {
+            userId: merchantUserId
+          }
+        }
+      },
+      select: { id: true }
+    })
+
+    return row !== null
+  }
+
   /**
    * Lấy các campaign product đang active và có ít nhất một rule pricing đang active.
    * Dùng bởi scheduler để biết cần evaluate những sản phẩm nào.

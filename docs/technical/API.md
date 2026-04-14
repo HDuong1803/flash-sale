@@ -81,7 +81,7 @@ Create a new user account.
 {
   "success": true,
   "data": {
-    "user": { "id": "uuid", "email": "user@example.com", "name": "Jane Doe" },
+    "user": { "id": "cuid", "email": "user@example.com", "name": "Jane Doe" },
     "accessToken": "eyJ...",
     "refreshToken": "eyJ..."
   }
@@ -108,7 +108,7 @@ Authenticate and receive tokens.
 {
   "success": true,
   "data": {
-    "user": { "id": "uuid", "email": "user@example.com", "name": "Jane Doe" },
+    "user": { "id": "cuid", "email": "user@example.com", "name": "Jane Doe" },
     "accessToken": "eyJ...",
     "refreshToken": "eyJ..."
   }
@@ -170,7 +170,7 @@ Get the authenticated user's profile.
 {
   "success": true,
   "data": {
-    "id": "uuid",
+    "id": "cuid",
     "email": "user@example.com",
     "name": "Jane Doe",
     "createdAt": "2024-01-15T09:00:00Z"

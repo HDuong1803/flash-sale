@@ -5,12 +5,7 @@ import { ApiError } from '@/lib/api-client'
 import { getOrCreateKey, clearKey } from '@/lib/idempotency'
 
 function isReservationExistsError(err: ApiError): boolean {
-  try {
-    const parsed = JSON.parse(err.message) as { code?: string }
-    return parsed.code === 'RESERVATION_EXISTS'
-  } catch {
-    return false
-  }
+  return err.code === 'RESERVATION_EXISTS'
 }
 
 export function usePurchase() {

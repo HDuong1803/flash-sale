@@ -45,15 +45,12 @@ export class PricingSchedulerService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async runPricingCycle(): Promise<void> {
     // Acquire distributed lock: chỉ một instance được chạy tại một thời điểm
-    const acquired = await this.redis.client.set(
+    const lockToken = await this.redis.acquireLockToken(
       CRON_LOCK_KEY,
-      '1',
-      'EX',
-      CRON_LOCK_TTL_S,
-      'NX'
+      CRON_LOCK_TTL_S * 1000
     )
 
-    if (!acquired) {
+    if (!lockToken) {
       this.logger.debug(
         'Pricing cron: instance khác đang chạy, bỏ qua chu kỳ này'
       )
@@ -88,7 +85,7 @@ export class PricingSchedulerService {
       )
     } finally {
       // Luôn release lock dù có lỗi hay không
-      await this.redis.client.del(CRON_LOCK_KEY)
+      await this.redis.releaseLockToken(CRON_LOCK_KEY, lockToken)
     }
   }
 

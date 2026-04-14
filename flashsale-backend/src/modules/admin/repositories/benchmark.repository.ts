@@ -8,6 +8,11 @@ export interface DbLockPurchaseResult {
   remainingQuantity: number
 }
 
+export interface BenchmarkProductContext {
+  remainingQuantity: number
+  campaignStatus: string
+}
+
 @Injectable()
 export class BenchmarkRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -79,5 +84,29 @@ export class BenchmarkRepository {
       WHERE id = ${campaignProductId}
     `
     return rows[0]?.remaining_quantity ?? 0
+  }
+
+  async getBenchmarkProductContext(
+    campaignProductId: string
+  ): Promise<BenchmarkProductContext | null> {
+    const rows = await this.prisma.$queryRaw<
+      { remaining_quantity: number; campaign_status: string }[]
+    >`
+      SELECT cp.remaining_quantity, c.status AS campaign_status
+      FROM campaign_products cp
+      INNER JOIN campaigns c ON c.id = cp.campaign_id
+      WHERE cp.id = ${campaignProductId}
+      LIMIT 1
+    `
+
+    const row = rows[0]
+    if (!row) {
+      return null
+    }
+
+    return {
+      remainingQuantity: row.remaining_quantity,
+      campaignStatus: row.campaign_status
+    }
   }
 }

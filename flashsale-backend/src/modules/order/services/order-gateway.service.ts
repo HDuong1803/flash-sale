@@ -5,10 +5,10 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { CampaignStatus, OrderStatus, UserRole } from '@prisma/client'
+import { createId } from '@paralleldrive/cuid2'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { OrderRepository } from '../repositories/order.repository'
-import * as crypto from 'crypto'
 
 /**
  * OrderGatewayService — Cổng vào duy nhất của luồng mua hàng Flash Sale
@@ -150,7 +150,7 @@ export class OrderGatewayService {
     // concurrent request với cùng key có thể thành công, những request còn lại bị từ chối.
     //
     // TTL = 300 giây (5 phút) — đủ thời gian cho worker xử lý và write result.
-    const requestId = crypto.randomUUID()
+    const requestId = createId()
     const claimed = await this.redis.claimPurchaseRequestIdempotency(
       idempotencyKey,
       requestId,
