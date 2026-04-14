@@ -1,11 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as amqplib from 'amqplib'
 import * as crypto from 'crypto'
+import { LockStrategy } from '@prisma/client'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { RETRY_HEADER } from '@infrastructure/rabbitmq/rabbitmq.constants'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { ReservationService } from '@modules/reservation/services/reservation.service'
 import { ReservationRepository } from '@modules/reservation/repositories/reservation.repository'
+import { StockAuditService } from '@modules/order/services/stock-audit.service'
 
 /**
  * Interface mô tả cấu trúc một job trong RabbitMQ queue.
@@ -57,7 +59,8 @@ export class OrderWorker implements OnModuleInit {
     private readonly rabbitmq: RabbitMQService,
     private readonly redis: RedisService,
     private readonly reservationService: ReservationService,
-    private readonly reservationRepository: ReservationRepository
+    private readonly reservationRepository: ReservationRepository,
+    private readonly stockAudit: StockAuditService
   ) {}
 
   /**
@@ -126,10 +129,12 @@ export class OrderWorker implements OnModuleInit {
     // [Step 1] Atomic stock decrement via Lua script.
     // Lua script đảm bảo check-and-decrement là một operation duy nhất trong Redis,
     // không bị interleave bởi bất kỳ command Redis nào khác (single-threaded Redis + Lua).
+    const luaStart = process.hrtime.bigint()
     const remaining = await this.redis.decrementStock(
       campaignProductId,
       quantity
     )
+    const luaExecUs = Number(process.hrtime.bigint() - luaStart) / 1000
 
     if (remaining === -2) {
       // Stock key không tìm thấy trong Redis — thường xảy ra khi:
@@ -160,6 +165,19 @@ export class OrderWorker implements OnModuleInit {
       this.logger.log(`SOLD_OUT: campaignProductId=${campaignProductId}`)
       return
     }
+
+    // [Step 1b] Record audit log for successful DECR (fire-and-forget, không await throw)
+    void this.stockAudit.record({
+      productId: campaignProductId,
+      delta: -quantity,
+      stockBefore: remaining + quantity, // approximate (Lua atomic, exact value)
+      stockAfter: remaining,
+      reason: 'PURCHASE',
+      referenceId: requestId,
+      triggeredBy: userId,
+      strategy: LockStrategy.REDIS_LUA,
+      executionTimeUs: Math.round(luaExecUs)
+    })
 
     // [Step 2] Stock decrement thành công — tạo Reservation.
     // Tại thời điểm này, stock đã được "reserved" trong Redis cho user này.
@@ -264,6 +282,20 @@ export class OrderWorker implements OnModuleInit {
    * trong quá trình migration data), bỏ qua publish thay vì throw.
    * Dashboard miss 1 update không nghiêm trọng bằng việc làm fail cả order flow.
    */
+  /**
+   * publishDashboardUpdate — Gửi event cập nhật tồn kho lên Redis Pub/Sub
+   *
+   * Payload được publish lên channel dashboard:{campaignId}.
+   * StockGateway đang subscribe channel này và sẽ forward đến Socket.IO clients
+   * đang theo dõi campaign tương ứng (theo cơ chế room).
+   *
+   * Payload bao gồm campaignProductId và stockRatio để:
+   * - Frontend có thể cập nhật đúng product (một campaign có thể có nhiều sản phẩm)
+   * - Hiển thị thanh tiến độ stock dưới dạng tỷ lệ phần trăm (không cần biết saleQuantity)
+   *
+   * Edge case: nếu không tìm thấy campaign product → bỏ qua, không throw.
+   * Dashboard miss 1 update không nghiêm trọng bằng việc fail cả order flow.
+   */
   private async publishDashboardUpdate(
     campaignProductId: string,
     stockRemaining: number
@@ -273,10 +305,16 @@ export class OrderWorker implements OnModuleInit {
     )
     if (!cp) return
 
+    // Tính stockRatio để frontend hiển thị thanh tiến độ trực tiếp
+    const stockRatio =
+      cp.saleQuantity > 0 ? stockRemaining / cp.saleQuantity : 0
+
     await this.redis.publishDashboardEvent(cp.campaignId, {
       type: 'STOCK_UPDATE',
+      campaignProductId, // cần để gateway route đúng đến frontend component
       stockRemaining,
       stockTotal: cp.saleQuantity,
+      stockRatio, // frontend dùng trực tiếp, không cần tính lại
       timestamp: new Date().toISOString()
     })
   }

@@ -229,6 +229,8 @@ model CampaignProduct {
   product          Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
   reservations     Reservation[]
   stockAllocations StockAllocation[]
+  pricingRules     PricingRule[]
+  priceHistory     PriceHistory[]
 
   @@unique([campaignId, productId])
   @@index([campaignId])
@@ -428,21 +430,27 @@ model CommissionLedger {
 }
 
 model StockAuditLog {
-  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
-  productId   String   @map("product_id") @db.VarChar(36)
-  delta       Int      @map("delta") // Số lượng thay đổi (âm = giảm, dương = tăng)
-  stockBefore Int      @map("stock_before")
-  stockAfter  Int      @map("stock_after")
-  reason      String   @map("reason") @db.VarChar(255) // Mô tả lý do thay đổi (ví dụ: "reservation", "cancel", "restock")
-  referenceId String?  @map("reference_id") @db.VarChar(36) // ID tham chiếu (reservationId, orderId, ...)
-  triggeredBy String?  @map("triggered_by") @db.VarChar(50) // userId hoặc "system"
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  id              String        @id @default(cuid()) @map("id") @db.VarChar(36)
+  productId       String        @map("product_id") @db.VarChar(36)
+  delta           Int           @map("delta") // Số lượng thay đổi (âm = giảm, dương = tăng)
+  stockBefore     Int           @map("stock_before")
+  stockAfter      Int           @map("stock_after")
+  reason          String        @map("reason") @db.VarChar(255)
+  referenceId     String?       @map("reference_id") @db.VarChar(36)
+  triggeredBy     String?       @map("triggered_by") @db.VarChar(50)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamp(6)
+
+  // Benchmark & audit fields (Hướng 1)
+  isOversell      Boolean       @default(false) @map("is_oversell")
+  strategy        LockStrategy  @default(REDIS_LUA) @map("strategy")
+  executionTimeUs Int           @default(0) @map("execution_time_us") // microseconds
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, createdAt(sort: Desc)])
   @@index([referenceId])
-  @@index([createdAt(sort: Desc)]) // Time-based queries, báo cáo theo khoảng thời gian
+  @@index([createdAt(sort: Desc)])
+  @@index([isOversell, createdAt(sort: Desc)]) // Fast query for oversell events
   @@map("stock_audit_logs")
 }
 
@@ -605,6 +613,152 @@ model OutboxEvent {
   @@map("outbox_events")
 }
 
+// ─── Innovation Models ────────────────────────────────────────────────────────
+
+// FraudEvent — ghi mọi request được đánh giá rủi ro (Hướng 3)
+model FraudEvent {
+  id             String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  userId         String?  @map("user_id") @db.VarChar(36)
+  ipAddress      String   @map("ip_address") @db.VarChar(45)
+  userAgent      String   @map("user_agent") @db.Text
+  requestType    String   @map("request_type") @db.VarChar(50)
+  riskScore      Float    @map("risk_score")
+  blocked        Boolean  @default(false) @map("blocked")
+  blockReason    String?  @map("block_reason") @db.VarChar(100)
+  triggeredRules Json     @map("triggered_rules")
+  signals        Json     @map("signals")
+  campaignId     String?  @map("campaign_id") @db.VarChar(36)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([ipAddress, createdAt])
+  @@index([userId, createdAt])
+  @@index([blocked, createdAt])
+  @@map("fraud_events")
+}
+
+// IpBlacklist — danh sách IP bị chặn vĩnh viễn hoặc tạm thời (Hướng 3)
+model IpBlacklist {
+  id        String    @id @default(cuid()) @map("id") @db.VarChar(36)
+  ipAddress String    @unique @map("ip_address") @db.VarChar(45)
+  reason    String    @map("reason") @db.VarChar(255)
+  expiresAt DateTime? @map("expires_at") @db.Timestamp(6)
+  createdBy String    @map("created_by") @db.VarChar(50)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("ip_blacklists")
+}
+
+// UserRiskProfile — hồ sơ rủi ro tổng hợp theo userId (Hướng 3)
+model UserRiskProfile {
+  userId        String   @id @map("user_id") @db.VarChar(36)
+  riskScore     Float    @default(0.0) @map("risk_score")
+  totalAttempts Int      @default(0) @map("total_attempts")
+  blockedCount  Int      @default(0) @map("blocked_count")
+  notes         String?  @map("notes") @db.Text
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@map("user_risk_profiles")
+}
+
+// PricingRule — cấu hình luật định giá động do merchant thiết lập (Hướng 4)
+model PricingRule {
+  id                String          @id @default(cuid()) @map("id") @db.VarChar(36)
+  campaignProductId String          @map("campaign_product_id") @db.VarChar(36)
+  name              String          @map("name") @db.VarChar(100)
+  strategy          PricingStrategy @map("strategy")
+  priority          Int             @default(0) @map("priority")
+  isActive          Boolean         @default(true) @map("is_active")
+
+  // STOCK_BASED
+  stockRatioLow  Float? @map("stock_ratio_low")
+  stockRatioHigh Float? @map("stock_ratio_high")
+  stockAction    PriceAction? @map("stock_action")
+
+  // VELOCITY_BASED
+  velocityMin    Float? @map("velocity_min")
+  velocityMax    Float? @map("velocity_max")
+  velocityAction PriceAction? @map("velocity_action")
+
+  // TIME_BASED
+  minutesBeforeEnd Int? @map("minutes_before_end")
+  timeAction       PriceAction? @map("time_action")
+
+  // Adjustment & guardrails
+  adjustmentPct Float @map("adjustment_pct")
+  minPrice      Float @map("min_price")
+  maxPrice      Float @map("max_price")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  campaignProduct CampaignProduct @relation(fields: [campaignProductId], references: [id], onDelete: Cascade)
+  priceHistory    PriceHistory[]
+
+  @@index([campaignProductId, isActive])
+  @@map("pricing_rules")
+}
+
+// PriceHistory — lịch sử thay đổi giá để vẽ chart (Hướng 4)
+model PriceHistory {
+  id                String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  campaignProductId String   @map("campaign_product_id") @db.VarChar(36)
+  ruleId            String?  @map("rule_id") @db.VarChar(36)
+  oldPrice          Float    @map("old_price")
+  newPrice          Float    @map("new_price")
+  changePct         Float    @map("change_pct")
+  reason            String   @map("reason") @db.VarChar(100)
+  triggeredBy       String   @default("SYSTEM") @map("triggered_by") @db.VarChar(50)
+  stockAtChange     Int      @map("stock_at_change")
+  velocityAtChange  Float    @map("velocity_at_change")
+  timeRemainingMin  Int      @map("time_remaining_min")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  campaignProduct CampaignProduct @relation(fields: [campaignProductId], references: [id], onDelete: Cascade)
+  rule            PricingRule?    @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@index([campaignProductId, createdAt])
+  @@map("price_history")
+}
+
+// CampaignAnalyticsSnapshot — time-series snapshot mỗi 5 phút (Hướng 5)
+model CampaignAnalyticsSnapshot {
+  id                String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  campaignId        String   @map("campaign_id") @db.VarChar(36)
+  campaignProductId String   @map("campaign_product_id") @db.VarChar(36)
+  snapshotAt        DateTime @default(now()) @map("snapshot_at") @db.Timestamp(6)
+  stockRemaining    Int      @map("stock_remaining")
+  stockTotal        Int      @map("stock_total")
+  stockRatio        Float    @map("stock_ratio")
+  purchaseCount     Int      @map("purchase_count")
+  revenue           Float    @map("revenue")
+  conversionRate    Float    @default(0) @map("conversion_rate")
+  viewCount         Int      @default(0) @map("view_count")
+  clickCount        Int      @default(0) @map("click_count")
+  attemptCount      Int      @default(0) @map("attempt_count")
+  purchasesLast5m   Int      @default(0) @map("purchases_last_5m")
+  revenueVelocity   Float    @default(0) @map("revenue_velocity")
+
+  @@index([campaignId, snapshotAt])
+  @@index([campaignProductId, snapshotAt])
+  @@map("campaign_analytics_snapshots")
+}
+
+// FunnelEvent — theo dõi từng bước trong funnel mua hàng (Hướng 5)
+model FunnelEvent {
+  id         String     @id @default(cuid()) @map("id") @db.VarChar(36)
+  sessionId  String     @map("session_id") @db.VarChar(100)
+  userId     String?    @map("user_id") @db.VarChar(36)
+  campaignId String     @map("campaign_id") @db.VarChar(36)
+  step       FunnelStep @map("step")
+  metadata   Json?      @map("metadata")
+  ipAddress  String?    @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([campaignId, step, createdAt])
+  @@index([sessionId])
+  @@map("funnel_events")
+}
+
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum UserRole {
@@ -694,4 +848,32 @@ enum RescheduleRequestStatus {
   APPLIED // Đã áp dụng — startTime campaign đã được cập nhật
   REJECTED // Bị từ chối
   EXPIRED // Hết hạn
+}
+
+enum LockStrategy {
+  NO_LOCK    // Không có lock — dễ bị race condition / oversell
+  DB_LOCK    // PostgreSQL SELECT FOR UPDATE — an toàn nhưng chậm
+  REDIS_LUA  // Redis Lua atomic script — production standard
+}
+
+enum PricingStrategy {
+  STOCK_BASED    // Điều chỉnh theo tỉ lệ tồn kho
+  VELOCITY_BASED // Điều chỉnh theo tốc độ mua
+  TIME_BASED     // Điều chỉnh theo thời gian còn lại
+  COMPOSITE      // Kết hợp nhiều signals
+}
+
+enum PriceAction {
+  INCREASE
+  DECREASE
+}
+
+enum FunnelStep {
+  CAMPAIGN_VIEW      // User xem trang campaign
+  PRODUCT_CLICK      // User click vào sản phẩm
+  PURCHASE_ATTEMPT   // User click nút mua
+  CHECKOUT_OPEN      // User mở trang checkout
+  PAYMENT_INITIATED  // User chọn phương thức thanh toán
+  PAYMENT_SUCCESS    // Thanh toán thành công
+  PAYMENT_FAILED     // Thanh toán thất bại
 }

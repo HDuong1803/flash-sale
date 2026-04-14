@@ -16,6 +16,7 @@ import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { CampaignCardSkeleton } from '@/components/shared/skeletons/CampaignCardSkeleton'
 import { formatCurrency, calculateDiscount, formatDate } from '@/lib/utils'
+import { useStockSocket } from '@/hooks/useStockSocket'
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -35,16 +36,27 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const [preRegisteredOverride, setPreRegisteredOverride] = useState<boolean | null>(null)
   const [pendingReservation, setPendingReservation] = useState<{ id: string; expiredAt: string } | null>(null)
 
+  // Hook nhận cập nhật real-time từ WebSocket (chỉ active khi campaign đã load)
+  const { stockMap, priceMap, isConnected } = useStockSocket(campaign?.id)
+
   const product = campaign?.campaignProducts?.[selectedProductIdx]
   // Derived: ưu tiên override local, fallback về giá trị API
   const isPreRegistered = preRegisteredOverride !== null
     ? preRegisteredOverride
     : (campaign?.isPreRegistered ?? null)
   const isScheduled = campaign?.status === 'SCHEDULED'
-  const displayRemaining =
-    product && isScheduled && product.remainingQuantity === 0 && product.saleQuantity > 0
-      ? product.saleQuantity
-      : (product?.remainingQuantity ?? 0)
+
+  // Tồn kho: ưu tiên stockMap từ WebSocket nếu có update, fallback về API value
+  const wsRemaining = product ? (stockMap[product.id] ?? null) : null
+  const displayRemaining = wsRemaining !== null
+    ? wsRemaining
+    : product && isScheduled && product.remainingQuantity === 0 && product.saleQuantity > 0
+    ? product.saleQuantity
+    : (product?.remainingQuantity ?? 0)
+
+  // Giá: ưu tiên priceMap từ pricing engine nếu có update
+  const wsPrice = product ? (priceMap[product.id] ?? null) : null
+  const displayPrice = wsPrice !== null ? wsPrice : (product?.salePrice ?? 0)
   const alreadyPaidQuantity = product?.userPaidQuantity ?? 0
   const maxSelectableByLimit = product
     ? Math.max(0, product.perUserLimit - alreadyPaidQuantity)
@@ -52,9 +64,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const maxSelectableQuantity = product
     ? Math.max(0, Math.min(maxSelectableByLimit, displayRemaining))
     : 0
-  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, product.salePrice) : 0
+  const discount = product ? calculateDiscount(product.product?.originalPrice ?? 0, displayPrice) : 0
   const isSoldOut = campaign?.status === 'ACTIVE' ? (displayRemaining <= 0) : false
   const isActive = campaign?.status === 'ACTIVE'
+  // Đang nhận real-time update (chỉ có nghĩa khi campaign đang ACTIVE)
+  const isLive = isActive && isConnected
 
   const handleSelectProduct = (idx: number) => {
     setSelectedProductIdx(idx)
@@ -217,21 +231,52 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               </div>
             )}
 
-            {/* Price */}
+            {/* Price — hiển thị giá real-time từ pricing engine nếu có */}
             {product && (
               <div className="flex items-baseline gap-3">
                 <span className="text-white/40 text-base line-through">{formatCurrency(product.product?.originalPrice ?? 0)}</span>
-                <span className="text-indigo-300 text-3xl font-bold">{formatCurrency(product.salePrice)}</span>
+                <span className="text-indigo-300 text-3xl font-bold transition-all duration-300">
+                  {formatCurrency(displayPrice)}
+                </span>
                 {discount > 0 && (
                   <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">-{discount}%</span>
+                )}
+                {/* Badge giá đang thay đổi dynamic */}
+                {wsPrice !== null && wsPrice !== product.salePrice && (
+                  <span className="text-amber-300 text-xs font-medium animate-fade-in">
+                    Giá cập nhật
+                  </span>
                 )}
               </div>
             )}
 
-            {/* Stock */}
+            {/* Stock — nhận real-time từ WebSocket với animation drop */}
             {product && (
               <div className="space-y-1.5">
-                <StockProgressBar remaining={displayRemaining} total={product.saleQuantity} showText size="md" />
+                <StockProgressBar
+                  remaining={displayRemaining}
+                  total={product.saleQuantity}
+                  showText
+                  size="md"
+                  isLive={isLive}
+                />
+              </div>
+            )}
+
+            {/* Connection indicator */}
+            {isActive && (
+              <div className="flex items-center gap-1.5">
+                {isConnected ? (
+                  <span className="flex items-center gap-1 text-xs text-emerald-400">
+                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-live" />
+                    Cập nhật trực tiếp
+                  </span>
+                ) : (
+                  <span className="text-xs text-white/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+                    Đang kết nối...
+                  </span>
+                )}
               </div>
             )}
 

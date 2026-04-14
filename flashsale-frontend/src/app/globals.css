@@ -299,3 +299,20 @@ body {
 .animate-number-pop { animation: number-pop 0.3s ease-out; }
 .animate-slide-up { animation: slide-up 0.4s ease-out; }
 .animate-fade-in { animation: fade-in 0.3s ease-out; }
+
+/* ─── Stock drop animation — hiệu ứng khi tồn kho giảm real-time ─────────────── */
+@keyframes stock-drop {
+  0%   { transform: scale(1); color: rgb(255 255 255 / 0.6); }
+  25%  { transform: scale(1.18); color: #f87171; }
+  60%  { transform: scale(1.08); color: #fca5a5; }
+  100% { transform: scale(1);   color: rgb(255 255 255 / 0.6); }
+}
+/* Áp dụng cho số tồn kho khi vừa nhận update từ WebSocket */
+.animate-stock-drop { animation: stock-drop 1.2s ease-out; }
+
+/* Progress bar pulse khi stock thay đổi */
+@keyframes bar-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.7; }
+}
+.animate-bar-pulse { animation: bar-pulse 0.8s ease-in-out 2; }
