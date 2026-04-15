@@ -46,7 +46,10 @@ export class TokenService {
   }
 
   async storeRefreshToken(userId: string, token: string): Promise<void> {
-    const ttl = 7 * 24 * 60 * 60 // 7 days in seconds
+    // Đọc TTL từ config thay vì hardcode — đảm bảo đồng bộ với JWT_EXPIRE_REFRESH_TIME
+    const ttl =
+      Number(this.configService.get('JWT_EXPIRE_REFRESH_TIME')) ||
+      7 * 24 * 60 * 60
     await this.redisService.setRefreshToken(userId, token, ttl)
   }
 

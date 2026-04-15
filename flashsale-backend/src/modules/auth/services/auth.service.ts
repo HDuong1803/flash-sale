@@ -384,7 +384,10 @@ export class AuthService {
 
   // ─── Refresh / Logout ─────────────────────────────────────────────────────
 
-  async refresh(refreshToken: string): Promise<{ accessToken: string }> {
+  async refresh(
+    refreshToken: string
+  ): Promise<{ accessToken: string; refreshToken: string; role: string }> {
+    // Bước 1: Verify chữ ký JWT của refresh token
     let payload: { sub: string }
     try {
       payload = this.tokenService.verifyRefreshToken(refreshToken)
@@ -392,6 +395,7 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token không hợp lệ')
     }
 
+    // Bước 2: Kiểm tra refresh token có khớp với bản lưu trong Redis không
     const valid = await this.tokenService.validateStoredRefreshToken(
       payload.sub,
       refreshToken
@@ -400,13 +404,25 @@ export class AuthService {
 
     const user = await this.userRepository.findById(payload.sub)
     if (!user) throw new UnauthorizedException('Người dùng không tồn tại')
+    if (user.status === 'BANNED')
+      throw new UnauthorizedException('Tài khoản đã bị khóa')
 
+    // Bước 3: Sliding session — cấp access token mới VÀ refresh token mới
+    // Refresh token cũ bị thu hồi ngay lập tức để tránh replay attack.
+    // Mỗi lần user còn active trong vòng refresh TTL, session được gia hạn thêm 1 chu kỳ nữa.
     const accessToken = this.tokenService.generateAccessToken({
       sub: user.id,
       email: user.email,
       role: user.role
     })
-    return { accessToken }
+    const newRefreshToken = this.tokenService.generateRefreshToken({
+      sub: user.id
+    })
+
+    // Thu hồi refresh token cũ → lưu refresh token mới vào Redis với TTL mới
+    await this.tokenService.storeRefreshToken(user.id, newRefreshToken)
+
+    return { accessToken, refreshToken: newRefreshToken, role: user.role }
   }
 
   async logout(userId: string): Promise<void> {

@@ -219,31 +219,56 @@ export class AuthController {
   @ApiBody({ type: RefreshDto, required: false })
   @ApiResponse({
     status: HttpStatus.OK,
-    description: 'Access token mới được set qua cookie'
+    description:
+      'Access token + Refresh token mới được set qua cookie (sliding session)'
   })
   @ApiResponse({
     status: HttpStatus.UNAUTHORIZED,
-    description: 'Refresh token không hợp lệ'
+    description: 'Refresh token không hợp lệ hoặc đã hết hạn'
   })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ): Promise<void> {
-    // Primary: read from HttpOnly cookie (browser-based clients)
-    // Fallback: accept body field for Swagger / non-browser clients
+    // Đọc refresh_token từ HttpOnly cookie (browser) hoặc body (Swagger / non-browser)
     const refreshToken: string | undefined =
       (req.cookies as Record<string, string | undefined>)['refresh_token'] ??
       (req.body as RefreshDto | undefined)?.refreshToken
 
-    const { accessToken } = await this.authService.refresh(refreshToken ?? '')
+    // Sliding session: nhận về cả access token mới + refresh token mới + role
+    const {
+      accessToken,
+      refreshToken: newRefreshToken,
+      role
+    } = await this.authService.refresh(refreshToken ?? '')
 
     const security = this.getCookieSecurityOptions()
 
+    // Set access_token cookie mới — TTL ngắn, path rộng để mọi request đều gửi kèm
     res.cookie('access_token', accessToken, {
       httpOnly: true,
       sameSite: security.sameSite,
       secure: security.secure,
       maxAge: this.accessTokenTtl,
+      path: '/'
+    })
+
+    // Set refresh_token cookie mới — sliding session: gia hạn thêm 1 chu kỳ TTL
+    // Path giới hạn ở /api/v1/auth để giảm exposure (chỉ gửi khi call auth endpoints)
+    res.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      sameSite: security.sameSite,
+      secure: security.secure,
+      maxAge: this.refreshTokenTtl,
+      path: '/api/v1/auth'
+    })
+
+    // Gia hạn user-role cookie đồng bộ với refresh token mới
+    // (cookie này không HttpOnly để Next.js middleware đọc được cho RBAC)
+    res.cookie('user-role', role, {
+      sameSite: security.sameSite,
+      secure: security.secure,
+      maxAge: this.refreshTokenTtl,
       path: '/'
     })
   }
