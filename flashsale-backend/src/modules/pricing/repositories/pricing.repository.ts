@@ -106,6 +106,56 @@ export class PricingRepository {
   }
 
   /**
+   * Batch query: lấy TẤT CẢ campaign products đang active kèm rules trong 1 query.
+   * Thay thế pattern findActivePricingTargets() + N×findProductWithRules()
+   * từ (2N+1) queries → 1 query.
+   */
+  async findAllActivePricingTargetsWithRules(): Promise<
+    CampaignProductWithRules[]
+  > {
+    return this.prisma.campaignProduct.findMany({
+      where: {
+        campaign: { status: 'ACTIVE' },
+        pricingRules: { some: { isActive: true } }
+      },
+      include: {
+        campaign: { select: { status: true, endTime: true } },
+        pricingRules: {
+          where: { isActive: true },
+          orderBy: { priority: 'desc' }
+        }
+      }
+    }) as Promise<CampaignProductWithRules[]>
+  }
+
+  /**
+   * Batch velocity: đếm reservations gần đây cho nhiều campaign products trong 1 query.
+   * Thay thế N×countRecentReservations() → 1 query duy nhất.
+   *
+   * @returns Map<campaignProductId, count>
+   */
+  async countRecentReservationsBatch(
+    campaignProductIds: string[],
+    sinceMinutes: number
+  ): Promise<Map<string, number>> {
+    if (campaignProductIds.length === 0) return new Map()
+
+    const since = new Date(Date.now() - sinceMinutes * 60_000)
+
+    const rows = await this.prisma.reservation.groupBy({
+      by: ['campaignProductId'],
+      where: {
+        campaignProductId: { in: campaignProductIds },
+        status: { in: ['HOLDING', 'PAID'] },
+        createdAt: { gte: since }
+      },
+      _count: { id: true }
+    })
+
+    return new Map(rows.map(r => [r.campaignProductId, r._count.id]))
+  }
+
+  /**
    * Lấy thông tin một campaign product kèm danh sách pricing rules đang active.
    */
   async findProductWithRules(

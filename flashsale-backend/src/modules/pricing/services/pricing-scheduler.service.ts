@@ -4,17 +4,12 @@ import { RedisService } from '@infrastructure/redis/redis.service'
 import { PricingRepository } from '../repositories/pricing.repository'
 import { PricingEngineService } from './pricing-engine.service'
 
-/**
- * Redis key cho distributed lock pricing cron.
- * Khác với analytics lock key để tránh xung đột.
- */
 const CRON_LOCK_KEY = 'pricing:cron:lock'
-/**
- * TTL lock = 4 phút (< chu kỳ 5 phút).
- * Đảm bảo lock tự hết hạn nếu process crash giữa chừng.
- */
+/** TTL lock 4 phút < chu kỳ 5 phút — tự hết hạn nếu process crash */
 const CRON_LOCK_TTL_S = 240
 const LOCK_HEARTBEAT_INTERVAL_MS = 60_000
+/** Cửa sổ velocity (phút) — phải đồng bộ với engine */
+const VELOCITY_WINDOW_MIN = 5
 
 @Injectable()
 export class PricingSchedulerService {
@@ -29,112 +24,123 @@ export class PricingSchedulerService {
   /**
    * Vòng lặp định giá chạy mỗi 5 phút.
    *
-   * Cơ chế distributed lock (Redis SET NX EX):
-   * - Ngăn nhiều instance chạy cùng lúc khi deploy nhiều pod
-   * - Instance không giành được lock sẽ bỏ qua chu kỳ ngay lập tức
+   * Tối ưu I/O (so với cũ):
+   *   Trước: (2N+1) DB queries + N Redis calls per cycle
+   *   Sau:   2 DB queries + 2 Redis calls per cycle (không phụ thuộc N)
    *
-   * Cơ chế fault isolation:
-   * - Mỗi product được đánh giá độc lập qua Promise.allSettled
-   * - Một product lỗi không chặn các product còn lại
-   *
-   * Xử lý các trường hợp biên:
-   * - Không có campaign nào ACTIVE: kết thúc sớm (no-op)
-   * - Một product throw: ghi log, tiếp tục các product khác
-   * - DB chậm khiến vòng chạy > 5 phút: chu kỳ tiếp theo bị bỏ qua (lock đang giữ)
-   * - Process crash khi đang giữ lock: lock tự hết hạn sau CRON_LOCK_TTL_S
+   * Flow:
+   * 1. Acquire distributed lock (chỉ 1 instance chạy)
+   * 2. Batch fetch: tất cả products + rules (1 DB query)
+   * 3. Lọc cooldown bằng Redis MGET (1 Redis call)
+   * 4. Batch fetch: velocity tất cả products (1 DB query)
+   * 5. Batch fetch: stock tất cả products (1 Redis MGET)
+   * 6. Đánh giá từng product — synchronous, không I/O
+   * 7. Chỉ ghi DB + publish cho products cần thay đổi
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async runPricingCycle(): Promise<void> {
-    // Acquire distributed lock: chỉ một instance được chạy tại một thời điểm
     const lockToken = await this.redis.acquireLockToken(
       CRON_LOCK_KEY,
       CRON_LOCK_TTL_S * 1000
     )
 
     if (!lockToken) {
-      this.logger.debug(
-        'Pricing cron: instance khác đang chạy, bỏ qua chu kỳ này'
-      )
+      this.logger.debug('Pricing cron: instance khác đang chạy, bỏ qua')
       return
     }
 
     const stopHeartbeat = this.startLockHeartbeat(lockToken)
 
     try {
-      // Lấy danh sách tất cả campaign product có pricing rule đang ACTIVE
-      const targets = await this.pricingRepo.findActivePricingTargets()
+      // ── Step 1: Batch fetch products + rules (1 DB query) ─────────────────
+      const allProducts =
+        await this.pricingRepo.findAllActivePricingTargetsWithRules()
 
-      if (targets.length === 0) {
+      if (allProducts.length === 0) {
         this.logger.debug('Pricing cron: không có sản phẩm nào cần định giá')
         return
       }
 
-      this.logger.log(`Pricing cron: đang đánh giá ${targets.length} sản phẩm`)
+      const ids = allProducts.map(p => p.id)
 
-      // Đánh giá song song, lỗi từng sản phẩm được cô lập
-      const results = await Promise.allSettled(
-        targets.map(t => this.evaluateProduct(t.id, t.campaignId))
+      // ── Step 2: Lọc cooldown (1 Redis MGET) ───────────────────────────────
+      const onCooldown = await this.redis.filterCooldownIds(ids)
+      const eligibleProducts = allProducts.filter(p => !onCooldown.has(p.id))
+
+      if (eligibleProducts.length === 0) {
+        this.logger.debug(
+          `Pricing cron: tất cả ${allProducts.length} sản phẩm đang trong cooldown`
+        )
+        return
+      }
+
+      const eligibleIds = eligibleProducts.map(p => p.id)
+
+      // ── Step 3: Batch fetch velocity + stock (1 DB query + 1 Redis MGET) ──
+      const [velocityMap, stocks] = await Promise.all([
+        this.pricingRepo.countRecentReservationsBatch(
+          eligibleIds,
+          VELOCITY_WINDOW_MIN
+        ),
+        this.redis.mgetStocks(eligibleIds)
+      ])
+
+      this.logger.log(
+        `Pricing cron: đánh giá ${eligibleProducts.length}/${allProducts.length} sản phẩm` +
+          (onCooldown.size > 0 ? ` (${onCooldown.size} đang cooldown)` : '')
       )
 
-      const applied = results.filter(r => r.status === 'fulfilled').length
+      // ── Step 4: Evaluate + apply (chỉ I/O cho sản phẩm cần thay đổi) ─────
+      const results = await Promise.allSettled(
+        eligibleProducts.map((product, i) => {
+          const stock = stocks[i] ?? product.remainingQuantity
+          const reservationCount = velocityMap.get(product.id) ?? 0
+          const ctx = this.pricingEngine.buildContextSync(
+            product,
+            stock,
+            reservationCount
+          )
+          const decision = this.pricingEngine.evaluateSync(product, ctx)
+
+          if (!decision.shouldChange) return Promise.resolve()
+          return this.applyAndPublish(product.id, product.campaignId, decision)
+        })
+      )
+
+      const changed = results.filter(
+        r => r.status === 'fulfilled' && r.value !== undefined
+      ).length
       const failed = results.filter(r => r.status === 'rejected').length
 
       if (failed > 0) {
-        this.logger.warn(`Pricing cron: ${failed} sản phẩm đánh giá thất bại`)
+        this.logger.warn(`Pricing cron: ${failed} sản phẩm apply thất bại`)
       }
 
       this.logger.log(
-        `Pricing cron hoàn tất: ${applied} đã đánh giá, ${failed} lỗi`
+        `Pricing cron hoàn tất: ${changed} giá thay đổi, ${
+          eligibleProducts.length - changed - failed
+        } không đổi, ${failed} lỗi`
       )
     } finally {
       stopHeartbeat()
-      // Luôn release lock dù có lỗi hay không
       await this.redis.releaseLockToken(CRON_LOCK_KEY, lockToken)
     }
   }
 
-  private startLockHeartbeat(token: string): () => void {
-    const interval = setInterval(() => {
-      void this.redis
-        .extendLockToken(CRON_LOCK_KEY, token, CRON_LOCK_TTL_S * 1000)
-        .then(extended => {
-          if (!extended) {
-            this.logger.warn(
-              'Pricing cron lock không thể gia hạn, có thể đã hết hạn hoặc bị thay thế'
-            )
-          }
-        })
-        .catch((err: unknown) => {
-          const msg = err instanceof Error ? err.message : String(err)
-          this.logger.warn(`Lỗi khi gia hạn pricing cron lock: ${msg}`)
-        })
-    }, LOCK_HEARTBEAT_INTERVAL_MS)
-
-    return () => clearInterval(interval)
-  }
-
   /**
-   * Đánh giá và áp dụng thay đổi giá cho một campaign product.
-   *
-   * Luồng:
-   * 1. PricingEngineService.evaluate() → phân tích context (stock, velocity, time)
-   * 2. Nếu không cần thay đổi (shouldChange = false) → kết thúc sớm
-   * 3. Áp dụng giá mới và ghi lịch sử vào DB
-   * 4. Broadcast sự kiện PRICE_UPDATE qua Redis Pub/Sub → SSE client nhận ngay
+   * Apply giá mới + publish PRICE_UPDATE event.
+   * Chỉ gọi khi decision.shouldChange = true.
    */
-  private async evaluateProduct(
+  private async applyAndPublish(
     campaignProductId: string,
-    campaignId: string
+    campaignId: string,
+    decision: Extract<
+      Awaited<ReturnType<PricingEngineService['evaluateSync']>>,
+      { shouldChange: true }
+    >
   ): Promise<void> {
-    const decision = await this.pricingEngine.evaluate(campaignProductId)
-
-    if (!decision.shouldChange) {
-      return // Không có rule nào kích hoạt hoặc thay đổi < ngưỡng tối thiểu
-    }
-
     await this.pricingEngine.applyDecision(campaignProductId, decision)
 
-    // Thông báo real-time qua Redis Pub/Sub để SSE client cập nhật giá ngay lập tức
     await this.redis.publishDashboardEvent(campaignId, {
       type: 'PRICE_UPDATE',
       campaignProductId,
@@ -143,10 +149,23 @@ export class PricingSchedulerService {
       reason: decision.reason,
       timestamp: new Date().toISOString()
     })
+  }
 
-    this.logger.log(
-      `Giá đã cập nhật: ${campaignProductId} ` +
-        `${decision.oldPrice} → ${decision.newPrice} (${decision.reason})`
-    )
+  private startLockHeartbeat(token: string): () => void {
+    const interval = setInterval(() => {
+      void this.redis
+        .extendLockToken(CRON_LOCK_KEY, token, CRON_LOCK_TTL_S * 1000)
+        .then(extended => {
+          if (!extended) {
+            this.logger.warn('Pricing cron lock không thể gia hạn')
+          }
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : String(err)
+          this.logger.warn(`Lỗi gia hạn pricing lock: ${msg}`)
+        })
+    }, LOCK_HEARTBEAT_INTERVAL_MS)
+
+    return () => clearInterval(interval)
   }
 }

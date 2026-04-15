@@ -94,6 +94,14 @@ export class RedisService {
     return val !== null ? parseInt(val) : null
   }
 
+  /** Batch fetch tồn kho — thay thế N lần getStock() thành 1 lần MGET */
+  async mgetStocks(campaignProductIds: string[]): Promise<(number | null)[]> {
+    if (campaignProductIds.length === 0) return []
+    const keys = campaignProductIds.map(id => `stock:${id}`)
+    const values = await this._redisClient.mget(...keys)
+    return values.map(v => (v !== null ? parseInt(v) : null))
+  }
+
   async incrementStock(
     campaignProductId: string,
     quantity: number
@@ -313,6 +321,40 @@ export class RedisService {
   async acquireLock(key: string, ttlMs: number): Promise<boolean> {
     const token = await this.acquireLockToken(key, ttlMs)
     return token !== null
+  }
+
+  // ─── Pricing Cooldown ─────────────────────────────────────────────────────
+
+  /**
+   * Đặt cooldown sau khi giá đã thay đổi — ngăn oscillation.
+   * Trong thời gian cooldown, sản phẩm này bị bỏ qua trong pricing cycle.
+   */
+  async setPricingCooldown(
+    campaignProductId: string,
+    ttlSeconds: number
+  ): Promise<void> {
+    await this._redisClient.set(
+      `pricing:cooldown:${campaignProductId}`,
+      '1',
+      'EX',
+      ttlSeconds
+    )
+  }
+
+  async hasPricingCooldown(campaignProductId: string): Promise<boolean> {
+    return (
+      (await this._redisClient.exists(
+        `pricing:cooldown:${campaignProductId}`
+      )) === 1
+    )
+  }
+
+  /** Batch check cooldowns — dùng khi scheduler cần lọc trước khi evaluate */
+  async filterCooldownIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set()
+    const keys = ids.map(id => `pricing:cooldown:${id}`)
+    const exists = await this._redisClient.mget(...keys)
+    return new Set(ids.filter((_, i) => exists[i] !== null))
   }
 
   async releaseLock(key: string): Promise<void> {
