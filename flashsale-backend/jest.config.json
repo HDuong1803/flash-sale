@@ -13,6 +13,7 @@
       "preset": "ts-jest",
       "verbose": true,
       "moduleNameMapper": {
+        "^@paralleldrive/cuid2$": "<rootDir>/../../test/mocks/cuid2.ts",
         "^@modules/(.*)$": "<rootDir>/modules/$1",
         "^@config/(.*)$": "<rootDir>/config/$1",
         "^@common/(.*)$": "<rootDir>/common/$1",

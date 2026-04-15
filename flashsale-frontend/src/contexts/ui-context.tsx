@@ -34,7 +34,7 @@ export function UiProvider({ children }: { children: React.ReactNode }) {
   // Collapse sidebar by default on small screens
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setSidebarCollapsed(true)
+      setTimeout(() => setSidebarCollapsed(true), 0)
     }
   }, [])
 

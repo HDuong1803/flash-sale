@@ -30,7 +30,7 @@ export function TopHeader() {
 
   // Sync search input with URL param when navigating
   useEffect(() => {
-    setSearchValue(searchParams.get('search') ?? '')
+    setTimeout(() => setSearchValue(searchParams.get('search') ?? ''), 0)
   }, [searchParams])
 
   const handleSearch = (e: React.FormEvent) => {

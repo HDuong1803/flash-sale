@@ -92,7 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled) setIsHydrating(false)
       })
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Listen for force-logout events emitted by the api-client 401 handler

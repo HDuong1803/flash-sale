@@ -6,7 +6,7 @@ import {
   Sse,
   UseGuards
 } from '@nestjs/common'
-import { Observable } from 'rxjs'
+import { Observable, Subscriber } from 'rxjs'
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -28,6 +28,14 @@ const moduleName = 'dashboard'
 @Roles('MERCHANT', 'ADMIN')
 @ApiBearerAuth('JWT-auth')
 export class DashboardController {
+  private readonly channelSubscribers = new Map<
+    string,
+    {
+      redisClient: any
+      clients: Set<Subscriber<MessageEvent>>
+    }
+  >()
+
   constructor(
     private readonly redis: RedisService,
     private readonly dashboardRepository: DashboardRepository
@@ -53,23 +61,41 @@ export class DashboardController {
   @Sse()
   stream(@Param('campaignId') campaignId: string): Observable<MessageEvent> {
     return new Observable(observer => {
-      const subscriber = this.redis.client.duplicate()
+      const channel = `dashboard:${campaignId}`
+
+      // Get or create channel subscription
+      let subState = this.channelSubscribers.get(channel)
+      if (!subState) {
+        const redisClient = this.redis.client.duplicate()
+        subState = {
+          redisClient,
+          clients: new Set<Subscriber<MessageEvent>>()
+        }
+
+        redisClient.subscribe(channel, err => {
+          if (err) {
+            subState!.clients.forEach(c => c.error(err))
+            return
+          }
+        })
+
+        redisClient.on('message', (_ch: string, message: string) => {
+          subState!.clients.forEach(c =>
+            c.next({ data: message } as MessageEvent)
+          )
+        })
+
+        this.channelSubscribers.set(channel, subState)
+      }
+
+      // Add observer directly to Set
+      subState.clients.add(observer as Subscriber<MessageEvent>)
+
       const heartbeatTimer = setInterval(() => {
         observer.next({
           data: JSON.stringify({ type: 'heartbeat' })
         } as MessageEvent)
       }, 30_000)
-
-      subscriber.subscribe(`dashboard:${campaignId}`, err => {
-        if (err) {
-          observer.error(err)
-          return
-        }
-      })
-
-      subscriber.on('message', (_channel: string, message: string) => {
-        observer.next({ data: message } as MessageEvent)
-      })
 
       // Send initial snapshot when client connects
       void this.getInitialSnapshot(campaignId).then(snapshot => {
@@ -83,8 +109,15 @@ export class DashboardController {
       // Cleanup when client disconnects
       return () => {
         clearInterval(heartbeatTimer)
-        subscriber.unsubscribe()
-        subscriber.quit()
+        const state = this.channelSubscribers.get(channel)
+        if (state) {
+          state.clients.delete(observer as Subscriber<MessageEvent>)
+          if (state.clients.size === 0) {
+            state.redisClient.unsubscribe(channel).catch(() => {})
+            state.redisClient.quit().catch(() => {})
+            this.channelSubscribers.delete(channel)
+          }
+        }
       }
     })
   }

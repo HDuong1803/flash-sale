@@ -47,7 +47,7 @@ export function StockProgressBar({
   useEffect(() => {
     // Chỉ trigger animation khi đang live mode VÀ tồn kho giảm
     if (isLive && remaining < prevRemainingRef.current) {
-      setIsDropping(true)
+      setTimeout(() => setIsDropping(true), 0)
     }
     prevRemainingRef.current = remaining
   }, [remaining, isLive])

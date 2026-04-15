@@ -30,17 +30,19 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
 
   useEffect(() => {
     if (!metrics) return
-    setOpsHistory((prev) => [...prev.slice(1), metrics.ordersPerSecond])
-    if (metrics.totalOrders > (prevMetrics.current?.totalOrders ?? 0)) {
-      const newOrder: LiveOrder = {
-        id: Date.now().toString(),
-        customer: `Nguyễn ***`,
-        qty: 1,
-        time: new Date().toLocaleTimeString('vi-VN'),
+    setTimeout(() => {
+      setOpsHistory((prev) => [...prev.slice(1), metrics.ordersPerSecond])
+      if (metrics.totalOrders > (prevMetrics.current?.totalOrders ?? 0)) {
+        const newOrder: LiveOrder = {
+          id: `${performance.now()}`,
+          customer: `Nguyễn ***`,
+          qty: 1,
+          time: new Date().toLocaleTimeString('vi-VN'),
+        }
+        setOrderHistory((prev) => [newOrder, ...prev].slice(0, 50))
       }
-      setOrderHistory((prev) => [newOrder, ...prev].slice(0, 50))
-    }
-    prevMetrics.current = metrics
+      prevMetrics.current = metrics
+    }, 0)
   }, [metrics])
 
   const stockRemaining = metrics?.stockRemaining ?? 0

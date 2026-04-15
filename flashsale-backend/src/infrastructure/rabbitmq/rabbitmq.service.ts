@@ -35,6 +35,9 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private connection: amqplib.ChannelModel
   private channel: amqplib.Channel
   private reconnectAttempts = 0
+
+  private isReconnecting = false
+  private reconnectTimer: NodeJS.Timeout | null = null
   private isShuttingDown = false
 
   constructor(private readonly configService: ConfigService) {}
@@ -83,8 +86,10 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   }
 
   private scheduleReconnect(): void {
-    if (this.isShuttingDown) return
+    if (this.isShuttingDown || this.isReconnecting) return
+    this.isReconnecting = true
     this.reconnectAttempts++
+
     const delay = Math.min(
       1_000 * Math.pow(2, this.reconnectAttempts - 1),
       MAX_RECONNECT_DELAY_MS
@@ -92,7 +97,11 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     this.logger.warn(
       `RabbitMQ: reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
     )
-    setTimeout(() => {
+
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = setTimeout(() => {
+      this.isReconnecting = false
+      this.reconnectTimer = null
       void this.connect()
     }, delay)
   }

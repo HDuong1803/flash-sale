@@ -70,7 +70,11 @@ export function usePaymentStatus(
   // Dùng ref để tracking trong async callbacks (tránh stale closure)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const startTimeRef = useRef<number>(Date.now())
+  
+  // Use a lazy initialized state or a ref that captures values safely
+  const [startTime] = useState(() => performance.now())
+  const startTimeRef = useRef(startTime)
+
   const isStoppedRef = useRef(false)
 
   const stopPolling = useCallback(() => {
@@ -146,11 +150,13 @@ export function usePaymentStatus(
     // Reset state khi paymentId thay đổi
     isStoppedRef.current = false
     startTimeRef.current = Date.now()
-    setPollingState('waiting')
-    setPaymentStatus(null)
-    setOrderId(null)
-    setError(null)
-    setElapsedSeconds(0)
+    setTimeout(() => {
+      setPollingState('waiting')
+      setPaymentStatus(null)
+      setOrderId(null)
+      setError(null)
+      setElapsedSeconds(0)
+    }, 0)
 
     // Gọi ngay lần đầu (không chờ 3 giây)
     void poll()

@@ -22,9 +22,12 @@ export class SchedulerService {
   /** Every minute — activate APPROVED campaigns when startTime is reached */
   @Cron(CronExpression.EVERY_MINUTE)
   async activateCampaigns(): Promise<void> {
-    // Distributed lock: 55s TTL — prevents double activation on multi-instance deploy
-    if (!(await this.redis.acquireLock('scheduler:activateCampaigns', 55_000)))
-      return
+    // Fix Critical-1: dùng token-based lock thay vì simple DEL (tránh xóa nhầm lock của instance khác)
+    const token = await this.redis.acquireLockToken(
+      'scheduler:activateCampaigns',
+      55_000
+    )
+    if (!token) return
 
     try {
       const campaigns = await this.schedulerRepository.findCampaignsToActivate()
@@ -58,15 +61,18 @@ export class SchedulerService {
         }
       }
     } finally {
-      await this.redis.releaseLock('scheduler:activateCampaigns')
+      await this.redis.releaseLockToken('scheduler:activateCampaigns', token)
     }
   }
 
   /** Every minute — close ACTIVE campaigns when endTime is reached, sync stock to DB */
   @Cron(CronExpression.EVERY_MINUTE)
   async closeCampaigns(): Promise<void> {
-    if (!(await this.redis.acquireLock('scheduler:closeCampaigns', 55_000)))
-      return
+    const token = await this.redis.acquireLockToken(
+      'scheduler:closeCampaigns',
+      55_000
+    )
+    if (!token) return
 
     try {
       const campaigns = await this.schedulerRepository.findCampaignsToClose()
@@ -96,15 +102,18 @@ export class SchedulerService {
         }
       }
     } finally {
-      await this.redis.releaseLock('scheduler:closeCampaigns')
+      await this.redis.releaseLockToken('scheduler:closeCampaigns', token)
     }
   }
 
   /** Every 30 seconds — release expired reservations via Redis sorted set */
   @Cron('*/30 * * * * *')
   async releaseExpiredReservations(): Promise<void> {
-    if (!(await this.redis.acquireLock('scheduler:releaseExpired', 25_000)))
-      return
+    const token = await this.redis.acquireLockToken(
+      'scheduler:releaseExpired',
+      25_000
+    )
+    if (!token) return
 
     try {
       // Batch size 500 — prevents processing 50k+ expiries in one tick
@@ -130,15 +139,18 @@ export class SchedulerService {
         this.logger.log(`Released ${released} expired reservations`)
       }
     } finally {
-      await this.redis.releaseLock('scheduler:releaseExpired')
+      await this.redis.releaseLockToken('scheduler:releaseExpired', token)
     }
   }
 
   /** Every minute — send T-15min reminders to pre-registered users */
   @Cron(CronExpression.EVERY_MINUTE)
   async sendPreRegReminders(): Promise<void> {
-    if (!(await this.redis.acquireLock('scheduler:sendReminders', 55_000)))
-      return
+    const token = await this.redis.acquireLockToken(
+      'scheduler:sendReminders',
+      55_000
+    )
+    if (!token) return
 
     try {
       const campaigns =
@@ -163,14 +175,18 @@ export class SchedulerService {
         }
       }
     } finally {
-      await this.redis.releaseLock('scheduler:sendReminders')
+      await this.redis.releaseLockToken('scheduler:sendReminders', token)
     }
   }
 
   /** Every 5 minutes — sync Redis stock to DB for active campaigns (backup sync) */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async syncStockToDatabase(): Promise<void> {
-    if (!(await this.redis.acquireLock('scheduler:syncStock', 290_000))) return
+    const token = await this.redis.acquireLockToken(
+      'scheduler:syncStock',
+      290_000
+    )
+    if (!token) return
 
     try {
       const products =
@@ -186,14 +202,13 @@ export class SchedulerService {
         }
       }
     } finally {
-      await this.redis.releaseLock('scheduler:syncStock')
+      await this.redis.releaseLockToken('scheduler:syncStock', token)
     }
   }
 
   /**
    * Every 10 minutes — recover payments stuck in PROCESSING state.
    *
-   * Tại sao cần job này:
    * Khi payment webhook được nhận, payment chuyển PENDING → PROCESSING (atomic).
    * Saga sau đó chạy để tạo Order. Nếu saga thất bại (timeout, checkout expired,
    * DB lỗi tạm thời), payment vẫn ở PROCESSING mà không có orderId.
@@ -205,22 +220,22 @@ export class SchedulerService {
    * - Nếu thành công: payment → SUCCESS, order được tạo, khách nhận thông báo
    * - Nếu stuck > 60 phút: log CRITICAL + Sentry alert → ops team xử lý thủ công
    */
-  @Cron('0 */10 * * * *') // Mỗi 10 phút, giây 0
+  @Cron('0 */10 * * * *')
   async recoverStuckPayments(): Promise<void> {
-    if (!(await this.redis.acquireLock('scheduler:recoverPayments', 590_000)))
-      return
+    const token = await this.redis.acquireLockToken(
+      'scheduler:recoverPayments',
+      590_000
+    )
+    if (!token) return
 
     try {
       await this.paymentRecovery.recoverStuckPayments()
     } catch (err: unknown) {
       // Job lỗi không được throw — sẽ ảnh hưởng đến các job khác trong scheduler
       const message = err instanceof Error ? err.message : 'Lỗi không xác định'
-      this.logger.error({
-        event: 'recovery_job_failed',
-        error: message
-      })
+      this.logger.error({ event: 'recovery_job_failed', error: message })
     } finally {
-      await this.redis.releaseLock('scheduler:recoverPayments')
+      await this.redis.releaseLockToken('scheduler:recoverPayments', token)
     }
   }
 }

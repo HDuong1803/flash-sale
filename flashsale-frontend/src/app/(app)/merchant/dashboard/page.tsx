@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { DollarSign, Zap, ShoppingCart, TrendingUp, AlertCircle, Plus } from 'lucide-react'
 import { useMerchantStats } from '@/hooks/queries/useMerchantStats'
@@ -37,11 +38,13 @@ export default function MerchantDashboardPage() {
   const { data: stats, loading: statsLoading, error: statsError, refetch: refetchStats } = useMerchantStats()
   const { data: campaigns, loading: campaignLoading } = useMyCampaigns()
   const { data: orders, loading: ordersLoading } = useMerchantOrders()
+  
+  const [now] = useState(() => Date.now())
 
   const liveCampaigns = campaigns.filter((c) => c.status === 'ACTIVE').length
   const endingSoonCampaigns = campaigns.filter((c) => {
     if (c.status !== 'ACTIVE') return false
-    const diffMs = new Date(c.endTime).getTime() - Date.now()
+    const diffMs = new Date(c.endTime).getTime() - now
     return diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000
   }).length
   const pendingOrders = orders.filter((o) => o.status === 'PENDING').length

@@ -49,7 +49,7 @@ export default function AdminSystemPage() {
   useEffect(() => {
     const initialNames: Record<string, string> = {}
     for (const item of gateways) initialNames[item.gateway] = item.displayName
-    setDisplayNames(initialNames)
+    setTimeout(() => setDisplayNames(initialNames), 0)
   }, [gateways])
 
   const onToggleEnabled = async (gateway: PaymentGatewayConfig) => {

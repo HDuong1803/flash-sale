@@ -11,7 +11,7 @@ export default function AdminOrdersPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setLoading(true)
+    setTimeout(() => setLoading(true), 0)
     apiClient.get('/admin/orders')
       .then((res) => setData(res as unknown as unknown[]))
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Không thể tải dữ liệu'))

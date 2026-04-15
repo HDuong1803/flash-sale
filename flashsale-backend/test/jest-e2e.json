@@ -3,6 +3,19 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e-spec.ts$",
+  "moduleNameMapper": {
+    "^@paralleldrive/cuid2$": "<rootDir>/mocks/cuid2.ts",
+    "^@modules/(.*)$": "<rootDir>/../src/modules/$1",
+    "^@config/(.*)$": "<rootDir>/../src/config/$1",
+    "^@common/(.*)$": "<rootDir>/../src/common/$1",
+    "^@infrastructure/(.*)$": "<rootDir>/../src/infrastructure/$1",
+    "^@local-prisma/(.*)$": "<rootDir>/../prisma/$1",
+    "^@queue/(.*)$": "<rootDir>/../src/queue/$1",
+    "^@workers/(.*)$": "<rootDir>/../src/workers/$1",
+    "^@utils/(.*)$": "<rootDir>/../src/utils/$1",
+    "^@health/(.*)$": "<rootDir>/../src/health/$1",
+    "^@/(.*)$": "<rootDir>/../src/$1"
+  },
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   }

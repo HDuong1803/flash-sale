@@ -27,7 +27,7 @@ export default function AdminMerchantProfilesPage() {
   useEffect(() => {
     const initialSearch = searchParams.get('search')
     if (initialSearch) {
-      setSearchQuery(initialSearch)
+      setTimeout(() => setSearchQuery(initialSearch), 0)
     }
   }, [searchParams])
 

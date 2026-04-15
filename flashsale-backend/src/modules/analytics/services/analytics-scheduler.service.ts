@@ -100,12 +100,19 @@ export class AnalyticsSchedulerService {
       `Analytics cron: đang chụp ${activeCampaignProducts.length} campaign product`
     )
 
-    // Chạy song song, lỗi từng product được cô lập
-    const results = await Promise.allSettled(
-      activeCampaignProducts.map(cp =>
-        this.analyticsService.createSnapshot(cp.campaignId, cp.id)
+    // Chạy song song từng batch nhỏ, lỗi từng product được cô lập
+    const CONCURRENCY_LIMIT = 10
+    const results: PromiseSettledResult<any>[] = []
+
+    for (let i = 0; i < activeCampaignProducts.length; i += CONCURRENCY_LIMIT) {
+      const batch = activeCampaignProducts.slice(i, i + CONCURRENCY_LIMIT)
+      const batchResults = await Promise.allSettled(
+        batch.map(cp =>
+          this.analyticsService.createSnapshot(cp.campaignId, cp.id)
+        )
       )
-    )
+      results.push(...batchResults)
+    }
 
     const failed = results.filter(r => r.status === 'rejected')
     if (failed.length > 0) {

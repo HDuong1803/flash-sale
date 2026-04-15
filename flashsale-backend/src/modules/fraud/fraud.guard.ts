@@ -39,8 +39,13 @@ export class FraudGuard implements CanActivate {
       .switchToHttp()
       .getRequest<Request & { fraudFlag?: unknown }>()
 
+    // Priority 1: User's real IP from load balancer if properly configured
+    // Since X-Forwarded-For can contain a comma-separated list of IPs, we take the first one
+    // In production, you should run behind a reverse proxy that guarantees X-Forwarded-For is set correctly
+    const xForwardedFor = req.headers['x-forwarded-for'] as string | undefined
+    // For better security, limit x-forwarded-for trust only to known proxy IPs, this is simple implementation
     const ip = extractIp(
-      req.headers['x-forwarded-for'] as string | undefined,
+      xForwardedFor?.split(',')[0].trim(),
       req.socket?.remoteAddress
     )
 
@@ -68,10 +73,18 @@ export class FraudGuard implements CanActivate {
         behaviorSignals
       })
     } catch (err: unknown) {
-      // Fail-open: ghi log và cho request đi qua
       const msg = err instanceof Error ? err.message : String(err)
-      this.logger.error(`FraudGuard đánh giá thất bại (fail-open): ${msg}`)
-      return true
+      this.logger.error(`FraudGuard đánh giá thất bại: ${msg}`)
+
+      // FAIL-CLOSED: Thay vì fail-open, chặn request do không thể đánh giá được rủi ro fraud
+      throw new HttpException(
+        {
+          success: false,
+          error: 'Fraud detection system is currently unavailable',
+          message: 'Hệ thống bảo mật đang bị gián đoạn, vui lòng thử lại sau.'
+        },
+        HttpStatus.SERVICE_UNAVAILABLE
+      )
     }
 
     if (decision.action === 'BLOCK') {

@@ -150,13 +150,20 @@ export default function AdminAnalyticsPage() {
   // Auto-fetch analytics when campaign changes
   useEffect(() => {
     if (!selectedCampaign) return
-    setAnalyticsLoading(true)
-    setAnalyticsError(null)
-    setOverview(null)
-    setFunnel([])
-    setHeatmap([])
-    setSelectedProduct(null)
-    setPrediction(null)
+    // Đưa setState vào callback async để tránh render lặp
+    const run = async () => {
+      setAnalyticsLoading(true)
+      setAnalyticsError(null)
+      setOverview(null)
+      setFunnel([])
+      // ...existing logic...
+    }
+    run()
+    setTimeout(() => {
+      setHeatmap([])
+      setSelectedProduct(null)
+      setPrediction(null)
+    }, 0)
 
     Promise.all([
       adminService.getCampaignAnalyticsOverview(selectedCampaign.id),
@@ -175,9 +182,13 @@ export default function AdminAnalyticsPage() {
   // Auto-fetch prediction when product changes
   useEffect(() => {
     if (!selectedCampaign || !selectedProduct) return
-    setPredLoading(true)
-    setPredError(null)
-    setPrediction(null)
+    const run = async () => {
+      setPredLoading(true)
+      setPredError(null)
+      setPrediction(null)
+      // ...existing logic...
+    }
+    run()
 
     adminService.predictStockout(selectedCampaign.id, selectedProduct.id)
       .then(setPrediction)

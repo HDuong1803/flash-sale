@@ -47,7 +47,6 @@
     "db:pull": "npx prisma db pull"
   },
   "dependencies": {
-    "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/bull": "^11.0.2",
     "@nestjs/common": "10.0.0",
@@ -74,7 +73,7 @@
     "@types/cookie-parser": "^1.4.8",
     "@types/crypto-js": "^4.2.2",
     "amqplib": "^0.10.9",
-    "axios": "^1.12.2",
+    "axios": "^1.15.0",
     "axios-retry": "^3.8.0",
     "bcrypt": "^6.0.0",
     "bull": "^4.16.5",
@@ -85,7 +84,6 @@
     "cookie-parser": "1.4.6",
     "cross-env": "7.0.3",
     "date-fns": "^4.1.0",
-    "docx-pdf": "^0.0.1",
     "docx2pdf-converter": "^2.1.1",
     "dotenv": "16.3.1",
     "ejs": "^3.1.10",

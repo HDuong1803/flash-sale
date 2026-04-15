@@ -9,7 +9,6 @@ import { Lock, Shield, Upload } from 'lucide-react'
 import { useAuthContext } from '@/contexts/auth-context'
 import { useUpdateProfile } from '@/hooks/mutations/useUpdateProfile'
 import { useLogout } from '@/hooks/mutations/useLogout'
-import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDate } from '@/lib/utils'
 import type { UserRole } from '@/types'
 
@@ -31,37 +30,6 @@ const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: 'bg-red-500/15 text-red-300 border border-red-500/20',
 }
 
-function ProfileSkeleton() {
-  return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-pulse">
-      {/* Avatar + name skeleton */}
-      <div className="glass rounded-2xl p-6 flex items-center gap-5">
-        <div className="w-16 h-16 rounded-full bg-white/10 flex-shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-5 bg-white/10 rounded w-40" />
-          <div className="h-4 bg-white/8 rounded w-24" />
-          <div className="h-3 bg-white/6 rounded w-48" />
-        </div>
-      </div>
-      {/* Form skeleton */}
-      <div className="glass rounded-2xl p-6 space-y-4">
-        <div className="h-5 bg-white/10 rounded w-36" />
-        <div className="h-10 bg-white/8 rounded-xl w-full" />
-        <div className="flex justify-end">
-          <div className="h-10 bg-white/8 rounded-xl w-28" />
-        </div>
-      </div>
-      {/* Account info skeleton */}
-      <div className="glass rounded-2xl p-6 space-y-3">
-        <div className="h-5 bg-white/10 rounded w-40" />
-        <div className="h-8 bg-white/6 rounded w-full" />
-        <div className="h-8 bg-white/6 rounded w-full" />
-        <div className="h-8 bg-white/6 rounded w-full" />
-      </div>
-    </div>
-  )
-}
-
 export default function ProfilePage() {
   const { user } = useAuthContext()
   const { update, loading } = useUpdateProfile()
@@ -78,7 +46,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (user) {
       reset({ fullName: user.fullName })
-      setAvatarPreview(user.avatarUrl ?? null)
+      setTimeout(() => setAvatarPreview(user.avatarUrl ?? null), 0)
     }
   }, [user, reset])
 
