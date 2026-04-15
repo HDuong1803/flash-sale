@@ -3,7 +3,7 @@
 import { use } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, AlertCircle, CheckCircle, Truck, Star, ShoppingBag } from 'lucide-react'
+import { ArrowLeft, AlertCircle, CheckCircle, Truck, Star, ShoppingBag, MapPin } from 'lucide-react'
 import { useOrder } from '@/hooks/queries/useOrder'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
@@ -177,6 +177,18 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               <p className="text-white/40 text-sm">Chưa có thông tin thanh toán</p>
             )}
           </div>
+
+          {/* Tracking link */}
+          {(order.status === 'SHIPPING' || order.status === 'DONE' || order.status === 'CONFIRMED') && (
+            <button
+              onClick={() => router.push(`/orders/${order.id}/tracking`)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all"
+              style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 20px rgba(99,102,241,0.3)' }}
+            >
+              <MapPin size={16} />
+              Theo dõi vận chuyển
+            </button>
+          )}
 
           {/* Support */}
           <div className="glass rounded-2xl p-6 space-y-3">

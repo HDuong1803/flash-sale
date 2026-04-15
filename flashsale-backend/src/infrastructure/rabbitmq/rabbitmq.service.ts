@@ -172,6 +172,22 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       'failed_jobs',
       FAILED_QUEUE_NAMES.TELEGRAM
     )
+    // Fulfillment label queue
+    await this.channel.assertQueue(QUEUE_NAMES.FULFILLMENT_LABEL, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': 'failed_jobs',
+        'x-dead-letter-routing-key': FAILED_QUEUE_NAMES.FULFILLMENT
+      }
+    })
+    await this.channel.assertQueue(FAILED_QUEUE_NAMES.FULFILLMENT, {
+      durable: true
+    })
+    await this.channel.bindQueue(
+      FAILED_QUEUE_NAMES.FULFILLMENT,
+      'failed_jobs',
+      FAILED_QUEUE_NAMES.FULFILLMENT
+    )
   }
 
   async publish(

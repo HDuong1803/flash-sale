@@ -204,6 +204,14 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
     description: 'Pricing rules, lịch sử thay đổi giá',
   },
+  {
+    label: 'Fulfillment & QC',
+    href: '/admin/fulfillment',
+    iconName: 'Truck',
+    permission: 'admin_system',
+    section: 'admin',
+    description: 'Carriers, routing rules, QC station',
+  },
 ]
 
 export const SECTION_ORDER: NavItem['section'][] = [

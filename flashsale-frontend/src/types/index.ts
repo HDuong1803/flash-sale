@@ -847,3 +847,97 @@ export interface PriceHistoryEntry {
   timeRemainingMin: number
   createdAt: string
 }
+
+// ─── Fulfillment Types ────────────────────────────────────────────────────────
+
+export type FulfillmentStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'LABEL_BOOKED'
+  | 'PICKED_UP'
+  | 'IN_TRANSIT'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'EXCEPTION'
+  | 'CANCELLED'
+  | 'ADDRESS_ISSUE'
+  | 'RETURNED'
+
+export type QcStatus = 'PENDING' | 'PASSED' | 'FAILED' | 'REWORK'
+
+export interface TrackingEvent {
+  id: string
+  carrierStatus: string
+  description?: string | null
+  location?: string | null
+  occurredAt: string
+}
+
+export interface FulfillmentCarrier {
+  code: string
+  displayName: string
+}
+
+export interface FulfillmentOrder {
+  id: string
+  orderId: string
+  fulfillStatus: FulfillmentStatus
+  carrier?: FulfillmentCarrier | null
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+  labelUrl?: string | null
+  labelPdfUrl?: string | null
+  slaDeadline?: string | null
+  slaBreached: boolean
+  labelCostCents?: number | null
+  normalizedAddress?: object | null
+  trackingEvents: TrackingEvent[]
+}
+
+export interface QcChecklistItem {
+  key: string
+  label: string
+  passed: boolean | null
+}
+
+export interface QcCheckpoint {
+  id: string
+  orderId: string
+  status: QcStatus
+  inspector: {
+    id: string
+    email: string
+    fullName: string | null
+  }
+  checklist: QcChecklistItem[]
+  failReason: string | null
+  notes: string | null
+  photoUrls: string[]
+  passedAt: string | null
+  failedAt: string | null
+  createdAt: string
+}
+
+export interface FulfillmentRule {
+  id: string
+  name: string
+  priority: number
+  minWeightGrams?: number | null
+  maxWeightGrams?: number | null
+  minOrderCents?: number | null
+  maxOrderCents?: number | null
+  destCountry?: string | null
+  destState?: string | null
+  carrier: { id: string; code: string; displayName: string }
+  slaHours: number
+  active: boolean
+}
+
+export interface Carrier {
+  id: string
+  code: string
+  displayName: string
+  logoUrl?: string | null
+  sandboxMode: boolean
+  active: boolean
+}

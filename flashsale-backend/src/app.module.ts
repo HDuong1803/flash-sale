@@ -21,6 +21,7 @@ import { FraudModule } from '@modules/fraud/fraud.module'
 import { PricingModule } from '@modules/pricing/pricing.module'
 import { AnalyticsModule } from '@modules/analytics/analytics.module'
 import { StockGatewayModule } from '@modules/stock-gateway/stock-gateway.module'
+import { FulfillmentModule } from '@modules/fulfillment/fulfillment.module'
 
 import { CommonModule } from './common'
 import { configuration } from './config'
@@ -66,7 +67,8 @@ import {
     FraudModule,
     PricingModule,
     AnalyticsModule,
-    StockGatewayModule
+    StockGatewayModule,
+    FulfillmentModule
   ]
 })
 export class AppModule implements NestModule {

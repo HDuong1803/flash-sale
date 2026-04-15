@@ -146,5 +146,20 @@ export const config = {
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ADMIN_NAME: process.env.ADMIN_NAME
+  },
+
+  easypost: {
+    EASYPOST_API_KEY: process.env.EASYPOST_API_KEY,
+    EASYPOST_WEBHOOK_SECRET: process.env.EASYPOST_WEBHOOK_SECRET,
+    EASYPOST_SANDBOX: process.env.EASYPOST_SANDBOX
+  },
+
+  apiagent: {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENAI_MODEL: process.env.OPENAI_MODEL,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GEMINI_MODEL: process.env.GEMINI_MODEL
   }
 }

@@ -1037,6 +1037,9 @@ async function main(): Promise<void> {
   console.log('─'.repeat(55))
   console.log(`  ✓ emailVerified = true → đăng nhập thẳng, không cần OTP`)
   console.log(`  ✓ Merchant kycStatus = APPROVED → tạo campaign được ngay`)
+  // ── Fulfillment: Carriers + Rules ────────────────────────────────────────
+  await seedCarriersAndRules()
+
   console.log('─'.repeat(55))
   console.log(`\n📊 THỐNG KÊ DỮ LIỆU:`)
   console.log(`  • ${allProductCount} sản phẩm (14 + 13 + 13)`)
@@ -1045,6 +1048,116 @@ async function main(): Promise<void> {
   )
   console.log(`  • 3 commission categories`)
   console.log(`  • 6 pre-registrations`)
+  console.log(`  • 3 carriers (USPS, UPS, FEDEX) + 4 fulfillment rules`)
+}
+
+// ─── Fulfillment Seed ─────────────────────────────────────────────────────────
+
+async function seedCarriersAndRules(): Promise<void> {
+  // Upsert carriers — idempotent so re-running seed is safe
+  const usps = await prisma.carrier.upsert({
+    where: { code: 'USPS' },
+    update: {},
+    create: {
+      code: 'USPS',
+      displayName: 'United States Postal Service',
+      logoUrl:
+        'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/USPS_eagle_logo_blue_2.svg/200px-USPS_eagle_logo_blue_2.svg.png',
+      sandboxMode: true,
+      active: true
+    }
+  })
+
+  const ups = await prisma.carrier.upsert({
+    where: { code: 'UPS' },
+    update: {},
+    create: {
+      code: 'UPS',
+      displayName: 'United Parcel Service',
+      logoUrl:
+        'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/United_Parcel_Service_logo_2014.svg/200px-United_Parcel_Service_logo_2014.svg.png',
+      sandboxMode: true,
+      active: true
+    }
+  })
+
+  const fedex = await prisma.carrier.upsert({
+    where: { code: 'FEDEX' },
+    update: {},
+    create: {
+      code: 'FEDEX',
+      displayName: 'FedEx',
+      logoUrl:
+        'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Above_Gotham.png/220px-Above_Gotham.png',
+      sandboxMode: true,
+      active: true
+    }
+  })
+
+  // Seed default fulfillment rules (priority high → low)
+  // Rule 1: Lightweight domestic parcels → USPS First Class
+  await prisma.fulfillmentRule.upsert({
+    where: { id: 'rule-usps-light' },
+    update: {},
+    create: {
+      id: 'rule-usps-light',
+      name: 'USPS — Lightweight Domestic (≤ 450g)',
+      priority: 100,
+      maxWeightGrams: 450,
+      destCountry: 'US',
+      carrierId: usps.id,
+      slaHours: 72,
+      active: true
+    }
+  })
+
+  // Rule 2: Heavy / high-value → FedEx
+  await prisma.fulfillmentRule.upsert({
+    where: { id: 'rule-fedex-heavy' },
+    update: {},
+    create: {
+      id: 'rule-fedex-heavy',
+      name: 'FedEx — Heavy Parcel (> 2000g) or High Value (> $200)',
+      priority: 90,
+      minWeightGrams: 2000,
+      destCountry: 'US',
+      carrierId: fedex.id,
+      slaHours: 48,
+      active: true
+    }
+  })
+
+  // Rule 3: Standard domestic → UPS Ground
+  await prisma.fulfillmentRule.upsert({
+    where: { id: 'rule-ups-standard' },
+    update: {},
+    create: {
+      id: 'rule-ups-standard',
+      name: 'UPS Ground — Standard Domestic',
+      priority: 50,
+      destCountry: 'US',
+      carrierId: ups.id,
+      slaHours: 96,
+      active: true
+    }
+  })
+
+  // Rule 4: Default fallback — USPS Priority Mail
+  await prisma.fulfillmentRule.upsert({
+    where: { id: 'rule-default-usps' },
+    update: {},
+    create: {
+      id: 'rule-default-usps',
+      name: 'USPS Priority Mail — Default Fallback',
+      priority: 0,
+      carrierId: usps.id,
+      slaHours: 120,
+      active: true
+    }
+  })
+
+  console.log(`✅ Carriers: ${usps.code}, ${ups.code}, ${fedex.code}`)
+  console.log(`✅ Fulfillment rules: 4 rules seeded`)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1082,7 +1195,14 @@ async function cleanDatabase(): Promise<void> {
     'users',
     'commission_categories',
     'payment_gateway_configs',
-    'user_action_logs'
+    'user_action_logs',
+    'ticket_messages',
+    'support_tickets',
+    'qc_checkpoints',
+    'tracking_events',
+    'fulfillment_orders',
+    'fulfillment_rules',
+    'carriers'
   ] as const
 
   for (const table of tables) {

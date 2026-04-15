@@ -39,6 +39,10 @@ model User {
   telegramLink           TelegramLink?
   telegramDeliveries     TelegramDelivery[]
   rescheduleRequests     CampaignRescheduleRequest[] @relation("RescheduleRequests")
+  qcCheckpoints          QcCheckpoint[]              @relation("user_qc_checkpoints")
+  assignedTickets        SupportTicket[]             @relation("assigned_tickets")
+  customerTickets        SupportTicket[]             @relation("customer_tickets")
+  ticketMessages         TicketMessage[]             @relation("ticket_message_author")
 
   @@map("users")
 }
@@ -322,6 +326,9 @@ model Order {
   items            OrderItem[]
   payment          Payment?
   commissionLedger CommissionLedger?
+  fulfillment      FulfillmentOrder?
+  qcCheckpoint     QcCheckpoint?
+  tickets          SupportTicket[]
 
   @@index([customerId, createdAt(sort: Desc)])
   @@index([merchantId, createdAt(sort: Desc)])
@@ -761,6 +768,193 @@ model FunnelEvent {
   @@map("funnel_events")
 }
 
+// ─── Fulfillment ─────────────────────────────────────────────────────────────
+
+// Carrier — cấu hình nhà vận chuyển (được seed với USPS, UPS, FEDEX)
+model Carrier {
+  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  code        String   @unique @map("code") @db.VarChar(32) // "USPS" | "UPS" | "FEDEX"
+  displayName String   @map("display_name") @db.VarChar(128)
+  logoUrl     String?  @map("logo_url") @db.VarChar(512)
+  sandboxMode Boolean  @default(true) @map("sandbox_mode")
+  active      Boolean  @default(true) @map("active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  rules        FulfillmentRule[]
+  fulfillments FulfillmentOrder[]
+
+  @@map("carriers")
+}
+
+// FulfillmentRule — rules engine chọn carrier (mirror pattern của PricingRule)
+model FulfillmentRule {
+  id             String  @id @default(cuid()) @map("id") @db.VarChar(36)
+  name           String  @map("name") @db.VarChar(128)
+  priority       Int     @default(0) @map("priority") // cao hơn = đánh giá trước
+  // Điều kiện (AND logic — tất cả field not-null đều phải thỏa)
+  minWeightGrams Int?    @map("min_weight_grams")
+  maxWeightGrams Int?    @map("max_weight_grams")
+  minOrderCents  Int?    @map("min_order_cents") // tổng đơn hàng (cents)
+  maxOrderCents  Int?    @map("max_order_cents")
+  destCountry    String? @map("dest_country") @db.VarChar(8) // ISO 3166-1 alpha-2: "US", "CA"
+  destState      String? @map("dest_state") @db.VarChar(8) // "CA", "NY", "TX"
+  // Action
+  carrierId      String  @map("carrier_id") @db.VarChar(36)
+  slaHours       Int     @map("sla_hours") // cam kết SLA (giờ kể từ order confirmed)
+  active         Boolean @default(true) @map("active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  carrier Carrier @relation(fields: [carrierId], references: [id], onDelete: Restrict)
+
+  @@index([active, priority(sort: Desc)])
+  @@map("fulfillment_rules")
+}
+
+// FulfillmentOrder — theo dõi trạng thái fulfillment per-order
+model FulfillmentOrder {
+  id                 String            @id @default(cuid()) @map("id") @db.VarChar(36)
+  orderId            String            @unique @map("order_id") @db.VarChar(36)
+  carrierId          String?           @map("carrier_id") @db.VarChar(36)
+  // EasyPost reference IDs
+  easypostShipmentId String?           @unique @map("easypost_shipment_id") @db.VarChar(128)
+  easypostRateId     String?           @map("easypost_rate_id") @db.VarChar(128)
+  // Label
+  labelUrl           String?           @map("label_url") @db.VarChar(512)
+  labelPdfUrl        String?           @map("label_pdf_url") @db.VarChar(512)
+  labelZplUrl        String?           @map("label_zpl_url") @db.VarChar(512)
+  trackingNumber     String?           @unique @map("tracking_number") @db.VarChar(128)
+  trackingUrl        String?           @map("tracking_url") @db.VarChar(512)
+  // Status
+  fulfillStatus      FulfillmentStatus @default(AWAITING) @map("fulfill_status")
+  // SLA
+  slaHours           Int?              @map("sla_hours")
+  slaDeadline        DateTime?         @map("sla_deadline") @db.Timestamp(6)
+  slaBreached        Boolean           @default(false) @map("sla_breached")
+  slaBreachedAt      DateTime?         @map("sla_breached_at") @db.Timestamp(6)
+  // Physical
+  weightGrams        Int?              @map("weight_grams")
+  dimensionsCm       Json?             @map("dimensions_cm") // {l:number, w:number, h:number}
+  // Cost (cents để tránh decimal)
+  labelCostCents     Int?              @map("label_cost_cents")
+  // Address validation
+  addressValidated   Boolean           @default(false) @map("address_validated")
+  normalizedAddress  Json?             @map("normalized_address") // EasyPost normalized address object
+  // Timestamps
+  labelBookedAt      DateTime?         @map("label_booked_at") @db.Timestamp(6)
+  shippedAt          DateTime?         @map("shipped_at") @db.Timestamp(6)
+  deliveredAt        DateTime?         @map("delivered_at") @db.Timestamp(6)
+  exceptionAt        DateTime?         @map("exception_at") @db.Timestamp(6)
+  exceptionReason    String?           @map("exception_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  order          Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  carrier        Carrier?       @relation(fields: [carrierId], references: [id], onDelete: SetNull)
+  trackingEvents TrackingEvent[]
+
+  @@index([fulfillStatus, slaDeadline])
+  @@index([slaBreached, fulfillStatus])
+  @@map("fulfillment_orders")
+}
+
+// TrackingEvent — immutable log mọi tracking update từ EasyPost webhook
+model TrackingEvent {
+  id            String           @id @default(cuid()) @map("id") @db.VarChar(36)
+  fulfillmentId String           @map("fulfillment_id") @db.VarChar(36)
+  carrierStatus String           @map("carrier_status") @db.VarChar(64)
+  description   String?          @map("description") @db.VarChar(512)
+  location      String?          @map("location") @db.VarChar(256)
+  occurredAt    DateTime         @map("occurred_at") @db.Timestamp(6)
+  sourcePayload Json             @map("source_payload") // raw webhook payload, audit log
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  fulfillment FulfillmentOrder @relation(fields: [fulfillmentId], references: [id], onDelete: Cascade)
+
+  @@index([fulfillmentId, occurredAt(sort: Desc)])
+  @@map("tracking_events")
+}
+
+// ─── QC Station ───────────────────────────────────────────────────────────────
+
+model QcCheckpoint {
+  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
+  orderId     String   @unique @map("order_id") @db.VarChar(36)
+  inspectorId String   @map("inspector_id") @db.VarChar(36)
+  status      QcStatus @default(PENDING) @map("status")
+  // [{key:string, label:string, passed:boolean|null}]
+  checklist   Json     @map("checklist")
+  failReason  String?  @map("fail_reason") @db.Text
+  notes       String?  @map("notes") @db.Text
+  photoUrls   String[] @map("photo_urls")
+
+  passedAt  DateTime? @map("passed_at") @db.Timestamp(6)
+  failedAt  DateTime? @map("failed_at") @db.Timestamp(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  inspector User  @relation("user_qc_checkpoints", fields: [inspectorId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@index([inspectorId, createdAt(sort: Desc)])
+  @@map("qc_checkpoints")
+}
+
+// ─── Support Tickets ──────────────────────────────────────────────────────────
+
+model SupportTicket {
+  id             String          @id @default(cuid()) @map("id") @db.VarChar(36)
+  customerId     String          @map("customer_id") @db.VarChar(36)
+  orderId        String?         @map("order_id") @db.VarChar(36)
+  subject        String          @map("subject") @db.VarChar(255)
+  body           String          @map("body") @db.Text
+  // AI classification (populated async sau khi ticket tạo)
+  aiCategory     TicketCategory? @map("ai_category")
+  aiPriority     TicketPriority? @map("ai_priority")
+  aiSummary      String?         @map("ai_summary") @db.VarChar(512)
+  aiSuggestedTeam String?        @map("ai_suggested_team") @db.VarChar(64)
+  aiClassifiedAt DateTime?       @map("ai_classified_at") @db.Timestamp(6)
+  // Assignment
+  status         TicketStatus    @default(OPEN) @map("status")
+  assignedToId   String?         @map("assigned_to_id") @db.VarChar(36)
+  resolvedAt     DateTime?       @map("resolved_at") @db.Timestamp(6)
+  closedAt       DateTime?       @map("closed_at") @db.Timestamp(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  customer   User            @relation("customer_tickets", fields: [customerId], references: [id], onDelete: Restrict)
+  order      Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  assignedTo User?           @relation("assigned_tickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   TicketMessage[]
+
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([status, aiPriority])
+  @@index([orderId])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String        @id @default(cuid()) @map("id") @db.VarChar(36)
+  ticketId   String        @map("ticket_id") @db.VarChar(36)
+  authorId   String        @map("author_id") @db.VarChar(36)
+  body       String        @map("body") @db.Text
+  isInternal Boolean       @default(false) @map("is_internal") // true = note nội bộ, không show cho customer
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation("ticket_message_author", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt(sort: Asc)])
+  @@map("ticket_messages")
+}
+
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum UserRole {
@@ -856,6 +1050,53 @@ enum LockStrategy {
   NO_LOCK // Không có lock — dễ bị race condition / oversell
   DB_LOCK // PostgreSQL SELECT FOR UPDATE — an toàn nhưng chậm
   REDIS_LUA // Redis Lua atomic script — production standard
+}
+
+enum FulfillmentStatus {
+  AWAITING // Order confirmed, chờ fulfillment
+  ADDRESS_ISSUE // Địa chỉ không hợp lệ — cần xử lý thủ công
+  LABEL_BOOKED // Label đã được mua từ carrier
+  PICKED // Đã lấy hàng khỏi kho
+  PACKED // Đã đóng gói
+  SHIPPED // Đã bàn giao carrier
+  IN_TRANSIT // Đang vận chuyển
+  OUT_FOR_DELIVERY // Đang giao lần cuối
+  DELIVERED // Giao thành công
+  EXCEPTION // Ngoại lệ từ carrier (địa chỉ sai, từ chối nhận, v.v.)
+  CANCELLED // Hủy fulfillment
+}
+
+enum QcStatus {
+  PENDING // Chờ QC
+  PASSED // QC đạt
+  FAILED // QC không đạt — cần rework
+  REWORK // Đang rework sau khi fail
+}
+
+enum TicketCategory {
+  ORDER_DELAY
+  WRONG_ITEM
+  DAMAGED_ITEM
+  PAYMENT_ISSUE
+  REFUND_REQUEST
+  FRAUD_SUSPECTED
+  SHIPPING_ISSUE
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
 }
 
 enum PricingStrategy {

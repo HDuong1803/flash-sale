@@ -10,9 +10,10 @@ import { PaymentRecoveryService } from './services/payment-recovery.service'
 import { PaymentRepository } from './repositories/payment.repository'
 import { ReservationModule } from '@modules/reservation/reservation.module'
 import { NotificationModule } from '@modules/notification/notification.module'
+import { FulfillmentModule } from '@modules/fulfillment/fulfillment.module'
 
 @Module({
-  imports: [ReservationModule, NotificationModule],
+  imports: [ReservationModule, NotificationModule, FulfillmentModule],
   controllers: [PaymentController],
   providers: [
     PaymentService,

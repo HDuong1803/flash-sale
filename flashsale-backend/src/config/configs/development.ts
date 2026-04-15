@@ -142,36 +142,24 @@ export const config = {
     NORMAL_REQUEST_TIMEOUT_MS: Number(process.env.NORMAL_REQUEST_TIMEOUT_MS)
   },
 
-  sui: {
-    SUI_RPC_URL: process.env.SUI_RPC_URL,
-    WALRUS_PACKAGE_ID: process.env.WALRUS_PACKAGE_ID,
-    PACKAGE_ID_SUI: process.env.PACKAGE_ID_SUI,
-    FILE_REGISTRY_SHARED_OBJECT_ID: process.env.FILE_REGISTRY_SHARED_OBJECT_ID,
-    ADMIN_PRIVATE_KEY_SUI: process.env.ADMIN_PRIVATE_KEY_SUI,
-    ADMIN_PRIVATE_KEY_SUI_GAS1: process.env.ADMIN_PRIVATE_KEY_SUI_GAS1,
-    ADMIN_PRIVATE_KEY_SUI_GAS2: process.env.ADMIN_PRIVATE_KEY_SUI_GAS2,
-    ADMIN_PRIVATE_KEY_SUI_GAS3: process.env.ADMIN_PRIVATE_KEY_SUI_GAS3,
-    PUBLISHER_PRIVATE_KEY_SUI: process.env.PUBLISHER_PRIVATE_KEY_SUI,
-    STAMP_TABLE_ID: process.env.STAMP_TABLE_ID,
-    SIGNERS_TIMESTAMPS_ID: process.env.SIGNERS_TIMESTAMPS_ID,
-    SIGNERS_STAMP_HASHES_ID: process.env.SIGNERS_STAMP_HASHES_ID
-  },
-
-  walrus: {
-    PUBLISHER_WALRUS_URL: process.env.PUBLISHER_WALRUS_URL
-  },
-
-  network: {
-    NETWORK: process.env.NETWORK
-  },
-
-  logo: {
-    LOGO_URL: process.env.LOGO_URL
-  },
-
   admin: {
     ADMIN_EMAIL: process.env.ADMIN_EMAIL,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ADMIN_NAME: process.env.ADMIN_NAME
+  },
+
+  easypost: {
+    EASYPOST_API_KEY: process.env.EASYPOST_API_KEY,
+    EASYPOST_WEBHOOK_SECRET: process.env.EASYPOST_WEBHOOK_SECRET,
+    EASYPOST_SANDBOX: process.env.EASYPOST_SANDBOX
+  },
+
+  apiagent: {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENAI_MODEL: process.env.OPENAI_MODEL,
+    GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    GEMINI_MODEL: process.env.GEMINI_MODEL
   }
 }

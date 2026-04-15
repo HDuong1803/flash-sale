@@ -12,6 +12,7 @@ import type {
   FraudStats, FraudEvent, IpBlacklistEntry,
   CampaignOverview, FunnelStep, HeatmapHour, AnalyticsSnapshot, StockoutPrediction,
   PricingRule, PriceHistoryEntry,
+  FulfillmentOrder, FulfillmentRule, Carrier, QcCheckpoint,
 } from '@/types'
 
 class AdminService {
@@ -273,6 +274,80 @@ class AdminService {
     reason: string
   }> {
     return apiClient.post(`/pricing/${campaignProductId}/evaluate`)
+  }
+
+  // ─── Fulfillment ──────────────────────────────────────────────────────────
+
+  getFulfillmentByOrderId(orderId: string): Promise<FulfillmentOrder | null> {
+    return withRetry(() => apiClient.get(`/fulfillment/orders/${orderId}`))
+  }
+
+  getCarriers(): Promise<Carrier[]> {
+    return withRetry(() => apiClient.get('/fulfillment/carriers'))
+  }
+
+  toggleCarrier(id: string, active: boolean): Promise<Carrier> {
+    return apiClient.post(`/fulfillment/carriers/${id}/toggle`, { active })
+  }
+
+  getFulfillmentRules(): Promise<FulfillmentRule[]> {
+    return withRetry(() => apiClient.get('/fulfillment/rules'))
+  }
+
+  createFulfillmentRule(data: {
+    name: string
+    priority: number
+    carrierId: string
+    slaHours: number
+    minWeightGrams?: number
+    maxWeightGrams?: number
+    minOrderCents?: number
+    maxOrderCents?: number
+    destCountry?: string
+    destState?: string
+  }): Promise<FulfillmentRule> {
+    return apiClient.post('/fulfillment/rules', data)
+  }
+
+  deleteFulfillmentRule(id: string): Promise<{ success: boolean }> {
+    return apiClient.delete(`/fulfillment/rules/${id}`)
+  }
+
+  bookLabel(orderId: string, data: { weightGrams?: number; dimensionsCm?: { l: number; w: number; h: number } }): Promise<FulfillmentOrder> {
+    return apiClient.post(`/fulfillment/orders/${orderId}/book-label`, data)
+  }
+
+  // ─── QC ───────────────────────────────────────────────────────────────────
+
+  getQcStatus(orderId: string): Promise<QcCheckpoint | null> {
+    return withRetry(() => apiClient.get(`/fulfillment/qc/${orderId}`))
+  }
+
+  listQcCheckpoints(params?: { status?: string; limit?: number; offset?: number }): Promise<{ items: QcCheckpoint[]; total: number }> {
+    return withRetry(() => apiClient.get('/fulfillment/qc', { params }))
+  }
+
+  initQc(orderId: string): Promise<QcCheckpoint> {
+    return apiClient.post(`/fulfillment/qc/${orderId}/init`, {})
+  }
+
+  passQc(orderId: string, data: {
+    checklist: Array<{ key: string; label: string; passed: boolean | null }>
+    weightGrams?: number
+    notes?: string
+    photoUrls?: string[]
+    dimensionsCm?: { l: number; w: number; h: number }
+  }): Promise<QcCheckpoint> {
+    return apiClient.post(`/fulfillment/qc/${orderId}/pass`, data)
+  }
+
+  failQc(orderId: string, data: {
+    failReason: string
+    checklist: Array<{ key: string; label: string; passed: boolean | null }>
+    notes?: string
+    photoUrls?: string[]
+  }): Promise<QcCheckpoint> {
+    return apiClient.post(`/fulfillment/qc/${orderId}/fail`, data)
   }
 }
 

@@ -1,5 +1,5 @@
 import apiClient, { withRetry } from '@/lib/api-client'
-import type { Order, PurchaseResult, OrderStatus } from '@/types'
+import type { Order, PurchaseResult, OrderStatus, FulfillmentOrder } from '@/types'
 
 export interface PurchaseDto {
   campaignProductId: string
@@ -77,6 +77,12 @@ class OrderService {
   }
   getActiveReservations(): Promise<ActiveReservation[]> {
     return withRetry(() => apiClient.get('/reservations/me/active'))
+  }
+
+  // ─── Fulfillment tracking ─────────────────────────────────────────────────
+
+  getFulfillmentTracking(orderId: string): Promise<FulfillmentOrder | null> {
+    return withRetry(() => apiClient.get(`/fulfillment/orders/${orderId}`))
   }
 }
 

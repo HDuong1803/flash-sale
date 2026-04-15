@@ -128,17 +128,14 @@ export class DashboardController {
         campaignId
       )
 
-      const stockValues = await Promise.all(
-        products.map(async p => {
-          const remaining = await this.redis.getStock(p.id)
-          // Fallback to DB remainingQuantity when Redis key not yet initialized
-          return {
-            id: p.id,
-            remaining: remaining ?? p.remainingQuantity,
-            total: p.saleQuantity
-          }
-        })
-      )
+      // Batch fetch: 1 Redis MGET thay vì N individual GETs (tránh SSE amplification)
+      const ids = products.map(p => p.id)
+      const stocks = await this.redis.mgetStocks(ids)
+      const stockValues = products.map((p, i) => ({
+        id: p.id,
+        remaining: stocks[i] ?? p.remainingQuantity,
+        total: p.saleQuantity
+      }))
 
       const totalOrders = await this.dashboardRepository.countOrdersForCampaign(
         campaignId

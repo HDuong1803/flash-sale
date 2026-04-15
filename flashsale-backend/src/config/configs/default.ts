@@ -88,5 +88,19 @@ export const config = {
     BOT_USERNAME: '',
     WEBHOOK_SECRET: '',
     ALLOW_LEGACY_PATH_SECRET_AUTH: 'false'
+  },
+
+  easypost: {
+    EASYPOST_API_KEY: '',
+    EASYPOST_WEBHOOK_SECRET: '',
+    // Sandbox mode: true khi API key bắt đầu bằng "EZAK" hoặc test key
+    // Production: sẽ override trong production.ts
+    EASYPOST_SANDBOX: 'true'
+  },
+
+  anthropic: {
+    ANTHROPIC_API_KEY: '',
+    // claude-haiku-4-5: nhanh, rẻ, dùng cho classification
+    ANTHROPIC_MODEL: 'claude-haiku-4-5-20251001'
   }
 }

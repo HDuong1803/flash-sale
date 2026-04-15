@@ -2,12 +2,14 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  NotFoundException
+  NotFoundException,
+  Optional
 } from '@nestjs/common'
 import { NotificationType, PaymentStatus } from '@prisma/client'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { ReservationService } from '@modules/reservation/services/reservation.service'
 import { NotificationService } from '@modules/notification/services/notification.service'
+import { FulfillmentService } from '@modules/fulfillment/services/fulfillment.service'
 import { PaymentRepository } from '../repositories/payment.repository'
 
 /**
@@ -39,7 +41,10 @@ export class SagaCoordinatorService {
     private readonly paymentRepository: PaymentRepository,
     private readonly redis: RedisService,
     private readonly reservationService: ReservationService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    // Optional: FulfillmentModule có thể chưa được load trong test environments
+    @Optional()
+    private readonly fulfillmentService: FulfillmentService | null = null
   ) {}
 
   async confirmPayment(
@@ -160,6 +165,18 @@ export class SagaCoordinatorService {
         revenue: order.totalAmount,
         timestamp: new Date().toISOString()
       })
+
+      // Bước 6: Khởi tạo fulfillment (fire-and-forget — KHÔNG được làm saga fail)
+      // initializeFulfillment tự xử lý lỗi internally và không throw.
+      if (this.fulfillmentService) {
+        void this.fulfillmentService.initializeFulfillment({
+          orderId: order.id,
+          shippingAddress,
+          totalAmount: String(order.totalAmount),
+          merchantId: resv.campaignProduct.product.merchantId,
+          campaignId: resv.campaignProduct.campaign.id
+        })
+      }
 
       this.logger.log({ event: 'saga_confirmed', orderId: order.id, paymentId })
     } catch (err: unknown) {
