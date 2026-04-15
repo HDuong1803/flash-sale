@@ -10,6 +10,8 @@ import type {
   BenchmarkResult, BenchmarkComparison, RunBenchmarkParams,
   BenchmarkAuditLogResponse, LockStrategy,
   FraudStats, FraudEvent, IpBlacklistEntry,
+  CampaignOverview, FunnelStep, HeatmapHour, AnalyticsSnapshot, StockoutPrediction,
+  PricingRule, PriceHistoryEntry,
 } from '@/types'
 
 class AdminService {
@@ -200,6 +202,77 @@ class AdminService {
   /** Xóa IP khỏi blacklist. */
   removeFromBlacklist(ip: string): Promise<void> {
     return apiClient.delete(`/admin/fraud/blacklist/${ip}`)
+  }
+
+  // ─── Analytics API ──────────────────────────────────────────────────────────
+
+  /** Snapshot tổng quan của một campaign (stock, revenue, conversion rate). */
+  getCampaignAnalyticsOverview(campaignId: string): Promise<CampaignOverview | null> {
+    return withRetry(() => apiClient.get(`/analytics/campaigns/${campaignId}/overview`))
+  }
+
+  /** Dữ liệu funnel chuyển đổi của campaign. */
+  getCampaignFunnel(campaignId: string): Promise<FunnelStep[]> {
+    return withRetry(() => apiClient.get(`/analytics/campaigns/${campaignId}/funnel`))
+  }
+
+  /** Heatmap thanh toán theo giờ trong ngày (mảng 24 phần tử). */
+  getCampaignHeatmap(campaignId: string): Promise<HeatmapHour[]> {
+    return withRetry(() => apiClient.get(`/analytics/campaigns/${campaignId}/heatmap`))
+  }
+
+  /** Time-series snapshots của một campaign product (dùng để vẽ biểu đồ). */
+  getProductTimeSeries(
+    campaignId: string,
+    campaignProductId: string,
+    limit?: number
+  ): Promise<AnalyticsSnapshot[]> {
+    return withRetry(() =>
+      apiClient.get(
+        `/analytics/campaigns/${campaignId}/products/${campaignProductId}/time-series`,
+        { params: limit ? { limit } : undefined }
+      )
+    )
+  }
+
+  /** Dự đoán thời điểm hết hàng (linear regression trên snapshots gần nhất). */
+  predictStockout(campaignId: string, campaignProductId: string): Promise<StockoutPrediction> {
+    return withRetry(() =>
+      apiClient.get(
+        `/analytics/campaigns/${campaignId}/products/${campaignProductId}/predict-stockout`
+      )
+    )
+  }
+
+  // ─── Pricing API ────────────────────────────────────────────────────────────
+
+  /** Danh sách pricing rules của một campaign product. */
+  getPricingRules(campaignProductId: string): Promise<PricingRule[]> {
+    return withRetry(() => apiClient.get(`/pricing/${campaignProductId}/rules`))
+  }
+
+  /** Lịch sử thay đổi giá của campaign product. */
+  getPriceHistory(campaignProductId: string, limit?: number): Promise<PriceHistoryEntry[]> {
+    return withRetry(() =>
+      apiClient.get(`/pricing/${campaignProductId}/history`, {
+        params: limit ? { limit } : undefined,
+      })
+    )
+  }
+
+  /** Vô hiệu hóa một pricing rule. */
+  deactivatePricingRule(ruleId: string): Promise<{ ok: boolean }> {
+    return apiClient.delete(`/pricing/rules/${ruleId}`)
+  }
+
+  /** [Admin] Trigger pricing evaluation ngay lập tức cho một product. */
+  triggerPricingEvaluation(campaignProductId: string): Promise<{
+    shouldChange: boolean
+    oldPrice: number
+    newPrice: number
+    reason: string
+  }> {
+    return apiClient.post(`/pricing/${campaignProductId}/evaluate`)
   }
 }
 

@@ -63,6 +63,8 @@ export type Permission =
   | 'admin_outbox'
   | 'admin_benchmark'
   | 'admin_fraud'
+  | 'admin_analytics'
+  | 'admin_pricing'
 
 // ─── Domain interfaces ───────────────────────────────────────────────────────
 

@@ -188,6 +188,22 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
     description: 'Fraud events, blacklist IP',
   },
+  {
+    label: 'Phân tích & Dự đoán',
+    href: '/admin/analytics',
+    iconName: 'TrendingUp',
+    permission: 'admin_analytics',
+    section: 'admin',
+    description: 'Funnel, heatmap, stockout prediction',
+  },
+  {
+    label: 'Định giá động',
+    href: '/admin/pricing',
+    iconName: 'Tag',
+    permission: 'admin_pricing',
+    section: 'admin',
+    description: 'Pricing rules, lịch sử thay đổi giá',
+  },
 ]
 
 export const SECTION_ORDER: NavItem['section'][] = [
