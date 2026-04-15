@@ -41,11 +41,22 @@ export interface UpdateFulfillmentLabelInput {
   labelBookedAt: Date
 }
 
+export interface FulfillmentOrderAccessContext {
+  customerId: string
+  merchantUserId: string | null
+}
+
 @Injectable()
 export class FulfillmentRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   // ─── Carriers ──────────────────────────────────────────────────────────────
+
+  async findAllCarriers(): Promise<Carrier[]> {
+    return this.prisma.carrier.findMany({
+      orderBy: { code: 'asc' }
+    })
+  }
 
   async findAllActiveCarriers(): Promise<Carrier[]> {
     return this.prisma.carrier.findMany({
@@ -56,6 +67,13 @@ export class FulfillmentRepository {
 
   async findCarrierById(id: string): Promise<Carrier | null> {
     return this.prisma.carrier.findUnique({ where: { id } })
+  }
+
+  async updateCarrierActive(id: string, active: boolean): Promise<Carrier> {
+    return this.prisma.carrier.update({
+      where: { id },
+      data: { active }
+    })
   }
 
   // ─── Rules ─────────────────────────────────────────────────────────────────
@@ -125,6 +143,36 @@ export class FulfillmentRepository {
         }
       }
     })
+  }
+
+  async findOrderAccessContext(
+    orderId: string
+  ): Promise<FulfillmentOrderAccessContext | null> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        customerId: true,
+        merchant: {
+          select: {
+            userId: true
+          }
+        }
+      }
+    })
+
+    if (!order) return null
+    return {
+      customerId: order.customerId,
+      merchantUserId: order.merchant.userId
+    }
+  }
+
+  async findOrderShippingAddress(orderId: string): Promise<string | null> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { shippingAddress: true }
+    })
+    return order?.shippingAddress ?? null
   }
 
   async findById(id: string): Promise<FulfillmentOrderWithCarrier | null> {

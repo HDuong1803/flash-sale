@@ -161,6 +161,17 @@ export class QcFailDto {
   photoUrls?: string[]
 }
 
+export class QcReworkDto {
+  @ApiProperty({
+    description: 'Ghi chú rework',
+    required: false,
+    example: 'Đã thay hộp mới, chuyển lại QC'
+  })
+  @IsOptional()
+  @IsString()
+  note?: string
+}
+
 // ─── Query DTOs ───────────────────────────────────────────────────────────────
 
 export class QcListQueryDto {
@@ -222,13 +233,14 @@ export class QcCheckpointResponseDto {
 
   @ApiProperty({
     description: 'Thông tin inspector',
-    type: Object
+    type: Object,
+    nullable: true
   })
   inspector: {
     id: string
     email: string
     fullName: string | null
-  }
+  } | null
 
   @ApiProperty({
     description: 'Danh sách checklist',

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/swagger'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { AdminGuard } from '@common/guards/admin.guard'
+import { RedisService } from '@infrastructure/redis/redis.service'
 import { AdminService } from '../services/admin.service'
 
 const moduleName = 'admin'
@@ -22,7 +23,10 @@ const moduleName = 'admin'
 @UseGuards(AccessTokenGuard, AdminGuard)
 @ApiBearerAuth('JWT-auth')
 export class AdminStreamController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly redis: RedisService
+  ) {}
 
   @ApiOperation({
     summary: 'SSE stream — giám sát hệ thống admin thời gian thực',
@@ -43,6 +47,33 @@ export class AdminStreamController {
   stream(): Observable<MessageEvent> {
     const emit = (type: string, data: unknown): MessageEvent =>
       ({ data: JSON.stringify({ type, data }) }) as MessageEvent
+
+    // SLA alerts từ FulfillmentSlaService publish qua Redis channel dashboard:admin
+    const slaEvents$ = new Observable<MessageEvent>(observer => {
+      const subscriber = this.redis.client.duplicate()
+
+      subscriber.subscribe('dashboard:admin', err => {
+        if (err) observer.error(err)
+      })
+
+      subscriber.on('message', (_channel: string, message: string) => {
+        try {
+          const payload = JSON.parse(message) as {
+            type?: string
+            [k: string]: unknown
+          }
+          const eventType = payload.type ?? 'admin_event'
+          observer.next(emit(eventType, payload))
+        } catch {
+          // Skip malformed payload
+        }
+      })
+
+      return () => {
+        subscriber.unsubscribe('dashboard:admin').catch(() => {})
+        subscriber.quit().catch(() => {})
+      }
+    })
 
     // System health — 15s: đủ nhanh phát hiện service down, không spam DB
     const health$ = timer(0, 15_000).pipe(
@@ -81,6 +112,6 @@ export class AdminStreamController {
     // DLQ KHÔNG push qua SSE: getDeadLetterJobs() fetch toàn bộ records chỉ để đếm
     // → để hook useDeadLetterJobs() polling 30s tự xử lý là đủ
 
-    return merge(health$, queueStats$, adminStats$, heartbeat$)
+    return merge(health$, queueStats$, adminStats$, heartbeat$, slaEvents$)
   }
 }

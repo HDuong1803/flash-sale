@@ -2,10 +2,12 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Post,
   RawBodyRequest,
@@ -25,6 +27,10 @@ import {
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { RolesGuard } from '@common/guards/roles.guard'
 import { Roles } from '@common/decorators/roles.decorator'
+import {
+  CurrentUser,
+  IUserFromRequest
+} from '@common/decorators/current-user.decorator'
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
 import { FulfillmentService } from '../services/fulfillment.service'
 import { FulfillmentRepository } from '../repositories/fulfillment.repository'
@@ -38,6 +44,10 @@ import {
 } from '../dto/fulfillment.dto'
 
 const moduleName = 'fulfillment'
+
+interface AuthUser extends IUserFromRequest {
+  role: 'ADMIN' | 'MERCHANT' | 'CUSTOMER'
+}
 
 @ApiTags(moduleName)
 @Controller(moduleName)
@@ -64,12 +74,14 @@ export class FulfillmentController {
   })
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN', 'MERCHANT')
+  @Roles('ADMIN', 'MERCHANT', 'CUSTOMER')
   @Get('orders/:orderId')
   @HttpCode(HttpStatus.OK)
   async getFulfillmentByOrderId(
-    @Param('orderId') orderId: string
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUser
   ): Promise<FulfillmentOrderResponseDto | null> {
+    await this.assertOrderAccess(orderId, user, true)
     const fulfillment = await this.fulfillmentRepo.findByOrderId(orderId)
     if (!fulfillment) return null
     return this.mapFulfillmentResponse(fulfillment)
@@ -99,8 +111,10 @@ export class FulfillmentController {
   @HttpCode(HttpStatus.OK)
   async bookLabel(
     @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: BookLabelDto
   ): Promise<FulfillmentOrderResponseDto> {
+    await this.assertOrderAccess(orderId, user, false)
     const result = await this.fulfillmentService.bookLabel({
       orderId,
       weightGrams: dto.weightGrams,
@@ -175,7 +189,7 @@ export class FulfillmentController {
   @Get('carriers')
   @HttpCode(HttpStatus.OK)
   async getCarriers(): Promise<CarrierResponseDto[]> {
-    const carriers = await this.fulfillmentRepo.findAllActiveCarriers()
+    const carriers = await this.fulfillmentRepo.findAllCarriers()
     return carriers.map(c => ({
       id: c.id,
       code: c.code,
@@ -206,12 +220,13 @@ export class FulfillmentController {
   ): Promise<CarrierResponseDto> {
     const carrier = await this.fulfillmentRepo.findCarrierById(id)
     if (!carrier) {
-      throw new Error(`Carrier ${id} not found`)
+      throw new NotFoundException(`Carrier ${id} not found`)
     }
-    // Direct update via Prisma — Repository should have this method
-    // For simplicity in Sprint 1, we update directly here via findCarrierById + service
-    // Sprint 2 will add updateCarrier to repository
-    const updated = { ...carrier, active: dto.active }
+
+    const updated = await this.fulfillmentRepo.updateCarrierActive(
+      id,
+      dto.active
+    )
     return {
       id: updated.id,
       code: updated.code,
@@ -219,6 +234,35 @@ export class FulfillmentController {
       logoUrl: updated.logoUrl,
       sandboxMode: updated.sandboxMode,
       active: updated.active
+    }
+  }
+
+  private async assertOrderAccess(
+    orderId: string,
+    user: AuthUser,
+    allowCustomer: boolean
+  ): Promise<void> {
+    const access = await this.fulfillmentRepo.findOrderAccessContext(orderId)
+    if (!access) {
+      throw new NotFoundException(`Order ${orderId} not found`)
+    }
+
+    if (user.role === 'ADMIN') return
+
+    if (user.role === 'MERCHANT' && access.merchantUserId !== user.userId) {
+      throw new ForbiddenException('Bạn không có quyền truy cập đơn hàng này')
+    }
+
+    if (!allowCustomer && user.role === 'CUSTOMER') {
+      throw new ForbiddenException(
+        'Customer không được phép thực hiện hành động này'
+      )
+    }
+
+    if (allowCustomer && user.role === 'CUSTOMER') {
+      if (access.customerId !== user.userId) {
+        throw new ForbiddenException('Bạn không có quyền truy cập đơn hàng này')
+      }
     }
   }
 

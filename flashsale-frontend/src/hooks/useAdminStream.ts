@@ -8,10 +8,21 @@ import type { AdminStats, SystemHealth, QueueStats } from '@/types'
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1'
 
-type AdminStreamEvent =
+export type AdminStreamEvent =
   | { type: 'system_health'; data: SystemHealth }
   | { type: 'queue_stats'; data: QueueStats }
   | { type: 'admin_stats'; data: AdminStats }
+  | {
+      type: 'SLA_WARNING' | 'SLA_BREACH'
+      data: {
+        type: 'SLA_WARNING' | 'SLA_BREACH'
+        fulfillmentId: string
+        orderId: string
+        fulfillStatus: string
+        slaDeadline: string | null
+        breachedAt?: string
+      }
+    }
   | { type: 'heartbeat'; data: { ts: number } }
 
 /**
@@ -22,7 +33,9 @@ type AdminStreamEvent =
  * Auth: dựa vào HttpOnly cookie `access_token` (withCredentials: true).
  * Retry: tối đa 5 lần, delay tăng dần (2s → 10s).
  */
-export function useAdminStream() {
+export function useAdminStream(options?: {
+  onEvent?: (event: AdminStreamEvent) => void
+}) {
   const queryClient = useQueryClient()
   const [connected, setConnected] = useState(false)
   const esRef = useRef<EventSource | null>(null)
@@ -64,6 +77,8 @@ export function useAdminStream() {
               queryClient.setQueryData(queryKeys.admin.stats(), event.data)
               break
           }
+
+          options?.onEvent?.(event)
         } catch {
           // Bỏ qua lỗi parse — không làm gián đoạn stream
         }
@@ -89,7 +104,7 @@ export function useAdminStream() {
       esRef.current?.close()
       esRef.current = null
     }
-  }, [queryClient])
+  }, [options, queryClient])
 
   return { connected }
 }

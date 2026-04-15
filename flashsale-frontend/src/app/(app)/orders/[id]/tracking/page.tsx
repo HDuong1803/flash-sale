@@ -17,31 +17,39 @@ const STEPS: Array<{
   label: string
   icon: React.ReactNode
 }> = [
-  { key: 'PENDING',          label: 'Đã đặt hàng',      icon: <Package size={16} /> },
+  { key: 'AWAITING',         label: 'Chờ fulfillment',   icon: <Package size={16} /> },
   { key: 'LABEL_BOOKED',     label: 'Đã in nhãn',        icon: <CheckCircle2 size={16} /> },
-  { key: 'PICKED_UP',        label: 'Đã lấy hàng',       icon: <Truck size={16} /> },
+  { key: 'PICKED',           label: 'Đã lấy hàng',       icon: <Truck size={16} /> },
+  { key: 'PACKED',           label: 'Đã đóng gói',       icon: <Package size={16} /> },
+  { key: 'SHIPPED',          label: 'Đã bàn giao hãng vận chuyển', icon: <Truck size={16} /> },
   { key: 'IN_TRANSIT',       label: 'Đang vận chuyển',    icon: <Truck size={16} /> },
   { key: 'OUT_FOR_DELIVERY', label: 'Đang giao đến bạn', icon: <MapPin size={16} /> },
   { key: 'DELIVERED',        label: 'Đã giao thành công', icon: <CheckCircle2 size={16} /> },
 ]
 
 const STATUS_ORDER: FulfillmentStatus[] = [
-  'PENDING', 'PROCESSING', 'LABEL_BOOKED',
-  'PICKED_UP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED'
+  'AWAITING',
+  'LABEL_BOOKED',
+  'PICKED',
+  'PACKED',
+  'SHIPPED',
+  'IN_TRANSIT',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED'
 ]
 
 const STATUS_LABELS: Partial<Record<FulfillmentStatus, string>> = {
-  PENDING:            'Chờ xử lý',
-  PROCESSING:         'Đang chuẩn bị',
+  AWAITING:           'Chờ fulfillment',
+  ADDRESS_ISSUE:      'Địa chỉ giao hàng có vấn đề',
   LABEL_BOOKED:       'Đã in nhãn vận chuyển',
-  PICKED_UP:          'Đơn vị vận chuyển đã lấy hàng',
+  PICKED:             'Đã lấy hàng khỏi kho',
+  PACKED:             'Đã đóng gói',
+  SHIPPED:            'Đã bàn giao đơn vị vận chuyển',
   IN_TRANSIT:         'Đang trên đường vận chuyển',
   OUT_FOR_DELIVERY:   'Đang giao đến địa chỉ của bạn',
   DELIVERED:          'Đã giao hàng thành công',
   EXCEPTION:          'Có sự cố trong quá trình vận chuyển',
   CANCELLED:          'Đơn hàng đã bị huỷ',
-  ADDRESS_ISSUE:      'Địa chỉ giao hàng có vấn đề',
-  RETURNED:           'Hàng đã được hoàn trả',
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,7 +59,7 @@ function getStepIndex(status: FulfillmentStatus): number {
 }
 
 function isTerminal(status: FulfillmentStatus): boolean {
-  return ['DELIVERED', 'CANCELLED', 'EXCEPTION', 'RETURNED'].includes(status)
+  return ['DELIVERED', 'CANCELLED', 'EXCEPTION'].includes(status)
 }
 
 function formatTimeAgo(iso: string): string {
@@ -66,7 +74,7 @@ function formatTimeAgo(iso: string): string {
 
 function ProgressStepper({ status }: { status: FulfillmentStatus }) {
   const currentIdx = getStepIndex(status)
-  const isExceptional = ['EXCEPTION', 'CANCELLED', 'ADDRESS_ISSUE', 'RETURNED'].includes(status)
+  const isExceptional = ['EXCEPTION', 'CANCELLED', 'ADDRESS_ISSUE'].includes(status)
 
   if (isExceptional) {
     return (

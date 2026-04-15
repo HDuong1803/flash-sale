@@ -4,7 +4,8 @@ import {
   Logger,
   NotFoundException
 } from '@nestjs/common'
-import { FulfillmentStatus, QcStatus } from '@prisma/client'
+import { FulfillmentStatus, Prisma, QcStatus } from '@prisma/client'
+import { PrismaService } from '@infrastructure/prisma/prisma.service'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { QUEUE_NAMES } from '@infrastructure/rabbitmq/rabbitmq.constants'
 import {
@@ -37,6 +38,10 @@ export interface CreateQcInput {
   checklist?: QcChecklistItem[]
 }
 
+export interface QcReworkInput {
+  note?: string
+}
+
 /**
  * QcService — Logic nghiệp vụ cho QC station.
  *
@@ -59,7 +64,8 @@ export class QcService {
   constructor(
     private readonly qcRepo: QcRepository,
     private readonly fulfillmentRepo: FulfillmentRepository,
-    private readonly rabbitmq: RabbitMQService
+    private readonly rabbitmq: RabbitMQService,
+    private readonly prisma: PrismaService
   ) {}
 
   async createQcCheckpoint(
@@ -200,6 +206,67 @@ export class QcService {
     return result
   }
 
+  async reworkQc(
+    orderId: string,
+    input: QcReworkInput
+  ): Promise<QcCheckpointWithInspector> {
+    const checkpoint = await this.qcRepo.findByOrderId(orderId)
+    if (!checkpoint) {
+      throw new NotFoundException(
+        `QC checkpoint không tồn tại cho orderId=${orderId}`
+      )
+    }
+
+    if (checkpoint.status === QcStatus.REWORK) {
+      await this.reconcileFulfillmentForRework(orderId, input.note)
+      const current = await this.qcRepo.findByOrderId(orderId)
+      if (!current) {
+        throw new Error('Failed to fetch updated QC checkpoint')
+      }
+      return current
+    }
+
+    if (checkpoint.status !== QcStatus.FAILED) {
+      throw new BadRequestException(
+        `Chỉ có thể chuyển sang REWORK từ trạng thái FAILED, hiện tại=${checkpoint.status}`
+      )
+    }
+
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const transition = await tx.qcCheckpoint.updateMany({
+        where: {
+          id: checkpoint.id,
+          status: QcStatus.FAILED
+        },
+        data: {
+          status: QcStatus.REWORK
+        }
+      })
+
+      if (transition.count === 0) {
+        return
+      }
+
+      await tx.fulfillmentOrder.updateMany({
+        where: { orderId },
+        data: {
+          fulfillStatus: FulfillmentStatus.AWAITING,
+          exceptionReason:
+            input.note ?? 'Đã chuyển REWORK để kiểm tra lại trước khi giao',
+          exceptionAt: null
+        }
+      })
+    })
+
+    await this.reconcileFulfillmentForRework(orderId, input.note)
+
+    this.logger.log(`QC moved to REWORK for orderId=${orderId}`)
+
+    const result = await this.qcRepo.findByOrderId(orderId)
+    if (!result) throw new Error('Failed to fetch updated QC checkpoint')
+    return result
+  }
+
   async getQcStatus(
     orderId: string
   ): Promise<QcCheckpointWithInspector | null> {
@@ -237,5 +304,32 @@ export class QcService {
       )
       // Không throw — QC pass đã thành công, chỉ là label booking bị delay
     }
+  }
+
+  private async reconcileFulfillmentForRework(
+    orderId: string,
+    note?: string
+  ): Promise<void> {
+    const fulfillment = await this.fulfillmentRepo.findByOrderId(orderId)
+    if (!fulfillment) {
+      return
+    }
+
+    if (
+      fulfillment.fulfillStatus === FulfillmentStatus.AWAITING &&
+      !fulfillment.exceptionAt
+    ) {
+      return
+    }
+
+    await this.fulfillmentRepo.updateStatus(
+      fulfillment.id,
+      FulfillmentStatus.AWAITING,
+      {
+        exceptionReason:
+          note ?? 'Đã chuyển REWORK để kiểm tra lại trước khi giao',
+        exceptionAt: null
+      }
+    )
   }
 }

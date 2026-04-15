@@ -349,6 +349,10 @@ class AdminService {
   }): Promise<QcCheckpoint> {
     return apiClient.post(`/fulfillment/qc/${orderId}/fail`, data)
   }
+
+  reworkQc(orderId: string, note?: string): Promise<QcCheckpoint> {
+    return apiClient.post(`/fulfillment/qc/${orderId}/rework`, { note })
+  }
 }
 
 export const adminService = new AdminService()

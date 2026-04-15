@@ -851,17 +851,17 @@ export interface PriceHistoryEntry {
 // ─── Fulfillment Types ────────────────────────────────────────────────────────
 
 export type FulfillmentStatus =
-  | 'PENDING'
-  | 'PROCESSING'
+  | 'AWAITING'
+  | 'ADDRESS_ISSUE'
   | 'LABEL_BOOKED'
-  | 'PICKED_UP'
+  | 'PICKED'
+  | 'PACKED'
+  | 'SHIPPED'
   | 'IN_TRANSIT'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
   | 'EXCEPTION'
   | 'CANCELLED'
-  | 'ADDRESS_ISSUE'
-  | 'RETURNED'
 
 export type QcStatus = 'PENDING' | 'PASSED' | 'FAILED' | 'REWORK'
 
@@ -908,7 +908,7 @@ export interface QcCheckpoint {
     id: string
     email: string
     fullName: string | null
-  }
+  } | null
   checklist: QcChecklistItem[]
   failReason: string | null
   notes: string | null

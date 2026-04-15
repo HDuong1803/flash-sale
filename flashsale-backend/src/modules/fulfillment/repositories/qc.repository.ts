@@ -15,7 +15,7 @@ export type QcCheckpointWithInspector = QcCheckpoint & {
     id: string
     email: string
     fullName: string | null
-  }
+  } | null
 }
 
 export interface CreateQcCheckpointInput {

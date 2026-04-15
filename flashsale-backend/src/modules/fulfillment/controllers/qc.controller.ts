@@ -1,17 +1,17 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Param,
   Post,
   Query,
-  Req,
   UseGuards,
   UseInterceptors
 } from '@nestjs/common'
-import { Request } from 'express'
 import {
   ApiBearerAuth,
   ApiBody,
@@ -25,7 +25,12 @@ import { QcStatus } from '@prisma/client'
 import { AccessTokenGuard } from '@common/guards/access-token.guard'
 import { RolesGuard } from '@common/guards/roles.guard'
 import { Roles } from '@common/decorators/roles.decorator'
+import {
+  CurrentUser,
+  IUserFromRequest
+} from '@common/decorators/current-user.decorator'
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
+import { FulfillmentRepository } from '../repositories/fulfillment.repository'
 import { QcService } from '../services/qc.service'
 import {
   CreateQcCheckpointDto,
@@ -33,7 +38,8 @@ import {
   QcFailDto,
   QcListQueryDto,
   QcListResponseDto,
-  QcPassDto
+  QcPassDto,
+  QcReworkDto
 } from '../dto/qc.dto'
 import { QcCheckpointWithInspector } from '../repositories/qc.repository'
 
@@ -67,13 +73,20 @@ function mapQcResponse(qc: QcCheckpointWithInspector): QcCheckpointResponseDto {
 
 const moduleName = 'fulfillment/qc'
 
+interface AuthUser extends IUserFromRequest {
+  role: 'ADMIN' | 'MERCHANT' | 'CUSTOMER'
+}
+
 @ApiTags('fulfillment-qc')
 @Controller(moduleName)
 @UseInterceptors(ResponseInterceptor)
 @ApiBearerAuth('JWT-auth')
 @UseGuards(AccessTokenGuard, RolesGuard)
 export class QcController {
-  constructor(private readonly qcService: QcService) {}
+  constructor(
+    private readonly qcService: QcService,
+    private readonly fulfillmentRepo: FulfillmentRepository
+  ) {}
 
   // ─── GET qc/:orderId ─────────────────────────────────────────────────────
 
@@ -96,8 +109,10 @@ export class QcController {
   @Get(':orderId')
   @HttpCode(HttpStatus.OK)
   async getQcStatus(
-    @Param('orderId') orderId: string
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUser
   ): Promise<QcCheckpointResponseDto | null> {
+    await this.assertOrderAccess(orderId, user)
     const qc = await this.qcService.getQcStatus(orderId)
     if (!qc) return null
     return mapQcResponse(qc)
@@ -128,10 +143,12 @@ export class QcController {
   @HttpCode(HttpStatus.CREATED)
   async initQc(
     @Param('orderId') orderId: string,
-    @Req() req: Request,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateQcCheckpointDto
   ): Promise<QcCheckpointResponseDto> {
-    const inspectorId = (req.user as { sub: string }).sub
+    await this.assertOrderAccess(orderId, user)
+
+    const inspectorId = user.userId
     const qc = await this.qcService.createQcCheckpoint({
       orderId,
       inspectorId,
@@ -169,8 +186,11 @@ export class QcController {
   @HttpCode(HttpStatus.OK)
   async passQc(
     @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: QcPassDto
   ): Promise<QcCheckpointResponseDto> {
+    await this.assertOrderAccess(orderId, user)
+
     const qc = await this.qcService.passQc(orderId, {
       checklist: dto.checklist,
       notes: dto.notes,
@@ -208,14 +228,51 @@ export class QcController {
   @HttpCode(HttpStatus.OK)
   async failQc(
     @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: QcFailDto
   ): Promise<QcCheckpointResponseDto> {
+    await this.assertOrderAccess(orderId, user)
+
     const qc = await this.qcService.failQc(orderId, {
       failReason: dto.failReason,
       checklist: dto.checklist,
       notes: dto.notes,
       photoUrls: dto.photoUrls
     })
+    return mapQcResponse(qc)
+  }
+
+  @ApiOperation({ summary: 'Chuyển QC checkpoint từ FAILED sang REWORK' })
+  @ApiParam({ name: 'orderId', description: 'ID đơn hàng' })
+  @ApiBody({ type: QcReworkDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'QC đã được chuyển sang REWORK',
+    type: QcCheckpointResponseDto
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Sai trạng thái'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Checkpoint không tồn tại'
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @Roles('ADMIN', 'MERCHANT')
+  @Post(':orderId/rework')
+  @HttpCode(HttpStatus.OK)
+  async reworkQc(
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: QcReworkDto
+  ): Promise<QcCheckpointResponseDto> {
+    await this.assertOrderAccess(orderId, user)
+
+    const qc = await this.qcService.reworkQc(orderId, { note: dto.note })
     return mapQcResponse(qc)
   }
 
@@ -253,6 +310,28 @@ export class QcController {
     return {
       items: items.map(mapQcResponse),
       total
+    }
+  }
+
+  private async assertOrderAccess(
+    orderId: string,
+    user: AuthUser
+  ): Promise<void> {
+    const access = await this.fulfillmentRepo.findOrderAccessContext(orderId)
+    if (!access) {
+      throw new NotFoundException(
+        `Order ${orderId} không tồn tại trong fulfillment`
+      )
+    }
+
+    if (user.role === 'ADMIN') return
+
+    if (user.role === 'MERCHANT' && access.merchantUserId !== user.userId) {
+      throw new ForbiddenException('Bạn không có quyền thao tác đơn hàng này')
+    }
+
+    if (user.role === 'CUSTOMER') {
+      throw new ForbiddenException('Customer không được phép thao tác QC')
     }
   }
 }

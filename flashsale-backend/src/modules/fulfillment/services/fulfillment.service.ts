@@ -485,19 +485,13 @@ export class FulfillmentService {
   private async getOrderShippingAddress(
     orderId: string
   ): Promise<{ shippingAddress: string }> {
-    // Use Prisma directly via repository — thin wrapper
-    const fulfillment = await this.fulfillmentRepo.findByOrderId(orderId)
-    if (!fulfillment) throw new NotFoundException(`Order ${orderId} not found`)
-
-    // We need the raw order's shippingAddress — access via order relation
-    // This requires a small helper in repo — use findByOrderId which includes order
-    // For now, read from normalizedAddress if available, else re-fetch from Order
-    // FulfillmentOrder doesn't store raw shippingAddress — need to read from Order
-    // Solution: FulfillmentService will accept shippingAddress on bookLabel call
-    // For now, we use a placeholder — Sprint 2 will pass shippingAddress explicitly
-    return {
-      shippingAddress: JSON.stringify(fulfillment.normalizedAddress ?? {})
+    const shippingAddress = await this.fulfillmentRepo.findOrderShippingAddress(
+      orderId
+    )
+    if (!shippingAddress) {
+      throw new NotFoundException(`Order ${orderId} not found`)
     }
+    return { shippingAddress }
   }
 
   /**

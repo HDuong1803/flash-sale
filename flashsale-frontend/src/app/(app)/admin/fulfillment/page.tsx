@@ -1,29 +1,23 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
-  Package, Truck, AlertTriangle, CheckCircle2,
-  Clock, XCircle, Loader2, RefreshCw, Shield,
-  ChevronDown, ChevronUp, Filter, ExternalLink
+  Truck, AlertTriangle, CheckCircle2,
+  Clock, XCircle, Loader2, RefreshCw, Shield, Wrench
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAdminStream } from '@/hooks/useAdminStream'
+import type { AdminStreamEvent } from '@/hooks/useAdminStream'
 import { adminService } from '@/services/admin.service'
-import type { FulfillmentOrder, FulfillmentStatus, Carrier, FulfillmentRule, QcCheckpoint, QcStatus } from '@/types'
+import type {
+  Carrier,
+  FulfillmentRule,
+  QcCheckpoint,
+  QcStatus,
+  QcChecklistItem
+} from '@/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const FULFILLMENT_CFG: Record<FulfillmentStatus, { label: string; color: string; dot: string }> = {
-  PENDING:            { label: 'Chờ xử lý',      color: 'text-white/50',    dot: 'bg-white/30' },
-  PROCESSING:         { label: 'Đang xử lý',      color: 'text-blue-400',    dot: 'bg-blue-400' },
-  LABEL_BOOKED:       { label: 'Đã in nhãn',      color: 'text-indigo-400',  dot: 'bg-indigo-400' },
-  PICKED_UP:          { label: 'Đã lấy hàng',     color: 'text-violet-400',  dot: 'bg-violet-400' },
-  IN_TRANSIT:         { label: 'Đang vận chuyển',  color: 'text-cyan-400',    dot: 'bg-cyan-400' },
-  OUT_FOR_DELIVERY:   { label: 'Đang giao',        color: 'text-sky-400',     dot: 'bg-sky-400' },
-  DELIVERED:          { label: 'Đã giao',          color: 'text-emerald-400', dot: 'bg-emerald-400' },
-  EXCEPTION:          { label: 'Sự cố',            color: 'text-red-400',     dot: 'bg-red-400' },
-  CANCELLED:          { label: 'Đã huỷ',           color: 'text-white/30',    dot: 'bg-white/20' },
-  ADDRESS_ISSUE:      { label: 'Lỗi địa chỉ',      color: 'text-orange-400',  dot: 'bg-orange-400' },
-  RETURNED:           { label: 'Đã hoàn trả',      color: 'text-yellow-400',  dot: 'bg-yellow-400' },
-}
 
 const QC_CFG: Record<QcStatus, { label: string; color: string }> = {
   PENDING: { label: 'Chờ QC',    color: 'text-yellow-400' },
@@ -32,37 +26,12 @@ const QC_CFG: Record<QcStatus, { label: string; color: string }> = {
   REWORK:  { label: 'Rework',    color: 'text-orange-400' },
 }
 
-function StatusDot({ status }: { status: FulfillmentStatus }) {
-  const cfg = FULFILLMENT_CFG[status]
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cfg.dot}`} />
-      <span className={`text-xs font-medium ${cfg.color}`}>{cfg.label}</span>
-    </div>
-  )
-}
-
-function SlaTag({ breached, deadline }: { breached: boolean; deadline?: string | null }) {
-  if (!deadline) return null
-  const remaining = new Date(deadline).getTime() - Date.now()
-  const hours = Math.floor(remaining / 3_600_000)
-
-  if (breached) return (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-red-500/20 text-red-300 border border-red-500/30">
-      Vi phạm SLA
-    </span>
-  )
-  if (remaining < 2 * 3_600_000) return (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-orange-500/20 text-orange-300 border border-orange-500/30">
-      Còn {hours}h
-    </span>
-  )
-  return (
-    <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
-      SLA OK
-    </span>
-  )
-}
+const DEFAULT_QC_CHECKLIST: QcChecklistItem[] = [
+  { key: 'item_count', label: 'Số lượng sản phẩm đúng', passed: null },
+  { key: 'packaging', label: 'Đóng gói nguyên vẹn', passed: null },
+  { key: 'label_match', label: 'Label khớp với đơn hàng', passed: null },
+  { key: 'no_damage', label: 'Sản phẩm không bị hỏng hóc', passed: null },
+]
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -187,8 +156,26 @@ function RuleRow({ rule, onDelete }: {
   )
 }
 
-function QcRow({ qc }: { qc: QcCheckpoint }) {
+function QcRow({
+  qc,
+  onInit,
+  onPass,
+  onFail,
+  onRework,
+  loading,
+}: {
+  qc: QcCheckpoint
+  onInit: (orderId: string) => Promise<void>
+  onPass: (qc: QcCheckpoint) => Promise<void>
+  onFail: (qc: QcCheckpoint) => Promise<void>
+  onRework: (orderId: string) => Promise<void>
+  loading: boolean
+}) {
   const cfg = QC_CFG[qc.status]
+  const canInit = !qc.inspector
+  const canPassFail = qc.status === 'PENDING' || qc.status === 'REWORK'
+  const canRework = qc.status === 'FAILED'
+
   return (
     <div className="glass rounded-xl p-4 flex items-center justify-between gap-4">
       <div className="flex-1 min-w-0">
@@ -197,16 +184,55 @@ function QcRow({ qc }: { qc: QcCheckpoint }) {
           <span className="text-white/30 text-xs truncate">#{qc.orderId.slice(-8)}</span>
         </div>
         <p className="text-white/50 text-xs mt-1 truncate">
-          Inspector: {qc.inspector.fullName ?? qc.inspector.email}
+          Inspector: {qc.inspector?.fullName ?? qc.inspector?.email ?? 'Chưa nhận QC'}
         </p>
         {qc.failReason && (
           <p className="text-red-400/70 text-xs mt-0.5 truncate">{qc.failReason}</p>
         )}
       </div>
-      <div className="text-right">
+      <div className="text-right space-y-2">
         <p className="text-white/30 text-xs">
           {new Date(qc.createdAt).toLocaleDateString('vi-VN')}
         </p>
+        <div className="flex items-center justify-end gap-2">
+          {canInit && (
+            <button
+              disabled={loading}
+              onClick={() => onInit(qc.orderId)}
+              className="px-2.5 py-1.5 rounded-lg text-xs text-indigo-300 bg-indigo-500/15 border border-indigo-500/25 disabled:opacity-50"
+            >
+              Nhận QC
+            </button>
+          )}
+          {canPassFail && (
+            <>
+              <button
+                disabled={loading}
+                onClick={() => onPass(qc)}
+                className="px-2.5 py-1.5 rounded-lg text-xs text-emerald-300 bg-emerald-500/15 border border-emerald-500/25 disabled:opacity-50"
+              >
+                Đạt
+              </button>
+              <button
+                disabled={loading}
+                onClick={() => onFail(qc)}
+                className="px-2.5 py-1.5 rounded-lg text-xs text-red-300 bg-red-500/15 border border-red-500/25 disabled:opacity-50"
+              >
+                Không đạt
+              </button>
+            </>
+          )}
+          {canRework && (
+            <button
+              disabled={loading}
+              onClick={() => onRework(qc.orderId)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-orange-300 bg-orange-500/15 border border-orange-500/25 disabled:opacity-50"
+            >
+              <Wrench size={12} />
+              Rework
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -226,6 +252,9 @@ export default function AdminFulfillmentPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+
+  const refreshCooldownRef = useRef(false)
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -251,6 +280,36 @@ export default function AdminFulfillmentPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  const handleStreamEvent = useCallback((event: AdminStreamEvent) => {
+    if (event.type !== 'SLA_WARNING' && event.type !== 'SLA_BREACH') {
+      return
+    }
+
+    const orderId = event.data.orderId
+    if (!orderId) return
+
+    const message = event.type === 'SLA_BREACH'
+      ? `Đơn #${orderId.slice(-8)} vừa vi phạm SLA`
+      : `Đơn #${orderId.slice(-8)} sắp tới hạn SLA`
+
+    if (event.type === 'SLA_BREACH') {
+      toast.error(message)
+    } else {
+      toast.warning(message)
+    }
+
+    if (!refreshCooldownRef.current) {
+      refreshCooldownRef.current = true
+      loadData(true)
+      setTimeout(() => {
+        refreshCooldownRef.current = false
+      }, 2000)
+    }
+  }, [loadData])
+
+  const streamOptions = useMemo(() => ({ onEvent: handleStreamEvent }), [handleStreamEvent])
+  useAdminStream(streamOptions)
+
   const handleToggleCarrier = async (id: string, active: boolean) => {
     const updated = await adminService.toggleCarrier(id, active)
     setCarriers(prev => prev.map(c => c.id === updated.id ? updated : c))
@@ -259,6 +318,65 @@ export default function AdminFulfillmentPage() {
   const handleDeleteRule = async (id: string) => {
     await adminService.deleteFulfillmentRule(id)
     setRules(prev => prev.filter(r => r.id !== id))
+  }
+
+  const withActionLoading = async (orderId: string, action: () => Promise<void>) => {
+    setActionLoading((prev) => ({ ...prev, [orderId]: true }))
+    try {
+      await action()
+      await loadData(true)
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Thao tác QC thất bại, vui lòng thử lại.'
+      toast.error(message)
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [orderId]: false }))
+    }
+  }
+
+  const handleInitQc = async (orderId: string) => {
+    await withActionLoading(orderId, async () => {
+      await adminService.initQc(orderId)
+      toast.success(`Đã nhận QC cho đơn #${orderId.slice(-8)}`)
+    })
+  }
+
+  const handlePassQc = async (qc: QcCheckpoint) => {
+    const checklist = (qc.checklist?.length ? qc.checklist : DEFAULT_QC_CHECKLIST).map(
+      (item) => ({ ...item, passed: true })
+    )
+
+    await withActionLoading(qc.orderId, async () => {
+      await adminService.passQc(qc.orderId, {
+        checklist,
+      })
+      toast.success(`QC đạt cho đơn #${qc.orderId.slice(-8)}`)
+    })
+  }
+
+  const handleFailQc = async (qc: QcCheckpoint) => {
+    const sourceChecklist = qc.checklist?.length
+      ? qc.checklist
+      : DEFAULT_QC_CHECKLIST
+    const checklist = sourceChecklist.map((item, idx) => ({
+      ...item,
+      passed: idx === 0 ? false : true
+    }))
+
+    await withActionLoading(qc.orderId, async () => {
+      await adminService.failQc(qc.orderId, {
+        checklist,
+        failReason: 'Không đạt tiêu chuẩn đóng gói',
+      })
+      toast.warning(`QC không đạt cho đơn #${qc.orderId.slice(-8)}`)
+    })
+  }
+
+  const handleReworkQc = async (orderId: string) => {
+    await withActionLoading(orderId, async () => {
+      await adminService.reworkQc(orderId, 'Yêu cầu xử lý lại tại kho')
+      toast.success(`Đã chuyển sang rework cho đơn #${orderId.slice(-8)}`)
+    })
   }
 
   // Stats summary
@@ -384,7 +502,17 @@ export default function AdminFulfillmentPage() {
             </div>
           ) : (
             <div className="grid gap-3">
-              {qcList.map(qc => <QcRow key={qc.id} qc={qc} />)}
+              {qcList.map((qc) => (
+                <QcRow
+                  key={qc.id}
+                  qc={qc}
+                  loading={Boolean(actionLoading[qc.orderId])}
+                  onInit={handleInitQc}
+                  onPass={handlePassQc}
+                  onFail={handleFailQc}
+                  onRework={handleReworkQc}
+                />
+              ))}
             </div>
           )}
         </div>
