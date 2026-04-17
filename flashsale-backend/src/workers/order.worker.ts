@@ -137,18 +137,117 @@ export class OrderWorker implements OnModuleInit {
     const luaExecUs = Number(process.hrtime.bigint() - luaStart) / 1000
 
     if (remaining === -2) {
-      // Stock key không tìm thấy trong Redis — thường xảy ra khi:
-      // 1. Campaign stock chưa được pre-load vào Redis (initialization chưa chạy)
-      // 2. Redis bị restart và chưa được restore
-      // Rollback: hoàn trả purchase counter để user không bị "khóa" quota
-      await this.redis.decrementPurchaseCount(
-        campaignProductId,
-        userId,
-        quantity
+      // Stock key không tìm thấy trong Redis — xảy ra khi:
+      // 1. Redis bị restart trong lúc campaign đang chạy (key bị mất)
+      // 2. Campaign stock chưa được pre-load (hiếm — scheduler thường xử lý trước)
+      //
+      // Recovery flow: tái tạo key từ DB thay vì trả SOLD_OUT ngay lập tức.
+      // Công thức: stock_thực_tế = saleQuantity - Σquantity(HOLDING + PAID reservations)
+      // Dùng SET NX để race-safe: chỉ worker đầu tiên set được, worker khác retry DECR bình thường.
+      this.logger.warn(
+        `Stock key missing for product ${campaignProductId} — attempting Redis recovery from DB`
       )
-      const result = { status: 'SOLD_OUT', reason: 'Chiến dịch chưa bắt đầu' }
-      await this.saveResult(requestId, idempotencyKey, result)
-      return
+
+      try {
+        // Lấy saleQuantity và tổng quantity đã "chiếm giữ" từ DB
+        const [campaignProduct, activeQuantity] = await Promise.all([
+          this.reservationRepository.findCampaignProductById(campaignProductId),
+          this.reservationRepository.sumActiveQuantityByCampaignProduct(
+            campaignProductId
+          )
+        ])
+
+        if (!campaignProduct) {
+          // Sản phẩm không tồn tại trong DB — không thể phục hồi
+          await this.redis.decrementPurchaseCount(
+            campaignProductId,
+            userId,
+            quantity
+          )
+          await this.saveResult(requestId, idempotencyKey, {
+            status: 'SOLD_OUT',
+            reason: 'Sản phẩm không tồn tại'
+          })
+          return
+        }
+
+        const recoveredStock = Math.max(
+          0,
+          campaignProduct.saleQuantity - activeQuantity
+        )
+
+        if (recoveredStock <= 0) {
+          // Tất cả hàng đã được reserve — không cần restore key, báo SOLD_OUT
+          await this.redis.decrementPurchaseCount(
+            campaignProductId,
+            userId,
+            quantity
+          )
+          await this.saveResult(requestId, idempotencyKey, {
+            status: 'SOLD_OUT',
+            reason: 'Sản phẩm đã hết hàng'
+          })
+          return
+        }
+
+        // Tái tạo key bằng SET NX — race-safe, chỉ 1 worker set được
+        const wasSet = await this.redis.initStockIfMissing(
+          campaignProductId,
+          recoveredStock
+        )
+        this.logger.log(
+          `Stock key recovered for ${campaignProductId}: ${recoveredStock} units (${
+            wasSet ? 'set by this worker' : 'already set by another worker'
+          })`
+        )
+
+        // Retry DECR sau khi key đã được phục hồi (bởi worker này hoặc worker khác)
+        const retryRemaining = await this.redis.decrementStock(
+          campaignProductId,
+          quantity
+        )
+
+        if (retryRemaining < 0) {
+          // Không còn hàng sau recovery
+          await this.redis.decrementPurchaseCount(
+            campaignProductId,
+            userId,
+            quantity
+          )
+          await this.saveResult(requestId, idempotencyKey, {
+            status: 'SOLD_OUT',
+            reason: 'Sản phẩm đã hết hàng'
+          })
+          return
+        }
+
+        // Thành công — tiếp tục flow tạo reservation bên dưới với retryRemaining
+        // Ghi đè biến `remaining` để code phía dưới dùng giá trị đúng
+        // Dùng block scope để tránh reassign const — xem xử lý bên dưới
+        return await this.handleSuccessfulDecrement(
+          retryRemaining,
+          job,
+          isFinalAttempt,
+          luaExecUs
+        )
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : 'Lỗi không xác định'
+        this.logger.error(
+          `Stock recovery failed for ${campaignProductId}: ${message}`
+        )
+        // Recovery thất bại — hoàn trả counter và báo lỗi tạm thời
+        await this.redis.decrementPurchaseCount(
+          campaignProductId,
+          userId,
+          quantity
+        )
+        await this.saveResult(requestId, idempotencyKey, {
+          status: 'SOLD_OUT',
+          reason: 'Lỗi hệ thống, vui lòng thử lại'
+        })
+        return
+      }
     }
 
     if (remaining < 0) {
@@ -166,11 +265,43 @@ export class OrderWorker implements OnModuleInit {
       return
     }
 
+    // remaining >= 0 → DECR thành công, tiếp tục flow tạo reservation
+    await this.handleSuccessfulDecrement(
+      remaining,
+      job,
+      isFinalAttempt,
+      luaExecUs
+    )
+  }
+
+  /**
+   * handleSuccessfulDecrement — Xử lý sau khi DECR stock thành công (remaining >= 0).
+   *
+   * Được gọi từ:
+   * 1. Normal flow — DECR trực tiếp thành công
+   * 2. Recovery flow — DECR sau khi khôi phục Redis key từ DB
+   *
+   * Bao gồm: audit log, tạo reservation, lưu kết quả, publish dashboard update.
+   *
+   * @param remaining    - Số tồn kho còn lại sau DECR
+   * @param job          - Job đang xử lý
+   * @param isFinalAttempt - true nếu đây là lần thử cuối (tối đa retry)
+   * @param luaExecUs    - Thời gian thực thi Lua DECR (microseconds) cho audit log
+   */
+  private async handleSuccessfulDecrement(
+    remaining: number,
+    job: OrderJob,
+    isFinalAttempt: boolean,
+    luaExecUs: number
+  ): Promise<void> {
+    const { requestId, userId, campaignProductId, quantity, idempotencyKey } =
+      job
+
     // [Step 1b] Record audit log for successful DECR (fire-and-forget, không await throw)
     void this.stockAudit.record({
       productId: campaignProductId,
       delta: -quantity,
-      stockBefore: remaining + quantity, // approximate (Lua atomic, exact value)
+      stockBefore: remaining + quantity,
       stockAfter: remaining,
       reason: 'PURCHASE',
       referenceId: requestId,
@@ -180,14 +311,9 @@ export class OrderWorker implements OnModuleInit {
     })
 
     // [Step 2] Stock decrement thành công — tạo Reservation.
-    // Tại thời điểm này, stock đã được "reserved" trong Redis cho user này.
-    // Phải tạo Reservation record ngay lập tức để track việc giữ chỗ này.
-    // reservationId được generate ở Worker (không phải Gateway) để tách biệt concerns.
     const reservationId = createId()
 
     try {
-      // [Step 2a] Tạo reservation (write Redis + DB, theo thứ tự Redis-first).
-      // Chi tiết về thứ tự write và rationale xem ReservationService.createReservation().
       await this.reservationService.createReservation({
         id: reservationId,
         customerId: userId,
@@ -196,10 +322,7 @@ export class OrderWorker implements OnModuleInit {
         idempotencyKey
       })
     } catch (err: unknown) {
-      // [Rollback] Reservation creation thất bại sau khi đã decrement stock.
-      // Phải INCR stock lại ngay để tránh phantom sold-out.
-      // Chỉ ghi kết quả FAIL khi là lần thử cuối cùng. Nếu chưa hết retry mà ghi SOLD_OUT
-      // sớm, client có thể thấy trạng thái sai dù lần retry sau thành công.
+      // [Rollback] Reservation creation thất bại → INCR stock lại để tránh phantom sold-out.
       const message = err instanceof Error ? err.message : 'Lỗi không xác định'
       this.logger.error(
         `Failed to create reservation for requestId=${requestId}: ${message}`
@@ -207,28 +330,22 @@ export class OrderWorker implements OnModuleInit {
       await this.redis.incrementStock(campaignProductId, quantity)
 
       if (isFinalAttempt) {
-        // Final fail: hoàn trả counter để user có thể retry với request mới,
-        // sau đó lưu kết quả cuối cùng cho polling API.
         await this.redis.decrementPurchaseCount(
           campaignProductId,
           userId,
           quantity
         )
-
-        const result = {
+        await this.saveResult(requestId, idempotencyKey, {
           status: 'SOLD_OUT',
           reason: 'Lỗi hệ thống, vui lòng thử lại'
-        }
-        await this.saveResult(requestId, idempotencyKey, result)
+        })
         return
       }
 
-      throw err // let RabbitMQ republish for retry
+      throw err
     }
 
-    // [Step 2b] Tính thời gian hết hạn và write kết quả RESERVED cho client poll.
-    // Lưu ý: từ thời điểm reservation đã tạo thành công, KHÔNG rollback stock nữa.
-    // Các bước sau là side-effects và phải fail-safe.
+    // [Step 2b] Lưu kết quả RESERVED để client poll được
     const expiredAt = new Date(Date.now() + 10 * 60 * 1000)
     const result = {
       status: 'RESERVED',
@@ -245,8 +362,7 @@ export class OrderWorker implements OnModuleInit {
       )
     }
 
-    // [Step 2c] Publish event lên Redis Pub/Sub để dashboard cập nhật real-time.
-    // Lỗi publish không được ảnh hưởng business state đã commit.
+    // [Step 2c] Publish event lên Redis Pub/Sub để dashboard cập nhật real-time
     try {
       await this.publishDashboardUpdate(campaignProductId, remaining)
     } catch (err: unknown) {

@@ -63,6 +63,30 @@ export class ReservationRepository {
     })
   }
 
+  /**
+   * Đếm tổng số lượng hàng đã được "chiếm giữ" bởi reservation đang hoạt động.
+   *
+   * Dùng để phục hồi Redis stock key khi bị mất (Redis restart, key expire).
+   * Công thức: stock_thực_tế = saleQuantity - sumActiveQuantity
+   *
+   * Active = HOLDING (đang giữ chỗ chờ thanh toán) + PAID (đã thanh toán xong).
+   * EXPIRED và các trạng thái khác không tính — hàng đã được hoàn lại.
+   *
+   * @returns Tổng quantity của tất cả reservation HOLDING + PAID
+   */
+  async sumActiveQuantityByCampaignProduct(
+    campaignProductId: string
+  ): Promise<number> {
+    const result = await this.prisma.reservation.aggregate({
+      where: {
+        campaignProductId,
+        status: { in: [ReservationStatus.HOLDING, ReservationStatus.PAID] }
+      },
+      _sum: { quantity: true }
+    })
+    return result._sum.quantity ?? 0
+  }
+
   /** fallback khi Redis key mất — lấy dữ liệu reservation từ DB để restore stock */
   async findWithCampaignProductById(reservationId: string) {
     return this.prisma.reservation.findUnique({

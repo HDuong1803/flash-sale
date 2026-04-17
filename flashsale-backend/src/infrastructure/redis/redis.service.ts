@@ -89,6 +89,28 @@ export class RedisService {
     await this._redisClient.set(`stock:${campaignProductId}`, quantity)
   }
 
+  /**
+   * Phục hồi Redis stock key chỉ khi key chưa tồn tại (SET NX = Set if Not eXists).
+   *
+   * Tại sao dùng SET NX thay vì SET thông thường?
+   * - Khi Redis restart, nhiều OrderWorker có thể cùng phát hiện key bị mất (-2) đồng thời
+   * - SET NX đảm bảo chỉ 1 worker thắng và set giá trị — worker khác SET NX fail rồi retry DECR bình thường
+   * - Nếu dùng SET thông thường: worker A set=15, worker B ngay sau set=15 → mất mát concurrent update
+   *
+   * @returns true nếu set thành công (key chưa tồn tại), false nếu key đã được worker khác tạo trước
+   */
+  async initStockIfMissing(
+    campaignProductId: string,
+    quantity: number
+  ): Promise<boolean> {
+    const result = await this._redisClient.set(
+      `stock:${campaignProductId}`,
+      quantity,
+      'NX' // SET NX: chỉ set nếu key chưa tồn tại
+    )
+    return result === 'OK'
+  }
+
   async getStock(campaignProductId: string): Promise<number | null> {
     const val = await this._redisClient.get(`stock:${campaignProductId}`)
     return val !== null ? parseInt(val) : null
