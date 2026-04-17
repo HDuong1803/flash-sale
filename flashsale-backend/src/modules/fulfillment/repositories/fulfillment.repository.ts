@@ -235,6 +235,67 @@ export class FulfillmentRepository {
   }
 
   /**
+   * findPendingQcOrders — Tìm FulfillmentOrders đang AWAITING/ADDRESS_ISSUE cần xử lý.
+   *
+   * Trả về cả orders chưa có QC checkpoint lẫn orders đang trong QC (PENDING/REWORK).
+   * @param merchantUserId - nếu có → chỉ trả về orders của merchant đó; không có → tất cả (Admin)
+   */
+  async findPendingQcOrders(merchantUserId?: string): Promise<
+    Array<{
+      orderId: string
+      fulfillStatus: FulfillmentStatus
+      slaDeadline: Date | null
+      slaBreached: boolean
+      carrier: { code: string; displayName: string } | null
+      order: {
+        totalAmount: { toString(): string }
+        createdAt: Date
+        _count: { items: number }
+        qcCheckpoint: {
+          status: string
+          inspector: {
+            id: string
+            email: string
+            fullName: string | null
+          } | null
+        } | null
+      }
+    }>
+  > {
+    return this.prisma.fulfillmentOrder.findMany({
+      where: {
+        fulfillStatus: {
+          in: [FulfillmentStatus.AWAITING, FulfillmentStatus.ADDRESS_ISSUE]
+        },
+        ...(merchantUserId
+          ? { order: { merchant: { userId: merchantUserId } } }
+          : {})
+      },
+      select: {
+        orderId: true,
+        fulfillStatus: true,
+        slaDeadline: true,
+        slaBreached: true,
+        carrier: { select: { code: true, displayName: true } },
+        order: {
+          select: {
+            totalAmount: true,
+            createdAt: true,
+            _count: { select: { items: true } },
+            qcCheckpoint: {
+              select: {
+                status: true,
+                inspector: { select: { id: true, email: true, fullName: true } }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    })
+  }
+
+  /**
    * findBreachedOrders — Tìm orders đã vi phạm SLA (deadline < now) chưa được mark.
    * Dùng bởi SLA scheduler để mark và alert.
    */

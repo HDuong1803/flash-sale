@@ -260,3 +260,61 @@ export class ToggleCarrierDto {
   @IsBoolean()
   active: boolean
 }
+
+// ─── Pending QC ───────────────────────────────────────────────────────────────
+
+class PendingQcOrderInfoDto {
+  @ApiProperty({ description: 'Tổng giá trị đơn (USD)' })
+  totalAmount: number
+
+  @ApiProperty({ description: 'Thời điểm tạo đơn' })
+  createdAt: string
+
+  @ApiProperty({ description: 'Số lượng sản phẩm trong đơn' })
+  itemCount: number
+}
+
+class PendingQcInspectorDto {
+  @ApiProperty() id: string
+  @ApiProperty() email: string
+  @ApiProperty({ required: false }) fullName: string | null
+}
+
+export class PendingQcOrderResponseDto {
+  @ApiProperty({ description: 'ID đơn hàng' })
+  orderId: string
+
+  @ApiProperty({
+    description: 'Trạng thái fulfillment',
+    enum: FulfillmentStatus
+  })
+  fulfillStatus: FulfillmentStatus
+
+  @ApiProperty({ description: 'SLA deadline', required: false })
+  slaDeadline: string | null
+
+  @ApiProperty({ description: 'SLA đã bị vi phạm' })
+  slaBreached: boolean
+
+  @ApiProperty({ description: 'Carrier được assign', required: false })
+  carrier: { code: string; displayName: string } | null
+
+  @ApiProperty({
+    description: 'Trạng thái QC checkpoint (null = chưa tạo)',
+    required: false
+  })
+  qcStatus: string | null
+
+  @ApiProperty({
+    description: 'Inspector đang xử lý QC',
+    required: false,
+    type: PendingQcInspectorDto
+  })
+  qcInspector: PendingQcInspectorDto | null
+
+  @ApiProperty({
+    description: 'Thông tin đơn hàng',
+    type: PendingQcOrderInfoDto
+  })
+  order: PendingQcOrderInfoDto
+}

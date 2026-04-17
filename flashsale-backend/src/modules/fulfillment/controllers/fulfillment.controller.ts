@@ -40,6 +40,7 @@ import {
   CreateFulfillmentRuleDto,
   FulfillmentOrderResponseDto,
   FulfillmentRuleResponseDto,
+  PendingQcOrderResponseDto,
   ToggleCarrierDto
 } from '../dto/fulfillment.dto'
 
@@ -59,6 +60,56 @@ export class FulfillmentController {
   ) {}
 
   // ─── Fulfillment Order ─────────────────────────────────────────────────────
+
+  /**
+   * GET /fulfillment/orders/pending-qc
+   *
+   * Trả về danh sách FulfillmentOrders đang AWAITING/ADDRESS_ISSUE cần xử lý QC.
+   * ADMIN: tất cả đơn; MERCHANT: chỉ đơn của merchant đó.
+   *
+   * Route tĩnh PHẢI đặt trước route động `:orderId` để NestJS không nhầm
+   * "pending-qc" là một orderId.
+   */
+  @ApiOperation({
+    summary: 'Danh sách đơn cần xử lý fulfillment/QC (ADMIN/MERCHANT)'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Danh sách đơn chờ xử lý',
+    type: [PendingQcOrderResponseDto]
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN', 'MERCHANT')
+  @Get('orders/pending-qc')
+  @HttpCode(HttpStatus.OK)
+  async getPendingQcOrders(
+    @CurrentUser() user: AuthUser
+  ): Promise<PendingQcOrderResponseDto[]> {
+    const merchantUserId = user.role === 'MERCHANT' ? user.userId : undefined
+    const rows = await this.fulfillmentRepo.findPendingQcOrders(merchantUserId)
+
+    return rows.map(r => ({
+      orderId: r.orderId,
+      fulfillStatus: r.fulfillStatus,
+      slaDeadline: r.slaDeadline?.toISOString() ?? null,
+      slaBreached: r.slaBreached,
+      carrier: r.carrier
+        ? { code: r.carrier.code, displayName: r.carrier.displayName }
+        : null,
+      qcStatus: r.order.qcCheckpoint?.status ?? null,
+      qcInspector: r.order.qcCheckpoint?.inspector ?? null,
+      order: {
+        totalAmount: parseFloat(r.order.totalAmount.toString()),
+        createdAt: r.order.createdAt.toISOString(),
+        itemCount: r.order._count.items
+      }
+    }))
+  }
 
   @ApiOperation({ summary: 'Lấy trạng thái fulfillment của một đơn hàng' })
   @ApiParam({ name: 'orderId', description: 'ID đơn hàng' })
