@@ -42,7 +42,6 @@ export interface PriceUpdatePayload {
 
 /** Instance Socket.IO duy nhất, lazy-initialized */
 let socket: Socket | null = null
-
 /**
  * Lấy hoặc tạo mới Socket.IO connection.
  * Nếu đã có instance và đang connected → trả về ngay.

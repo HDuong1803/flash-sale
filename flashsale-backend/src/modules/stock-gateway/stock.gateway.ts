@@ -71,7 +71,10 @@ const campaignRoom = (campaignId: string) => `campaign:${campaignId}`
  */
 @WebSocketGateway({
   cors: {
-    origin: '*', // Frontend URL được cấu hình qua FRONTEND_URL env
+    // Dùng origin: true để phản chiếu lại origin của request thay vì dùng '*'
+    // Lý do: `origin: '*'` + `credentials: true` bị browser từ chối theo CORS spec
+    // origin: true → header `Access-Control-Allow-Origin` = origin thực của request
+    origin: true,
     credentials: true
   },
   namespace: '/ws', // Socket.IO namespace để tránh xung đột với HTTP routes
