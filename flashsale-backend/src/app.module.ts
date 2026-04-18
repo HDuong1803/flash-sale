@@ -22,6 +22,7 @@ import { PricingModule } from '@modules/pricing/pricing.module'
 import { AnalyticsModule } from '@modules/analytics/analytics.module'
 import { StockGatewayModule } from '@modules/stock-gateway/stock-gateway.module'
 import { FulfillmentModule } from '@modules/fulfillment/fulfillment.module'
+import { DemoModule } from '@modules/demo/demo.module'
 
 import { CommonModule } from './common'
 import { configuration } from './config'
@@ -68,7 +69,8 @@ import {
     PricingModule,
     AnalyticsModule,
     StockGatewayModule,
-    FulfillmentModule
+    FulfillmentModule,
+    DemoModule
   ]
 })
 export class AppModule implements NestModule {

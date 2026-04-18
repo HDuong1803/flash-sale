@@ -26,6 +26,7 @@
     "prisma:db": "npx prisma db push --preview-feature",
     "prisma:studio": "prisma studio",
     "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts",
+    "seed:historical": "ts-node -r tsconfig-paths/register prisma/seed-historical.ts",
     "seed:plans": "ts-node prisma/seed-subscription-plans.ts",
     "migrate:users": "ts-node prisma/migrations/migrate-users-from-old-db.ts",
     "migrate:users:test": "ts-node prisma/migrations/test-migration.ts",

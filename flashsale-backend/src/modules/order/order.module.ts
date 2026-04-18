@@ -17,6 +17,11 @@ import { FraudModule } from '@modules/fraud/fraud.module'
     StockAuditRepository,
     PurchaseRateLimitGuard
   ],
-  exports: [OrderRepository, StockAuditService, StockAuditRepository]
+  exports: [
+    OrderRepository,
+    StockAuditService,
+    StockAuditRepository,
+    OrderGatewayService
+  ]
 })
 export class OrderModule {}
