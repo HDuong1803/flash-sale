@@ -153,9 +153,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
                   <span className="text-white">{order.payment.method}</span>
                 </div>
                 {order.payment.transactionId && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-white/50">Mã giao dịch</span>
-                    <span className="text-white font-mono text-xs">{order.payment.transactionId}</span>
+                  <div className="space-y-1.5 text-sm">
+                    <span className="text-white/50 block">Mã giao dịch</span>
+                    <code
+                      className="text-white/80 font-mono text-xs break-all bg-white/5 rounded-lg px-3 py-2 block leading-relaxed"
+                      title={order.payment.transactionId}
+                    >
+                      {order.payment.transactionId}
+                    </code>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">

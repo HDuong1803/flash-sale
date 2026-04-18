@@ -437,11 +437,11 @@ export default function AdminPricingPage() {
                             ? <TrendingUp size={12} />
                             : <TrendingDown size={12} />
                           }
-                          {entry.changePct > 0 ? '+' : ''}{entry.changePct.toFixed(1)}%
+                          {(entry.changePct ?? 0) > 0 ? '+' : ''}{(entry.changePct ?? 0).toFixed(1)}%
                         </span>
                       </td>
                       <td className="px-4 py-3 text-white/50 text-xs">
-                        {entry.stockAtChange.toLocaleString()}
+                        {entry.stockAtChange != null ? entry.stockAtChange.toLocaleString() : '—'}
                       </td>
                       <td className="px-4 py-3 text-white/50 text-xs max-w-40 truncate" title={entry.reason}>
                         {entry.reason}
