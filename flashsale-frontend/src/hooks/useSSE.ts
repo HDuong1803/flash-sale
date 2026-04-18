@@ -36,35 +36,53 @@ type DashboardStreamEvent =
   | DashboardOrderConfirmedEvent
   | DashboardHeartbeatEvent
 
+interface CampaignMetricsState {
+  campaignId: string
+  metrics: DashboardMetrics
+}
+
 export function useSSE(campaignId: string | null) {
-  const [data, setData] = useState<DashboardMetrics | null>(null)
+  const [dataState, setDataState] = useState<CampaignMetricsState | null>(null)
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const esRef = useRef<EventSource | null>(null)
   const retriesRef = useRef(0)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const activeConnectionTokenRef = useRef<symbol | null>(null)
   const mountedRef = useRef(true)
-  const orderTimestampsRef = useRef<number[]>([])
+  const orderTimestampsByCampaignRef = useRef<Record<string, number[]>>({})
 
   useEffect(() => {
     if (!campaignId) return
     mountedRef.current = true
+    retriesRef.current = 0
+    setConnected(false)
+    setError(null)
 
-    const getOrdersPerSecond = (): number => {
+    const connectionToken = Symbol(`sse-${campaignId}`)
+    activeConnectionTokenRef.current = connectionToken
+
+    const getOrdersPerSecond = (targetCampaignId: string): number => {
       const now = Date.now()
-      orderTimestampsRef.current = orderTimestampsRef.current.filter(
+      const timestamps =
+        orderTimestampsByCampaignRef.current[targetCampaignId] ?? []
+      const filtered = timestamps.filter(
         (ts) => now - ts <= ORDERS_PER_SECOND_WINDOW_MS
       )
-      return orderTimestampsRef.current.length / (ORDERS_PER_SECOND_WINDOW_MS / 1000)
+      orderTimestampsByCampaignRef.current[targetCampaignId] = filtered
+      return filtered.length / (ORDERS_PER_SECOND_WINDOW_MS / 1000)
     }
 
     const ticker = setInterval(() => {
       if (!mountedRef.current) return
-      setData((prev) => {
-        if (!prev) return prev
+      setDataState((prev) => {
+        if (!prev || prev.campaignId !== campaignId) return prev
         return {
-          ...prev,
-          ordersPerSecond: getOrdersPerSecond()
+          campaignId,
+          metrics: {
+            ...prev.metrics,
+            ordersPerSecond: getOrdersPerSecond(campaignId)
+          }
         }
       })
     }, 1000)
@@ -75,14 +93,26 @@ export function useSSE(campaignId: string | null) {
       esRef.current = es
 
       es.onopen = () => {
-        if (!mountedRef.current) return
+        if (
+          !mountedRef.current ||
+          activeConnectionTokenRef.current !== connectionToken ||
+          esRef.current !== es
+        ) {
+          return
+        }
         setConnected(true)
         setError(null)
         retriesRef.current = 0
       }
 
       es.onmessage = (e) => {
-        if (!mountedRef.current) return
+        if (
+          !mountedRef.current ||
+          activeConnectionTokenRef.current !== connectionToken ||
+          esRef.current !== es
+        ) {
+          return
+        }
         try {
           const event = JSON.parse(e.data) as DashboardStreamEvent
           if (event.type === 'heartbeat') return
@@ -100,50 +130,71 @@ export function useSSE(campaignId: string | null) {
                 ? (successOrders / totalReservations) * 100
                 : 0)
 
-            setData({
-              stockRemaining,
-              stockTotal,
-              totalOrders,
-              successOrders,
-              totalReservations,
-              revenue: event.revenue ?? 0,
-              conversionRate,
-              queueDepth: event.queueDepth ?? 0,
-              ordersPerSecond: getOrdersPerSecond(),
+            setDataState({
+              campaignId,
+              metrics: {
+                stockRemaining,
+                stockTotal,
+                totalOrders,
+                successOrders,
+                totalReservations,
+                revenue: event.revenue ?? 0,
+                conversionRate,
+                queueDepth: event.queueDepth ?? 0,
+                ordersPerSecond: getOrdersPerSecond(campaignId)
+              }
             })
             return
           }
 
           if (event.type === 'STOCK_UPDATE') {
-            setData(prev => prev ? {
-              ...prev,
-              stockRemaining: event.stockRemaining ?? prev.stockRemaining,
-              stockTotal: event.stockTotal ?? prev.stockTotal,
-            } : prev)
+            setDataState(prev => {
+              if (!prev || prev.campaignId !== campaignId) return prev
+              return {
+                campaignId,
+                metrics: {
+                  ...prev.metrics,
+                  stockRemaining:
+                    event.stockRemaining ?? prev.metrics.stockRemaining,
+                  stockTotal: event.stockTotal ?? prev.metrics.stockTotal
+                }
+              }
+            })
             return
           }
 
           if (event.type === 'ORDER_CONFIRMED') {
             const now = Date.now()
-            orderTimestampsRef.current = [...orderTimestampsRef.current, now]
-            const currentOps = getOrdersPerSecond()
+            const currentTimestamps =
+              orderTimestampsByCampaignRef.current[campaignId] ?? []
+            orderTimestampsByCampaignRef.current[campaignId] = [
+              ...currentTimestamps,
+              now
+            ]
+            const currentOps = getOrdersPerSecond(campaignId)
 
-            setData(prev => {
-              if (!prev) return prev
-              const nextTotalOrders = prev.totalOrders + 1
-              const nextSuccessOrders = prev.successOrders + 1
-              const nextQueueDepth = Math.max(prev.queueDepth - 1, 0)
+            setDataState(prev => {
+              if (!prev || prev.campaignId !== campaignId) return prev
+              const nextTotalOrders = prev.metrics.totalOrders + 1
+              const nextSuccessOrders = prev.metrics.successOrders + 1
+              const nextQueueDepth = Math.max(prev.metrics.queueDepth - 1, 0)
               return {
-                ...prev,
-                totalOrders: nextTotalOrders,
-                successOrders: nextSuccessOrders,
-                revenue: prev.revenue + (event.revenue ?? 0),
-                conversionRate:
-                  prev.totalReservations > 0
-                    ? (nextSuccessOrders / prev.totalReservations) * 100
-                    : 0,
-                queueDepth: nextQueueDepth,
-                ordersPerSecond: currentOps,
+                campaignId,
+                metrics: {
+                  ...prev.metrics,
+                  totalOrders: nextTotalOrders,
+                  successOrders: nextSuccessOrders,
+                  revenue: prev.metrics.revenue + (event.revenue ?? 0),
+                  conversionRate:
+                    prev.metrics.totalReservations > 0
+                      ?
+                          (nextSuccessOrders /
+                            prev.metrics.totalReservations) *
+                          100
+                      : 0,
+                  queueDepth: nextQueueDepth,
+                  ordersPerSecond: currentOps
+                }
               }
             })
             return
@@ -156,9 +207,18 @@ export function useSSE(campaignId: string | null) {
       }
 
       es.onerror = () => {
-        if (!mountedRef.current) return
+        if (
+          !mountedRef.current ||
+          activeConnectionTokenRef.current !== connectionToken ||
+          esRef.current !== es
+        ) {
+          return
+        }
         setConnected(false)
         es.close()
+        if (esRef.current === es) {
+          esRef.current = null
+        }
         if (retriesRef.current < 3) {
           retriesRef.current++
           setError(`Đang kết nối lại... (${retriesRef.current}/3)`)
@@ -177,9 +237,17 @@ export function useSSE(campaignId: string | null) {
       clearTimeout(retryTimerRef.current)
       esRef.current?.close()
       esRef.current = null
-      orderTimestampsRef.current = []
+      if (activeConnectionTokenRef.current === connectionToken) {
+        activeConnectionTokenRef.current = null
+      }
+      delete orderTimestampsByCampaignRef.current[campaignId]
     }
   }, [campaignId])
+
+  const data =
+    campaignId && dataState?.campaignId === campaignId
+      ? dataState.metrics
+      : null
 
   return { data, connected, error }
 }

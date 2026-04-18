@@ -24,26 +24,58 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
   const { data: campaign } = useCampaign(id)
   const { data: myCampaigns } = useMyCampaigns()
   const { data: metrics, connected, error } = useSSE(id)
-  const [orderHistory, setOrderHistory] = useState<LiveOrder[]>([])
-  const [opsHistory, setOpsHistory] = useState<number[]>(Array(30).fill(0))
-  const prevMetrics = useRef<DashboardMetrics | null>(null)
+  const [orderHistoryByCampaign, setOrderHistoryByCampaign] = useState<Record<string, LiveOrder[]>>({})
+  const [opsHistoryByCampaign, setOpsHistoryByCampaign] = useState<Record<string, number[]>>({})
+  const prevMetricsByCampaign = useRef<Record<string, DashboardMetrics | null>>({})
+
+  const orderHistory = orderHistoryByCampaign[id] ?? []
+  const opsHistory = opsHistoryByCampaign[id] ?? Array(30).fill(0)
 
   useEffect(() => {
     if (!metrics) return
     setTimeout(() => {
-      setOpsHistory((prev) => [...prev.slice(1), metrics.ordersPerSecond])
-      if (metrics.totalOrders > (prevMetrics.current?.totalOrders ?? 0)) {
-        const newOrder: LiveOrder = {
-          id: `${performance.now()}`,
-          customer: `Nguyễn ***`,
-          qty: 1,
-          time: new Date().toLocaleTimeString('vi-VN'),
+      setOpsHistoryByCampaign((prev) => {
+        const currentSeries = prev[id] ?? Array(30).fill(0)
+        return {
+          ...prev,
+          [id]: [...currentSeries.slice(1), metrics.ordersPerSecond]
         }
-        setOrderHistory((prev) => [newOrder, ...prev].slice(0, 50))
+      })
+
+      const previousMetrics = prevMetricsByCampaign.current[id]
+      if (!previousMetrics) {
+        prevMetricsByCampaign.current[id] = metrics
+        return
       }
-      prevMetrics.current = metrics
+
+      const newOrdersCount = Math.max(
+        metrics.totalOrders - previousMetrics.totalOrders,
+        0
+      )
+
+      if (newOrdersCount > 0) {
+        const nowLabel = new Date().toLocaleTimeString('vi-VN')
+        const incomingOrders: LiveOrder[] = Array.from(
+          { length: Math.min(newOrdersCount, 50) },
+          (_, index) => ({
+            id: `${performance.now()}-${index}`,
+            customer: 'Nguyễn ***',
+            qty: 1,
+            time: nowLabel,
+          })
+        )
+        setOrderHistoryByCampaign((prev) => {
+          const currentOrders = prev[id] ?? []
+          return {
+            ...prev,
+            [id]: [...incomingOrders, ...currentOrders].slice(0, 50)
+          }
+        })
+      }
+
+      prevMetricsByCampaign.current[id] = metrics
     }, 0)
-  }, [metrics])
+  }, [id, metrics])
 
   const stockRemaining = metrics?.stockRemaining ?? 0
   const stockTotal = metrics?.stockTotal ?? 1
