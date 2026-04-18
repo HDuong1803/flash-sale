@@ -97,18 +97,25 @@ export class DashboardController {
         } as MessageEvent)
       }, 30_000)
 
-      // Send initial snapshot when client connects
-      void this.getInitialSnapshot(campaignId).then(snapshot => {
-        if (snapshot) {
+      const emitSnapshot = () => {
+        void this.getInitialSnapshot(campaignId).then(snapshot => {
+          if (!snapshot) return
           observer.next({
             data: JSON.stringify({ type: 'SNAPSHOT', ...snapshot })
           } as MessageEvent)
-        }
-      })
+        })
+      }
+
+      // Send initial snapshot when client connects
+      emitSnapshot()
+
+      // Periodic snapshot để đồng bộ KPI (bao gồm các thay đổi như CANCELLED)
+      const snapshotTimer = setInterval(emitSnapshot, 20_000)
 
       // Cleanup when client disconnects
       return () => {
         clearInterval(heartbeatTimer)
+        clearInterval(snapshotTimer)
         const state = this.channelSubscribers.get(channel)
         if (state) {
           state.clients.delete(observer as Subscriber<MessageEvent>)
@@ -137,11 +144,19 @@ export class DashboardController {
         total: p.saleQuantity
       }))
 
-      const totalOrders = await this.dashboardRepository.countOrdersForCampaign(
+      const kpis = await this.dashboardRepository.getCampaignRealtimeKpis(
         campaignId
       )
 
-      return { stockValues, totalOrders }
+      return {
+        stockValues,
+        totalOrders: kpis.totalOrders,
+        successOrders: kpis.successOrders,
+        totalReservations: kpis.totalReservations,
+        revenue: kpis.totalRevenue,
+        conversionRate: kpis.conversionRate,
+        queueDepth: kpis.queueDepth
+      }
     } catch {
       return null
     }

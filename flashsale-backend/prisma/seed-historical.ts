@@ -12,7 +12,13 @@
  * Chạy: cd flashsale-backend && pnpm seed:historical
  */
 
-import { Prisma, PrismaClient } from '@prisma/client'
+import {
+  FulfillmentStatus,
+  LockStrategy,
+  Prisma,
+  PrismaClient,
+  QcStatus
+} from '@prisma/client'
 import * as bcrypt from 'bcrypt'
 import { randomUUID } from 'crypto'
 
@@ -348,6 +354,114 @@ const CAMPAIGN_TMPLS: CampaignTmpl[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// 100 tên Việt Nam thực tế (họ + tên đệm + tên)
+const VIET_NAMES = [
+  'Nguyễn Văn An',
+  'Trần Thị Bích',
+  'Lê Hoàng Cường',
+  'Phạm Thị Dung',
+  'Hoàng Minh Đức',
+  'Vũ Thị Hà',
+  'Đặng Quốc Hùng',
+  'Bùi Thị Hương',
+  'Ngô Thanh Khoa',
+  'Dương Thị Lan',
+  'Đinh Văn Long',
+  'Trịnh Thị Mai',
+  'Lý Công Minh',
+  'Phan Thị Nga',
+  'Tô Văn Phong',
+  'Hồ Thị Quỳnh',
+  'Võ Minh Sơn',
+  'Đỗ Thị Tâm',
+  'Nguyễn Văn Thắng',
+  'Trần Thị Thu',
+  'Lê Quốc Toàn',
+  'Phạm Thị Trang',
+  'Hoàng Văn Trung',
+  'Vũ Thị Tuyết',
+  'Đặng Minh Tuấn',
+  'Bùi Văn Út',
+  'Ngô Thị Vân',
+  'Dương Văn Việt',
+  'Đinh Thị Xuân',
+  'Trịnh Văn Yên',
+  'Lý Thị Ánh',
+  'Phan Văn Bảo',
+  'Tô Thị Chi',
+  'Hồ Văn Chiến',
+  'Võ Thị Duyên',
+  'Đỗ Văn Em',
+  'Nguyễn Thị Giang',
+  'Trần Văn Hải',
+  'Lê Thị Hiền',
+  'Phạm Văn Hiếu',
+  'Hoàng Thị Hoa',
+  'Vũ Văn Hoàng',
+  'Đặng Thị Huệ',
+  'Bùi Văn Hưng',
+  'Ngô Thị Khánh',
+  'Dương Văn Kiên',
+  'Đinh Thị Kim',
+  'Trịnh Văn Lâm',
+  'Lý Thị Liên',
+  'Phan Văn Linh',
+  'Tô Thị Loan',
+  'Hồ Văn Lộc',
+  'Võ Thị Lý',
+  'Đỗ Văn Mạnh',
+  'Nguyễn Thị Mỹ',
+  'Trần Văn Nam',
+  'Lê Thị Ngân',
+  'Phạm Văn Nghĩa',
+  'Hoàng Thị Nhung',
+  'Vũ Văn Ninh',
+  'Đặng Thị Nhi',
+  'Bùi Văn Quân',
+  'Ngô Thị Quyên',
+  'Dương Văn Quý',
+  'Đinh Thị Oanh',
+  'Trịnh Văn Phát',
+  'Lý Thị Phương',
+  'Phan Văn Phúc',
+  'Tô Thị Phượng',
+  'Hồ Văn Quang',
+  'Võ Thị Ry',
+  'Đỗ Văn Sang',
+  'Nguyễn Thị Sen',
+  'Trần Văn Sơn',
+  'Lê Thị Suốt',
+  'Phạm Văn Tài',
+  'Hoàng Thị Thanh',
+  'Vũ Văn Thiện',
+  'Đặng Thị Thoa',
+  'Bùi Văn Thọ',
+  'Ngô Thị Thơm',
+  'Dương Văn Thống',
+  'Đinh Thị Thúy',
+  'Trịnh Văn Thương',
+  'Lý Thị Tiên',
+  'Phan Văn Tiến',
+  'Tô Thị Tình',
+  'Hồ Văn Tùng',
+  'Võ Thị Tươi',
+  'Đỗ Văn Tứ',
+  'Nguyễn Thị Uyên',
+  'Trần Văn Vinh',
+  'Lê Thị Vui',
+  'Phạm Văn Vượng',
+  'Hoàng Thị Ý',
+  'Vũ Văn Yên',
+  'Đặng Thị Ý Nhi',
+  'Bùi Văn Đạt',
+  'Ngô Thị Đào',
+  'Dương Văn Đông'
+]
+
+function getVietName(idx: number): string {
+  return VIET_NAMES[(idx - 1) % VIET_NAMES.length]
+}
+
 function randInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
@@ -596,8 +710,10 @@ async function main(): Promise<void> {
   // 3. Tạo 2 historical merchants
   const pw = await bcrypt.hash('Test@123456', 10)
 
-  const techMerchUser = await prisma.user.create({
-    data: {
+  const techMerchUser = await prisma.user.upsert({
+    where: { email: 'hist-tech@historytech.vn' },
+    update: {},
+    create: {
       email: 'hist-tech@historytech.vn',
       fullName: 'Lịch Sử Công Nghệ',
       passwordHash: pw,
@@ -606,8 +722,10 @@ async function main(): Promise<void> {
       status: 'ACTIVE'
     }
   })
-  const techMerch = await prisma.merchantProfile.create({
-    data: {
+  const techMerch = await prisma.merchantProfile.upsert({
+    where: { taxCode: '9901230001' },
+    update: {},
+    create: {
       userId: techMerchUser.id,
       businessName: 'HistoryTech Store',
       taxCode: '9901230001',
@@ -620,8 +738,10 @@ async function main(): Promise<void> {
     }
   })
 
-  const homeMerchUser = await prisma.user.create({
-    data: {
+  const homeMerchUser = await prisma.user.upsert({
+    where: { email: 'hist-home@historyhome.vn' },
+    update: {},
+    create: {
       email: 'hist-home@historyhome.vn',
       fullName: 'Lịch Sử Gia Dụng',
       passwordHash: pw,
@@ -630,8 +750,10 @@ async function main(): Promise<void> {
       status: 'ACTIVE'
     }
   })
-  const homeMerch = await prisma.merchantProfile.create({
-    data: {
+  const homeMerch = await prisma.merchantProfile.upsert({
+    where: { taxCode: '9901230002' },
+    update: {},
+    create: {
       userId: homeMerchUser.id,
       businessName: 'HistoryHome Vietnam',
       taxCode: '9901230002',
@@ -653,10 +775,12 @@ async function main(): Promise<void> {
       Array.from({ length: 10 }, (_, j) => {
         const idx = b * 10 + j + 1
         const pad = String(idx).padStart(3, '0')
-        return prisma.user.create({
-          data: {
+        return prisma.user.upsert({
+          where: { email: `hist-customer-${pad}@test.vn` },
+          update: {},
+          create: {
             email: `hist-customer-${pad}@test.vn`,
-            fullName: `Khách Hàng Lịch Sử ${idx}`,
+            fullName: getVietName(idx),
             passwordHash: pw,
             role: 'CUSTOMER',
             emailVerified: true,
@@ -678,6 +802,23 @@ async function main(): Promise<void> {
   console.log('\n✅ Customers đã tạo')
 
   // 5. Tạo 20 products (10 tech + 10 home)
+  // Guard: kiểm tra xem seed đã chạy chưa để tránh tạo dữ liệu trùng lặp
+  const existingCampaignCount = await prisma.campaign.count({
+    where: { merchantId: techMerch.id }
+  })
+  if (existingCampaignCount > 0) {
+    console.log(
+      `⚠️  Seed đã được chạy trước đó (${existingCampaignCount} campaigns đã tồn tại cho HistoryTech).`
+    )
+    console.log(
+      '   Bỏ qua bước tạo products/campaigns để tránh duplicate data.'
+    )
+    console.log(
+      '   Nếu muốn chạy lại từ đầu: xoá toàn bộ data hist trước (hist-tech@historytech.vn, hist-home@historyhome.vn).'
+    )
+    return
+  }
+
   process.stdout.write('🔧 Tạo 20 products...')
   const techProds = await Promise.all(
     TECH_PRODUCTS.map((t, i) => createProduct(techMerch.id, t, i))
@@ -690,6 +831,8 @@ async function main(): Promise<void> {
   // 6. Tạo 10 campaigns + CampaignProducts + toàn bộ order chain
   let totalOrders = 0
   let totalCPs = 0
+  // Tổng hợp số sản phẩm đã bán theo productId (dùng để cập nhật Inventory sau)
+  const soldByProductId = new Map<string, number>()
 
   for (let ci = 0; ci < CAMPAIGN_TMPLS.length; ci++) {
     const tmpl = CAMPAIGN_TMPLS[ci]
@@ -741,6 +884,12 @@ async function main(): Promise<void> {
     const oiList: Prisma.OrderItemCreateManyInput[] = []
     const payList: Prisma.PaymentCreateManyInput[] = []
     const clList: Prisma.CommissionLedgerCreateManyInput[] = []
+    // FulfillmentOrder, StockAuditLog, QcCheckpoint cho từng đơn hàng đã hoàn thành
+    const fulfOrderList: Prisma.FulfillmentOrderCreateManyInput[] = []
+    const auditList: Prisma.StockAuditLogCreateManyInput[] = []
+    const qcList: Prisma.QcCheckpointCreateManyInput[] = []
+    // Số lượng đã bán (PAID) theo campaignProductId — dùng để cập nhật remainingQuantity
+    const paidCountByCp: Record<string, number> = {}
 
     // Map để tính snapshot: cpId → mảng orderTime
     const orderTimesByCp = new Map<string, Date[]>()
@@ -835,6 +984,65 @@ async function main(): Promise<void> {
             netAmount: netAmt,
             createdAt: new Date(orderTime.getTime() + 120000)
           })
+
+          // FulfillmentOrder: trạng thái DELIVERED cho đơn hàng lịch sử
+          fulfOrderList.push({
+            id: randomUUID(),
+            orderId: ordId,
+            fulfillStatus: FulfillmentStatus.DELIVERED,
+            slaHours: 48,
+            slaDeadline: new Date(orderTime.getTime() + 48 * 3600000),
+            addressValidated: true,
+            createdAt: new Date(orderTime.getTime() + 60000)
+          })
+
+          // StockAuditLog: ghi nhận trừ tồn kho khi saga tạo order (mirrors createOrderWithItems)
+          auditList.push({
+            id: randomUUID(),
+            productId: product.id,
+            delta: -qty,
+            stockBefore: 0,
+            stockAfter: 0,
+            reason: 'RESERVATION',
+            referenceId: resId,
+            triggeredBy: cust.id,
+            strategy: LockStrategy.REDIS_LUA,
+            executionTimeUs: 0,
+            isOversell: false,
+            createdAt: orderTime
+          })
+
+          // QcCheckpoint: PASSED cho tất cả đơn hàng lịch sử (cần inspectorId = admin)
+          if (adminId) {
+            qcList.push({
+              id: randomUUID(),
+              orderId: ordId,
+              inspectorId: adminId,
+              status: QcStatus.PASSED,
+              checklist: [
+                {
+                  key: 'product_quality',
+                  label: 'Chất lượng sản phẩm',
+                  passed: true
+                },
+                {
+                  key: 'packaging',
+                  label: 'Đóng gói đạt chuẩn',
+                  passed: true
+                }
+              ] as unknown as Prisma.InputJsonValue,
+              photoUrls: [],
+              passedAt: new Date(orderTime.getTime() + 30 * 60000),
+              createdAt: new Date(orderTime.getTime() + 25 * 60000)
+            })
+          }
+
+          // Đếm số sản phẩm đã bán để cập nhật remainingQuantity + inventory
+          paidCountByCp[cp.id] = (paidCountByCp[cp.id] ?? 0) + qty
+          soldByProductId.set(
+            product.id,
+            (soldByProductId.get(product.id) ?? 0) + qty
+          )
         }
       }
       totalOrders += numOrders
@@ -853,6 +1061,39 @@ async function main(): Promise<void> {
       data: clList,
       skipDuplicates: true
     })
+
+    // Batch insert bổ sung: fulfillment + audit log + QC checkpoint
+    if (fulfOrderList.length > 0) {
+      await prisma.fulfillmentOrder.createMany({
+        data: fulfOrderList,
+        skipDuplicates: true
+      })
+    }
+    if (auditList.length > 0) {
+      await prisma.stockAuditLog.createMany({
+        data: auditList,
+        skipDuplicates: true
+      })
+    }
+    if (qcList.length > 0) {
+      await prisma.qcCheckpoint.createMany({
+        data: qcList,
+        skipDuplicates: true
+      })
+    }
+
+    // Cập nhật remainingQuantity chính xác cho từng CampaignProduct
+    // Công thức: remainingQuantity = max(0, saleQuantity - paidCount)
+    await Promise.all(
+      cpRows.map(cp => {
+        const sold = paidCountByCp[cp.id] ?? 0
+        const remaining = Math.max(0, cp.saleQuantity - sold)
+        return prisma.campaignProduct.update({
+          where: { id: cp.id },
+          data: { remainingQuantity: remaining }
+        })
+      })
+    )
 
     // Analytics snapshots + funnel events
     const cpForSnapshot = cpRows.map((cp, i) => ({
@@ -876,6 +1117,100 @@ async function main(): Promise<void> {
     )
   }
 
+  // 7. Cập nhật tồn kho thực tế (Inventory.quantity) sau khi trừ số sản phẩm đã bán
+  for (const [productId, sold] of soldByProductId.entries()) {
+    await prisma.inventory.updateMany({
+      where: { productId, warehouseId: 'default' },
+      data: { quantity: { decrement: sold } }
+    })
+  }
+  console.log(
+    `✅ Inventory updated: ${soldByProductId.size} products decremented`
+  )
+
+  // 8. Tạo campaign ACTIVE (đang diễn ra hôm nay) + SCHEDULED (tương lai)
+  const now = new Date()
+  const todayStart = new Date(now)
+  todayStart.setUTCHours(3, 0, 0, 0) // 10:00 ICT = 03:00 UTC
+  const todayEnd = new Date(now)
+  todayEnd.setUTCHours(15, 0, 0, 0) // 22:00 ICT = 15:00 UTC
+
+  // Campaign ACTIVE: Flash Sale Cuối Tháng 4 (Tech)
+  const activeCampaign = await prisma.campaign.create({
+    data: {
+      merchantId: techMerch.id,
+      commissionCategoryId: catElec.id,
+      name: 'Flash Sale Cuối Tháng 4 - Tech Deals',
+      description:
+        'Kết thúc tháng 4 với deal khủng: iPhone 14 Pro, MacBook Air M2, Sony XM4, Apple Watch. Chỉ hôm nay!',
+      status: 'ACTIVE',
+      startTime: todayStart,
+      endTime: todayEnd,
+      commissionRate: COMMISSION_RATE,
+      approvedAt: new Date(todayStart.getTime() - 86400000),
+      approvedBy: adminId,
+      createdAt: new Date(todayStart.getTime() - 86400000 * 2)
+    }
+  })
+
+  await Promise.all(
+    [0, 1, 2, 5, 7].map(pi =>
+      prisma.campaignProduct.create({
+        data: {
+          campaignId: activeCampaign.id,
+          productId: techProds[pi].id,
+          salePrice: techProds[pi].sale,
+          saleQuantity: techProds[pi].qty,
+          remainingQuantity: techProds[pi].qty, // chưa có đơn hàng nào
+          perUserLimit: 2,
+          createdAt: new Date(todayStart.getTime() - 86400000 * 2)
+        }
+      })
+    )
+  )
+  console.log('✅ Campaign ACTIVE: "Flash Sale Cuối Tháng 4 - Tech Deals"')
+
+  // Campaign SCHEDULED: Flash Sale Đầu Tháng 5 (Home)
+  const futureStart = new Date(now.getTime() + 7 * 86400000)
+  futureStart.setUTCHours(3, 0, 0, 0)
+  const futureEnd = new Date(futureStart.getTime() + 12 * 3600000)
+
+  const scheduledCampaign = await prisma.campaign.create({
+    data: {
+      merchantId: homeMerch.id,
+      commissionCategoryId: catHome.id,
+      name: 'Flash Sale Khai Mạc Tháng 5 - Smart Home',
+      description:
+        'Tháng 5 bắt đầu với đợt sale lớn: Dyson V12, Roborock S7, Nespresso, Garmin. Đặt lịch nhắc nhở ngay!',
+      status: 'APPROVED',
+      startTime: futureStart,
+      endTime: futureEnd,
+      commissionRate: COMMISSION_RATE,
+      approvedAt: now,
+      approvedBy: adminId,
+      createdAt: new Date(now.getTime() - 86400000)
+    }
+  })
+
+  await Promise.all(
+    [0, 6, 8, 9, 3].map(pi =>
+      prisma.campaignProduct.create({
+        data: {
+          campaignId: scheduledCampaign.id,
+          productId: homeProds[pi].id,
+          salePrice: homeProds[pi].sale,
+          saleQuantity: homeProds[pi].qty,
+          remainingQuantity: homeProds[pi].qty,
+          perUserLimit: 2,
+          createdAt: new Date(now.getTime() - 86400000)
+        }
+      })
+    )
+  )
+  console.log(
+    '✅ Campaign SCHEDULED: "Flash Sale Khai Mạc Tháng 5 - Smart Home"'
+  )
+
   const elapsed = ((Date.now() - t0) / 1000).toFixed(1)
   console.log('\n' + '─'.repeat(65))
   console.log('🎉 Seed lịch sử hoàn tất!\n')
@@ -883,11 +1218,21 @@ async function main(): Promise<void> {
   console.log(`  • ${NUM_CUSTOMERS} historical customer accounts`)
   console.log(`  • 20 products lịch sử (10 tech + 10 home)`)
   console.log(`  • 10 campaigns ENDED (03/03 – 16/04/2026)`)
-  console.log(`  • ${totalCPs} CampaignProducts`)
+  console.log(`  • 1 campaign ACTIVE (hôm nay)`)
+  console.log(`  • 1 campaign SCHEDULED (7 ngày tới)`)
+  console.log(`  • ${totalCPs} CampaignProducts (ENDED)`)
   console.log(
-    `  • ~${totalOrders} orders với full chain (reservation→order→payment→commission)`
+    `  • ~${totalOrders} orders với full chain (reservation→order→payment→commission→fulfillment→qc)`
   )
-  console.log(`  • Analytics snapshots (mỗi 5 phút) + funnel events`)
+  console.log(
+    `  • Analytics snapshots (mỗi 5 phút) + funnel events + StockAuditLog`
+  )
+  console.log(
+    `  • Inventory.quantity đã được trừ đúng theo số đơn hàng thực tế`
+  )
+  console.log(
+    `  • CampaignProduct.remainingQuantity đã được tính đúng = saleQuantity - sold`
+  )
   console.log(`  • Thời gian thực thi: ${elapsed}s`)
   console.log('─'.repeat(65))
   console.log('\n💡 Chạy thêm pnpm seed:load-test để test tải hệ thống')

@@ -2,6 +2,40 @@ import { useEffect, useRef, useState } from 'react'
 import { dashboardService } from '@/services/dashboard.service'
 import type { DashboardMetrics } from '@/types'
 
+const ORDERS_PER_SECOND_WINDOW_MS = 10_000
+
+interface DashboardSnapshotEvent {
+  type: 'SNAPSHOT'
+  stockValues?: Array<{ remaining: number; total: number }>
+  totalOrders?: number
+  successOrders?: number
+  totalReservations?: number
+  revenue?: number
+  conversionRate?: number
+  queueDepth?: number
+}
+
+interface DashboardStockUpdateEvent {
+  type: 'STOCK_UPDATE'
+  stockRemaining?: number
+  stockTotal?: number
+}
+
+interface DashboardOrderConfirmedEvent {
+  type: 'ORDER_CONFIRMED'
+  revenue?: number
+}
+
+interface DashboardHeartbeatEvent {
+  type: 'heartbeat'
+}
+
+type DashboardStreamEvent =
+  | DashboardSnapshotEvent
+  | DashboardStockUpdateEvent
+  | DashboardOrderConfirmedEvent
+  | DashboardHeartbeatEvent
+
 export function useSSE(campaignId: string | null) {
   const [data, setData] = useState<DashboardMetrics | null>(null)
   const [connected, setConnected] = useState(false)
@@ -10,10 +44,30 @@ export function useSSE(campaignId: string | null) {
   const retriesRef = useRef(0)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const mountedRef = useRef(true)
+  const orderTimestampsRef = useRef<number[]>([])
 
   useEffect(() => {
     if (!campaignId) return
     mountedRef.current = true
+
+    const getOrdersPerSecond = (): number => {
+      const now = Date.now()
+      orderTimestampsRef.current = orderTimestampsRef.current.filter(
+        (ts) => now - ts <= ORDERS_PER_SECOND_WINDOW_MS
+      )
+      return orderTimestampsRef.current.length / (ORDERS_PER_SECOND_WINDOW_MS / 1000)
+    }
+
+    const ticker = setInterval(() => {
+      if (!mountedRef.current) return
+      setData((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          ordersPerSecond: getOrdersPerSecond()
+        }
+      })
+    }, 1000)
 
     const connect = () => {
       if (!mountedRef.current) return
@@ -30,22 +84,32 @@ export function useSSE(campaignId: string | null) {
       es.onmessage = (e) => {
         if (!mountedRef.current) return
         try {
-          const event = JSON.parse(e.data) as Record<string, unknown>
+          const event = JSON.parse(e.data) as DashboardStreamEvent
           if (event.type === 'heartbeat') return
 
           if (event.type === 'SNAPSHOT') {
-            const stockValues = (event.stockValues as Array<{ remaining: number; total: number }>) ?? []
+            const stockValues = event.stockValues ?? []
             const stockRemaining = stockValues.reduce((sum, v) => sum + v.remaining, 0)
             const stockTotal = stockValues.reduce((sum, v) => sum + v.total, 0)
+            const totalOrders = event.totalOrders ?? 0
+            const successOrders = event.successOrders ?? 0
+            const totalReservations = event.totalReservations ?? totalOrders
+            const conversionRate =
+              event.conversionRate ??
+              (totalReservations > 0
+                ? (successOrders / totalReservations) * 100
+                : 0)
+
             setData({
               stockRemaining,
               stockTotal,
-              totalOrders: (event.totalOrders as number) ?? 0,
-              successOrders: 0,
-              revenue: 0,
-              conversionRate: 0,
-              queueDepth: 0,
-              ordersPerSecond: 0,
+              totalOrders,
+              successOrders,
+              totalReservations,
+              revenue: event.revenue ?? 0,
+              conversionRate,
+              queueDepth: event.queueDepth ?? 0,
+              ordersPerSecond: getOrdersPerSecond(),
             })
             return
           }
@@ -53,22 +117,42 @@ export function useSSE(campaignId: string | null) {
           if (event.type === 'STOCK_UPDATE') {
             setData(prev => prev ? {
               ...prev,
-              stockRemaining: (event.stockRemaining as number) ?? prev.stockRemaining,
-              stockTotal: (event.stockTotal as number) ?? prev.stockTotal,
+              stockRemaining: event.stockRemaining ?? prev.stockRemaining,
+              stockTotal: event.stockTotal ?? prev.stockTotal,
             } : prev)
             return
           }
 
           if (event.type === 'ORDER_CONFIRMED') {
-            setData(prev => prev ? {
-              ...prev,
-              totalOrders: prev.totalOrders + 1,
-              successOrders: prev.successOrders + 1,
-              revenue: prev.revenue + ((event.revenue as number) ?? 0),
-            } : prev)
+            const now = Date.now()
+            orderTimestampsRef.current = [...orderTimestampsRef.current, now]
+            const currentOps = getOrdersPerSecond()
+
+            setData(prev => {
+              if (!prev) return prev
+              const nextTotalOrders = prev.totalOrders + 1
+              const nextSuccessOrders = prev.successOrders + 1
+              const nextQueueDepth = Math.max(prev.queueDepth - 1, 0)
+              return {
+                ...prev,
+                totalOrders: nextTotalOrders,
+                successOrders: nextSuccessOrders,
+                revenue: prev.revenue + (event.revenue ?? 0),
+                conversionRate:
+                  prev.totalReservations > 0
+                    ? (nextSuccessOrders / prev.totalReservations) * 100
+                    : 0,
+                queueDepth: nextQueueDepth,
+                ordersPerSecond: currentOps,
+              }
+            })
             return
           }
-        } catch { /* ignore parse errors */ }
+
+          // Ignore unknown event types to keep stream resilient.
+        } catch {
+          /* ignore parse errors */
+        }
       }
 
       es.onerror = () => {
@@ -89,9 +173,11 @@ export function useSSE(campaignId: string | null) {
 
     return () => {
       mountedRef.current = false
+      clearInterval(ticker)
       clearTimeout(retryTimerRef.current)
       esRef.current?.close()
       esRef.current = null
+      orderTimestampsRef.current = []
     }
   }, [campaignId])
 

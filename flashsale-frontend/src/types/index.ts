@@ -267,6 +267,7 @@ export interface DashboardMetrics {
   stockTotal: number
   totalOrders: number
   successOrders: number
+  totalReservations: number
   revenue: number
   conversionRate: number
   queueDepth: number
