@@ -49,7 +49,7 @@ export default function MerchantDashboardPage() {
   }).length
   const pendingOrders = orders.filter((o) => o.status === 'PENDING').length
   const averageOrderValue = orders.length > 0
-    ? Math.round(orders.reduce((sum, o) => sum + o.totalAmount, 0) / orders.length)
+    ? Math.round(orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0) / orders.length)
     : 0
 
   return (
