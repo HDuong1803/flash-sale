@@ -188,14 +188,14 @@ export const NAV_ITEMS: NavItem[] = [
     section: 'admin',
     description: 'Fraud events, blacklist IP',
   },
-  {
-    label: 'Phân tích & Dự đoán',
-    href: '/admin/analytics',
-    iconName: 'TrendingUp',
-    permission: 'admin_analytics',
-    section: 'admin',
-    description: 'Funnel, heatmap, stockout prediction',
-  },
+  // {
+  //   label: 'Phân tích & Dự đoán',
+  //   href: '/admin/analytics',
+  //   iconName: 'TrendingUp',
+  //   permission: 'admin_analytics',
+  //   section: 'admin',
+  //   description: 'Funnel, heatmap, stockout prediction',
+  // },
   {
     label: 'Fulfillment & QC',
     href: '/admin/fulfillment',
