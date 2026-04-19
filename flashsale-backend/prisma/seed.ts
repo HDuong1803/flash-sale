@@ -1003,6 +1003,58 @@ async function main(): Promise<void> {
   ])
   console.log('✅ Pre-registrations: 6 đăng ký nhận thông báo')
 
+  // ── 8. User Action Logs (monitor + audit trail) ───────────────────────────
+  const ACTIONS = [
+    'reserve',
+    'checkout',
+    'purchase',
+    'login',
+    'logout',
+    'register',
+    'view_campaign'
+  ]
+  const IPS = [
+    '103.45.67.89',
+    '113.160.44.12',
+    '27.72.88.100',
+    '222.252.5.200',
+    '14.186.45.23',
+    '1.55.88.200'
+  ]
+  const campaignIds = [campaign1.id, campaign2.id, campaign3.id, campaign4.id]
+
+  const now = Date.now()
+  const actionLogData = Array.from({ length: 80 }, (_, i) => {
+    const daysAgo = Math.floor(i / 12)
+    const minutesOffset = (i % 12) * 95 + Math.floor(Math.random() * 50)
+    const createdAt = new Date(
+      now - daysAgo * 24 * 60 * 60 * 1000 - minutesOffset * 60 * 1000
+    )
+    const action = ACTIONS[i % ACTIONS.length]
+    const custIdx = i % customers.length
+    const isGuest = i % 7 === 0
+    return {
+      userId: isGuest ? null : customers[custIdx].id,
+      ip: IPS[i % IPS.length],
+      action,
+      targetId:
+        action === 'view_campaign' ||
+        action === 'reserve' ||
+        action === 'purchase'
+          ? campaignIds[i % campaignIds.length]
+          : null,
+      createdAt
+    }
+  })
+
+  await prisma.userActionLog.createMany({
+    data: actionLogData,
+    skipDuplicates: true
+  })
+  console.log(
+    `✅ User action logs: ${actionLogData.length} bản ghi (7 ngày gần nhất)`
+  )
+
   // ── Payment Gateway Configs ────────────────────────────────────────────────
   await prisma.paymentGatewayConfig.upsert({
     where: { gateway: 'STRIPE' },
@@ -1049,6 +1101,7 @@ async function main(): Promise<void> {
   console.log(`  • 3 commission categories`)
   console.log(`  • 6 pre-registrations`)
   console.log(`  • 3 carriers (USPS, UPS, FEDEX) + 4 fulfillment rules`)
+  console.log(`  • 80 user action logs (7 ngày gần nhất)`)
 }
 
 // ─── Fulfillment Seed ─────────────────────────────────────────────────────────
@@ -1165,8 +1218,12 @@ async function seedCarriersAndRules(): Promise<void> {
 async function cleanDatabase(): Promise<void> {
   console.log('🗑️  Xóa dữ liệu cũ...')
 
-  // Xóa theo thứ tự FK (leaf → root)
   const tables = [
+    'funnel_events',
+    'campaign_analytics_snapshots',
+    'fraud_events',
+    'user_risk_profiles',
+    'ip_blacklists',
     'outbox_events',
     'stock_allocations',
     'stock_audit_logs',
@@ -1192,24 +1249,26 @@ async function cleanDatabase(): Promise<void> {
     'file_entities',
     'merchant_profiles',
     'customer_profiles',
-    'users',
-    'commission_categories',
-    'payment_gateway_configs',
     'user_action_logs',
     'ticket_messages',
     'support_tickets',
+    'users',
+    'commission_categories',
+    'payment_gateway_configs',
     'qc_checkpoints',
     'tracking_events',
     'fulfillment_orders',
     'fulfillment_rules',
     'carriers'
-  ] as const
+  ]
 
   for (const table of tables) {
     try {
-      await prisma.$executeRawUnsafe(`DELETE FROM "${table}"`)
+      await prisma.$executeRawUnsafe(
+        `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE`
+      )
     } catch {
-      // Table có thể không tồn tại trong môi trường cũ — bỏ qua
+      // Bảng chưa tồn tại trong migration cũ — bỏ qua
     }
   }
 

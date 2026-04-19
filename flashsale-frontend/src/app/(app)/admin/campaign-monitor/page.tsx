@@ -25,7 +25,10 @@ const WINDOW_OPTIONS = [
   { label: '30 phút', value: 30 },
   { label: '1 giờ', value: 60 },
   { label: '3 giờ', value: 180 },
-  { label: '6 giờ', value: 360 }
+  { label: '6 giờ', value: 360 },
+  { label: '24 giờ', value: 1440 },
+  { label: '7 ngày', value: 10080 },
+  { label: '30 ngày', value: 43200 },
 ]
 
 function KpiCard({
@@ -55,7 +58,7 @@ export default function AdminCampaignMonitorPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [campaignId, setCampaignId] = useState<string>(() => searchParams.get('campaignId') ?? '')
-  const [minutes, setMinutes] = useState<number>(60)
+  const [minutes, setMinutes] = useState<number>(10080)
 
   const { data: campaigns } = useAdminCampaigns(undefined, true)
 

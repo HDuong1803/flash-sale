@@ -581,10 +581,23 @@ export class AdminRepository {
 
   // ─── User Action Logs ────────────────────────────────────────────────
 
-  async findUserActionLogs() {
+  async findUserActionLogs(params?: {
+    from?: Date
+    to?: Date
+    limit?: number
+  }) {
     return this.prisma.userActionLog.findMany({
+      where:
+        params?.from || params?.to
+          ? {
+              createdAt: {
+                ...(params.from ? { gte: params.from } : {}),
+                ...(params.to ? { lte: params.to } : {})
+              }
+            }
+          : undefined,
       orderBy: { createdAt: 'desc' },
-      take: 100
+      take: params?.limit ?? 200
     })
   }
 

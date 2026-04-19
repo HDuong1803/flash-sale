@@ -97,8 +97,8 @@ class AdminService {
     )
   }
   
-  getUserActionLogs(): Promise<UserActionLog[]> {
-    return withRetry(() => apiClient.get('/admin/user-action-logs'))
+  getUserActionLogs(params?: { from?: string; to?: string }): Promise<UserActionLog[]> {
+    return withRetry(() => apiClient.get('/admin/user-action-logs', { params }))
   }
   
   getOutboxEvents(): Promise<OutboxEvent[]> {

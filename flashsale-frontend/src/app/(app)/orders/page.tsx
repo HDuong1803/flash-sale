@@ -1,17 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { ShoppingBag, AlertCircle, Clock } from 'lucide-react'
 import { useMyOrders } from '@/hooks/queries/useMyOrders'
 import { useActiveReservations } from '@/hooks/queries/useActiveReservations'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
+import { PaginationBar } from '@/components/shared/PaginationBar'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { OrderStatus } from '@/types'
+
+const PAGE_SIZE = 10
 
 const STATUS_TABS: { label: string; value: OrderStatus | 'ALL' }[] = [
   { label: 'Tất cả', value: 'ALL' },
@@ -23,15 +27,38 @@ const STATUS_TABS: { label: string; value: OrderStatus | 'ALL' }[] = [
 ]
 
 export default function OrdersPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const page = Number(searchParams.get('page') ?? '0')
+
   const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL')
-  const { data: orders, loading, error, refetch } = useMyOrders(
+  const { data: allOrders, loading, error, refetch } = useMyOrders(
     activeTab !== 'ALL' ? { status: activeTab } : undefined
   )
   const { data: activeReservations, refetch: refetchReservations } = useActiveReservations()
-  const totalOrders = orders.length
-  const completedOrders = orders.filter((o) => o.status === 'DONE').length
-  const pendingOrders = orders.filter((o) => o.status === 'PENDING' || o.status === 'CONFIRMED').length
-  const totalSpent = orders.reduce((sum, o) => sum + Number(o.totalAmount) || 0, 0)
+
+  const orders = useMemo(() => {
+    const start = page * PAGE_SIZE
+    return allOrders.slice(start, start + PAGE_SIZE)
+  }, [allOrders, page])
+
+  const setPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(p))
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handleTabChange = (tab: OrderStatus | 'ALL') => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('page')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const totalOrders = allOrders.length
+  const completedOrders = allOrders.filter((o) => o.status === 'DONE').length
+  const pendingOrders = allOrders.filter((o) => o.status === 'PENDING' || o.status === 'CONFIRMED').length
+  const totalSpent = allOrders.reduce((sum, o) => sum + Number(o.totalAmount) || 0, 0)
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -111,7 +138,7 @@ export default function OrdersPage() {
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => setActiveTab(tab.value)}
+            onClick={() => handleTabChange(tab.value)}
             className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               activeTab === tab.value
                 ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
@@ -134,7 +161,7 @@ export default function OrdersPage() {
           <p className="text-white/60 text-sm mb-4">{error}</p>
           <button onClick={refetch} className="btn-glass text-sm px-4 py-2">Thử lại</button>
         </div>
-      ) : orders.length === 0 ? (
+      ) : allOrders.length === 0 ? (
         <EmptyState icon={ShoppingBag} title="Chưa có đơn hàng nào" description="Các đơn hàng của bạn sẽ hiển thị ở đây" />
       ) : (
         <div className="space-y-3">
@@ -171,6 +198,10 @@ export default function OrdersPage() {
             )
           })}
         </div>
+      )}
+
+      {!loading && !error && (
+        <PaginationBar total={allOrders.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
     </div>
   )

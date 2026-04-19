@@ -643,8 +643,11 @@ export class AdminController {
   })
   @Get('user-action-logs')
   @HttpCode(HttpStatus.OK)
-  async getUserActionLogs(): Promise<unknown[]> {
-    return this.adminService.getUserActionLogs()
+  async getUserActionLogs(
+    @Query('from') from?: string,
+    @Query('to') to?: string
+  ): Promise<unknown[]> {
+    return this.adminService.getUserActionLogs({ from, to })
   }
 
   // ─── Outbox Events (admin) ───────────────────────────────────────────

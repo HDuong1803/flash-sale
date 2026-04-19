@@ -2,10 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { adminService } from '@/services/admin.service'
 import { queryKeys } from '@/lib/query-keys'
 
-export function useUserActionLogs(enabled = true) {
+export function useUserActionLogs(params?: { from?: string; to?: string }, enabled = true) {
   const query = useQuery({
-    queryKey: queryKeys.admin.userActionLogs(),
-    queryFn: () => adminService.getUserActionLogs(),
+    queryKey: queryKeys.admin.userActionLogs(params),
+    queryFn: () => adminService.getUserActionLogs(params),
     enabled,
     refetchInterval: 30_000,
   })

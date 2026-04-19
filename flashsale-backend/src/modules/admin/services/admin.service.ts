@@ -497,8 +497,11 @@ export class AdminService {
 
   // ─── User Action Logs ────────────────────────────────────────────────
 
-  async getUserActionLogs() {
-    return this.adminRepository.findUserActionLogs()
+  async getUserActionLogs(params?: { from?: string; to?: string }) {
+    return this.adminRepository.findUserActionLogs({
+      from: params?.from ? new Date(params.from) : undefined,
+      to: params?.to ? new Date(params.to) : undefined
+    })
   }
 
   // ─── Outbox Events ───────────────────────────────────────────────────

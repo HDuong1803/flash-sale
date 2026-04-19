@@ -7,8 +7,11 @@ import { ArrowLeft, Zap, AlertCircle } from 'lucide-react'
 import { useAdminCampaigns } from '@/hooks/queries/useAdminCampaigns'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { PaginationBar } from '@/components/shared/PaginationBar'
 import { formatDate } from '@/lib/utils'
 import type { CampaignStatus } from '@/types'
+
+const PAGE_SIZE = 20
 
 const TABS: { label: string; value: CampaignStatus }[] = [
   { label: 'Chờ duyệt', value: 'APPROVED' },
@@ -21,25 +24,40 @@ export default function AdminCampaignsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialSearch = searchParams.get('search') ?? ''
+  const page = Number(searchParams.get('page') ?? '0')
   const [activeTab, setActiveTab] = useState<CampaignStatus>('APPROVED')
   const [search, setSearch] = useState(initialSearch)
 
   const { data: campaigns, loading, error, refetch } = useAdminCampaigns(activeTab)
 
-  const filteredCampaigns = useMemo(() => {
+  const allFiltered = useMemo(() => {
     const keyword = search.trim().toLowerCase()
     if (!keyword) return campaigns
     return campaigns.filter((campaign) => {
       const name = campaign.name?.toLowerCase() ?? ''
       const merchantName = campaign.merchant?.businessName?.toLowerCase() ?? ''
       const merchantId = campaign.merchantId?.toLowerCase() ?? ''
-      return (
-        name.includes(keyword) ||
-        merchantName.includes(keyword) ||
-        merchantId.includes(keyword)
-      )
+      return name.includes(keyword) || merchantName.includes(keyword) || merchantId.includes(keyword)
     })
   }, [campaigns, search])
+
+  const filteredCampaigns = useMemo(() => {
+    const start = page * PAGE_SIZE
+    return allFiltered.slice(start, start + PAGE_SIZE)
+  }, [allFiltered, page])
+
+  const setPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(p))
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handleTabChange = (tab: CampaignStatus) => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('page')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -69,7 +87,7 @@ export default function AdminCampaignsPage() {
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map((tab) => (
-          <button key={tab.value} onClick={() => setActiveTab(tab.value)}
+          <button key={tab.value} onClick={() => handleTabChange(tab.value)}
             className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               activeTab === tab.value ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'glass text-white/60 hover:text-white hover:bg-white/10'
             }`}>
@@ -81,7 +99,12 @@ export default function AdminCampaignsPage() {
       <div className="glass rounded-2xl p-3">
         <input
           value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            setSearch(event.target.value)
+            const params = new URLSearchParams(searchParams.toString())
+            params.delete('page')
+            router.replace(`?${params.toString()}`, { scroll: false })
+          }}
           placeholder="Tìm theo tên chiến dịch, tên nhà bán hàng..."
           className="input-glass w-full"
         />
@@ -97,7 +120,7 @@ export default function AdminCampaignsPage() {
           <p className="text-white/60 text-sm mb-4">{error}</p>
           <button onClick={refetch} className="btn-glass text-sm px-4 py-2">Thử lại</button>
         </div>
-      ) : filteredCampaigns.length === 0 ? (
+      ) : allFiltered.length === 0 ? (
         <EmptyState icon={Zap} title="Không có chiến dịch nào" description="Không có chiến dịch trong danh mục này" />
       ) : (
         <div className="glass rounded-2xl overflow-hidden">
@@ -145,6 +168,10 @@ export default function AdminCampaignsPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {!loading && !error && (
+        <PaginationBar total={allFiltered.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
     </div>
   )

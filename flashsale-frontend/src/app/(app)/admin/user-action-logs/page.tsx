@@ -29,8 +29,17 @@ export default function AdminUserActionLogsPage() {
   const [actionFilter, setActionFilter] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedLog, setSelectedLog] = useState<UserActionLog | null>(null)
+  const [fromDate, setFromDate] = useState<string>('')
+  const [toDate, setToDate] = useState<string>('')
 
-  const { data: logs, loading, error, refetch } = useUserActionLogs()
+  const dateParams = useMemo(() => {
+    const p: { from?: string; to?: string } = {}
+    if (fromDate) p.from = new Date(fromDate + 'T00:00:00').toISOString()
+    if (toDate) p.to = new Date(toDate + 'T23:59:59').toISOString()
+    return Object.keys(p).length > 0 ? p : undefined
+  }, [fromDate, toDate])
+
+  const { data: logs, loading, error, refetch } = useUserActionLogs(dateParams)
 
   // Filter logs
   const filteredLogs = useMemo(() => {
@@ -153,7 +162,7 @@ export default function AdminUserActionLogsPage() {
       </div>
 
       {/* Filters */}
-      <GlassCard className="p-4">
+      <GlassCard className="p-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={16} />
@@ -179,6 +188,38 @@ export default function AdminUserActionLogsPage() {
             <Download size={16} />
             Xuất CSV
           </Button>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 items-center">
+          <div className="flex items-center gap-2 text-white/50 text-sm flex-shrink-0">
+            <Calendar size={14} />
+            <span>Từ ngày:</span>
+          </div>
+          <Input
+            type="date"
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className="input-glass w-full sm:w-40"
+          />
+          <span className="text-white/40 text-sm hidden sm:block">→</span>
+          <div className="flex items-center gap-2 text-white/50 text-sm flex-shrink-0">
+            <span>Đến ngày:</span>
+          </div>
+          <Input
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className="input-glass w-full sm:w-40"
+          />
+          {(fromDate || toDate) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white/50 hover:text-white"
+              onClick={() => { setFromDate(''); setToDate('') }}
+            >
+              Xóa bộ lọc
+            </Button>
+          )}
         </div>
       </GlassCard>
 

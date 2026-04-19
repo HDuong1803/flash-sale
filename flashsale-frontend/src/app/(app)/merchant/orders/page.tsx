@@ -1,17 +1,17 @@
 'use client'
 
-// Danh sách đơn hàng merchant nhận được
-// Click vào một đơn sẽ chuyển sang trang /merchant/orders/[id] để xem chi tiết đầy đủ
-
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ClipboardList, AlertCircle, Download } from 'lucide-react'
 import { useMerchantOrders } from '@/hooks/queries/useMerchantOrders'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
+import { PaginationBar } from '@/components/shared/PaginationBar'
 import { formatCurrency, formatDate, maskString } from '@/lib/utils'
 import type { OrderStatus } from '@/types'
+
+const PAGE_SIZE = 15
 
 const TABS: { label: string; value: OrderStatus | 'ALL' }[] = [
   { label: 'Tất cả', value: 'ALL' },
@@ -24,10 +24,30 @@ const TABS: { label: string; value: OrderStatus | 'ALL' }[] = [
 
 export default function MerchantOrdersPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const page = Number(searchParams.get('page') ?? '0')
   const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL')
-  const { data: orders, loading, error, refetch } = useMerchantOrders(
+  const { data: allOrders, loading, error, refetch } = useMerchantOrders(
     activeTab !== 'ALL' ? { status: activeTab } : undefined
   )
+
+  const orders = useMemo(() => {
+    const start = page * PAGE_SIZE
+    return allOrders.slice(start, start + PAGE_SIZE)
+  }, [allOrders, page])
+
+  const setPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(p))
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handleTabChange = (tab: OrderStatus | 'ALL') => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('page')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
 
   const exportCSV = () => {
     if (orders.length === 0) return
@@ -57,7 +77,7 @@ export default function MerchantOrdersPage() {
 
       <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map((tab) => (
-          <button key={tab.value} onClick={() => setActiveTab(tab.value)}
+          <button key={tab.value} onClick={() => handleTabChange(tab.value)}
             className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
               activeTab === tab.value ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'glass text-white/60 hover:text-white hover:bg-white/10'
             }`}>
@@ -74,7 +94,7 @@ export default function MerchantOrdersPage() {
           <p className="text-white/60 text-sm mb-4">{error}</p>
           <button onClick={refetch} className="btn-glass text-sm px-4 py-2">Thử lại</button>
         </div>
-      ) : orders.length === 0 ? (
+      ) : allOrders.length === 0 ? (
         <EmptyState icon={ClipboardList} title="Chưa có đơn hàng nào" description="Đơn hàng từ khách hàng sẽ hiển thị ở đây" />
       ) : (
         <div className="glass rounded-2xl overflow-hidden">
@@ -111,6 +131,9 @@ export default function MerchantOrdersPage() {
         </div>
       )}
 
+      {!loading && !error && (
+        <PaginationBar total={allOrders.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
+      )}
     </div>
   )
 }

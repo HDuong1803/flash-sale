@@ -172,14 +172,14 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'admin_system',
     section: 'admin',
   },
-  {
-    label: 'Benchmark Lock',
-    href: '/admin/benchmark',
-    iconName: 'FlaskConical',
-    permission: 'admin_benchmark',
-    section: 'admin',
-    description: 'So sánh NO_LOCK vs DB_LOCK vs Redis Lua',
-  },
+  // {
+  //   label: 'Benchmark Lock',
+  //   href: '/admin/benchmark',
+  //   iconName: 'FlaskConical',
+  //   permission: 'admin_benchmark',
+  //   section: 'admin',
+  //   description: 'So sánh NO_LOCK vs DB_LOCK vs Redis Lua',
+  // },
   {
     label: 'Phát hiện gian lận',
     href: '/admin/fraud',

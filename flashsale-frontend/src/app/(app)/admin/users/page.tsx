@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Users, AlertCircle, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminUsers } from '@/hooks/queries/useAdminUsers'
@@ -9,9 +10,12 @@ import { useSuspendUser } from '@/hooks/mutations/useSuspendUser'
 import { useActivateUser } from '@/hooks/mutations/useActivateUser'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { PaginationBar } from '@/components/shared/PaginationBar'
 import { formatDate } from '@/lib/utils'
 import { adminService } from '@/services/admin.service'
 import type { UserRole } from '@/types'
+
+const PAGE_SIZE = 20
 
 const ROLES: { label: string; value: UserRole | '' }[] = [
   { label: 'Tất cả', value: '' },
@@ -27,6 +31,10 @@ const ROLE_COLORS: Record<UserRole, string> = {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const page = Number(searchParams.get('page') ?? '0')
+
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | ''>('')
@@ -42,9 +50,26 @@ export default function AdminUsersPage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [search])
 
-  const { data: users, loading, error, refetch } = useAdminUsers(
+  const { data: allUsers, loading, error, refetch } = useAdminUsers(
     roleFilter || debouncedSearch ? { role: roleFilter || undefined, search: debouncedSearch || undefined } : undefined
   )
+
+  const users = useMemo(() => {
+    const start = page * PAGE_SIZE
+    return allUsers.slice(start, start + PAGE_SIZE)
+  }, [allUsers, page])
+
+  const setPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(p))
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const resetPage = () => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('page')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
   const { mutate: suspend, loading: suspending } = useSuspendUser()
   const { activate, loading: activating } = useActivateUser()
 
@@ -100,9 +125,9 @@ export default function AdminUsersPage() {
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} className="input-glass pl-9" placeholder="Tìm theo tên, email..." />
+          <input value={search} onChange={(e) => { setSearch(e.target.value); resetPage() }} className="input-glass pl-9" placeholder="Tìm theo tên, email..." />
         </div>
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as UserRole | '')} className="input-glass w-auto min-w-36">
+        <select value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value as UserRole | ''); resetPage() }} className="input-glass w-auto min-w-36">
           {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
       </div>
@@ -170,6 +195,15 @@ export default function AdminUsersPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {!loading && !error && (
+        <PaginationBar
+          total={allUsers.length}
+          page={page}
+          pageSize={PAGE_SIZE}
+          onPage={setPage}
+        />
       )}
 
       <ConfirmDialog

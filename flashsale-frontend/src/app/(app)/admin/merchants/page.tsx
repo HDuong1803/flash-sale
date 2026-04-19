@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Store, AlertCircle, Loader2 } from 'lucide-react'
 import { useAdminMerchants } from '@/hooks/queries/useAdminMerchants'
 import { useApproveMerchant } from '@/hooks/mutations/useApproveMerchant'
@@ -9,9 +10,12 @@ import { useRejectMerchant } from '@/hooks/mutations/useRejectMerchant'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { PaginationBar } from '@/components/shared/PaginationBar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatDate } from '@/lib/utils'
 import type { Merchant, KycStatus } from '@/types'
+
+const PAGE_SIZE = 20
 
 const TABS: { label: string; value: KycStatus }[] = [
   { label: 'Chờ duyệt', value: 'PENDING' },
@@ -20,6 +24,10 @@ const TABS: { label: string; value: KycStatus }[] = [
 ]
 
 export default function AdminMerchantsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const page = Number(searchParams.get('page') ?? '0')
+
   const [activeTab, setActiveTab] = useState<KycStatus>('PENDING')
   const [selectedMerchant, setSelectedMerchant] = useState<Merchant | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -29,7 +37,25 @@ export default function AdminMerchantsPage() {
   const { data: merchants, loading, error, refetch } = useAdminMerchants(activeTab)
   const { approve, loading: approving } = useApproveMerchant()
   const { reject, loading: rejecting } = useRejectMerchant()
-  const filteredMerchants = merchants.filter((m) => m.kycStatus === activeTab)
+
+  const allFiltered = useMemo(() => merchants.filter((m) => m.kycStatus === activeTab), [merchants, activeTab])
+  const filteredMerchants = useMemo(() => {
+    const start = page * PAGE_SIZE
+    return allFiltered.slice(start, start + PAGE_SIZE)
+  }, [allFiltered, page])
+
+  const setPage = (p: number) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('page', String(p))
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
+
+  const handleTabChange = (tab: KycStatus) => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('page')
+    router.replace(`?${params.toString()}`, { scroll: false })
+  }
 
   const handleApprove = async (id: string) => {
     try { await approve(id); refetch(); setSelectedMerchant(null); setConfirmApprove(null) } catch {}
@@ -45,7 +71,7 @@ export default function AdminMerchantsPage() {
 
       <div className="flex gap-2">
         {TABS.map((tab) => (
-          <button key={tab.value} onClick={() => setActiveTab(tab.value)}
+          <button key={tab.value} onClick={() => handleTabChange(tab.value)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
               activeTab === tab.value ? 'bg-red-500/20 text-red-300 border border-red-500/30' : 'glass text-white/60 hover:text-white hover:bg-white/10'
             }`}>
@@ -69,7 +95,7 @@ export default function AdminMerchantsPage() {
           <p className="text-white/60 text-sm mb-4">{error}</p>
           <button onClick={refetch} className="btn-glass text-sm px-4 py-2">Thử lại</button>
         </div>
-      ) : filteredMerchants.length === 0 ? (
+      ) : allFiltered.length === 0 ? (
         <EmptyState icon={Store} title="Không có nhà bán hàng nào" description="Không có nhà bán hàng nào trong danh mục này" />
       ) : (
         <div className="glass rounded-2xl overflow-hidden">
@@ -110,6 +136,10 @@ export default function AdminMerchantsPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {!loading && !error && (
+        <PaginationBar total={allFiltered.length} page={page} pageSize={PAGE_SIZE} onPage={setPage} />
       )}
 
       {/* Detail Modal */}
