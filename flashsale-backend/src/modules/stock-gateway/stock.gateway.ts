@@ -22,23 +22,13 @@ interface StockUpdatePayload {
   /** Tỷ lệ tồn kho so với ban đầu (0–1) */
   stockRatio: number
   /** Nguồn gốc sự kiện */
-  source: 'PURCHASE' | 'PRICE_UPDATE' | 'MANUAL'
-  timestamp: string
-}
-
-/** Payload gửi về client khi giá thay đổi (từ pricing engine) */
-interface PriceUpdatePayload {
-  campaignProductId: string
-  oldPrice: number
-  newPrice: number
-  /** Lý do thay đổi giá từ pricing engine */
-  reason: string
+  source: 'PURCHASE' | 'MANUAL'
   timestamp: string
 }
 
 /** Sự kiện dashboard từ Redis Pub/Sub */
 interface DashboardEvent {
-  type: 'STOCK_UPDATE' | 'PRICE_UPDATE' | 'ORDER_STATUS'
+  type: 'STOCK_UPDATE' | 'ORDER_STATUS'
   campaignProductId?: string
   [key: string]: unknown
 }
@@ -258,18 +248,6 @@ export class StockGateway
         break
       }
 
-      case 'PRICE_UPDATE': {
-        const payload: PriceUpdatePayload = {
-          campaignProductId: event.campaignProductId ?? '',
-          oldPrice: Number(event.oldPrice ?? 0),
-          newPrice: Number(event.newPrice ?? 0),
-          reason: String(event.reason ?? ''),
-          timestamp: String(event.timestamp ?? new Date().toISOString())
-        }
-        this.server.to(room).emit('price:update', payload)
-        break
-      }
-
       default:
         // Forward các loại event khác (ORDER_STATUS, v.v.) để frontend linh hoạt
         this.server.to(room).emit('campaign:event', event)
@@ -292,19 +270,6 @@ export class StockGateway
       `Emit stock:update → room ${campaignRoom(campaignId)}: còn ${
         payload.stockRemaining
       }`
-    )
-  }
-
-  /**
-   * Emit sự kiện cập nhật giá đến tất cả client đang theo dõi campaign.
-   * Được gọi từ PricingSchedulerService sau khi áp dụng giá mới.
-   */
-  emitPriceUpdate(campaignId: string, payload: PriceUpdatePayload): void {
-    this.server.to(campaignRoom(campaignId)).emit('price:update', payload)
-    this.logger.debug(
-      `Emit price:update → room ${campaignRoom(campaignId)}: ${
-        payload.oldPrice
-      } → ${payload.newPrice}`
     )
   }
 }

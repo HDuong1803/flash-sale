@@ -325,37 +325,57 @@ export default function OrderTrackingPage() {
       {fulfillment && (
         <>
           {/* Status headline */}
-          <div className="glass rounded-2xl p-5">
+          <div className={`glass rounded-2xl p-5 border ${
+            fulfillment.fulfillStatus === 'DELIVERED'
+              ? 'border-emerald-500/20'
+              : fulfillment.fulfillStatus === 'EXCEPTION'
+              ? 'border-red-500/20'
+              : fulfillment.fulfillStatus === 'AWAITING'
+              ? 'border-white/8'
+              : 'border-indigo-500/20'
+          }`}>
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                 fulfillment.fulfillStatus === 'DELIVERED'
                   ? 'bg-emerald-500/20'
                   : fulfillment.fulfillStatus === 'EXCEPTION'
                   ? 'bg-red-500/20'
+                  : fulfillment.fulfillStatus === 'AWAITING'
+                  ? 'bg-white/8'
                   : 'bg-indigo-500/20'
               }`}>
                 {fulfillment.fulfillStatus === 'DELIVERED'
                   ? <CheckCircle2 size={20} className="text-emerald-400" />
                   : fulfillment.fulfillStatus === 'EXCEPTION'
                   ? <AlertTriangle size={20} className="text-red-400" />
+                  : fulfillment.fulfillStatus === 'AWAITING'
+                  ? <Loader2 size={20} className="text-white/40 animate-spin" />
                   : <Truck size={20} className="text-indigo-400" />
                 }
               </div>
-              <div>
-                <p className="text-white font-semibold">
+              <div className="flex-1">
+                <p className={`font-semibold ${
+                  fulfillment.fulfillStatus === 'AWAITING' ? 'text-white/60' : 'text-white'
+                }`}>
                   {STATUS_LABELS[fulfillment.fulfillStatus] ?? fulfillment.fulfillStatus}
                 </p>
-                {fulfillment.trackingEvents[0] && (
+                {fulfillment.fulfillStatus === 'AWAITING' ? (
+                  <p className="text-white/35 text-xs mt-0.5">
+                    Đơn hàng đang trong hàng đợi xử lý — thường mất 1–2 giờ làm việc
+                  </p>
+                ) : fulfillment.trackingEvents[0] ? (
                   <p className="text-white/40 text-xs mt-0.5">
                     Cập nhật {formatTimeAgo(fulfillment.trackingEvents[0].occurredAt)}
                   </p>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
 
-          {/* Progress steps */}
-          <ProgressStepper status={fulfillment.fulfillStatus} />
+          {/* Progress steps — hide when AWAITING to avoid confusing UI */}
+          {fulfillment.fulfillStatus !== 'AWAITING' && (
+            <ProgressStepper status={fulfillment.fulfillStatus} />
+          )}
 
           {/* Carrier info */}
           <CarrierCard fulfillment={fulfillment} />

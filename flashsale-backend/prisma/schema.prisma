@@ -233,8 +233,6 @@ model CampaignProduct {
   product          Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
   reservations     Reservation[]
   stockAllocations StockAllocation[]
-  pricingRules     PricingRule[]
-  priceHistory     PriceHistory[]
 
   @@unique([campaignId, productId])
   @@index([campaignId])
@@ -669,66 +667,6 @@ model UserRiskProfile {
   @@map("user_risk_profiles")
 }
 
-// PricingRule — cấu hình luật định giá động do merchant thiết lập (Hướng 4)
-model PricingRule {
-  id                String          @id @default(cuid()) @map("id") @db.VarChar(36)
-  campaignProductId String          @map("campaign_product_id") @db.VarChar(36)
-  name              String          @map("name") @db.VarChar(100)
-  strategy          PricingStrategy @map("strategy")
-  priority          Int             @default(0) @map("priority")
-  isActive          Boolean         @default(true) @map("is_active")
-
-  // STOCK_BASED
-  stockRatioLow  Float?       @map("stock_ratio_low")
-  stockRatioHigh Float?       @map("stock_ratio_high")
-  stockAction    PriceAction? @map("stock_action")
-
-  // VELOCITY_BASED
-  velocityMin    Float?       @map("velocity_min")
-  velocityMax    Float?       @map("velocity_max")
-  velocityAction PriceAction? @map("velocity_action")
-
-  // TIME_BASED
-  minutesBeforeEnd Int?         @map("minutes_before_end")
-  timeAction       PriceAction? @map("time_action")
-
-  // Adjustment & guardrails
-  adjustmentPct Float @map("adjustment_pct")
-  minPrice      Float @map("min_price")
-  maxPrice      Float @map("max_price")
-
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
-
-  campaignProduct CampaignProduct @relation(fields: [campaignProductId], references: [id], onDelete: Cascade)
-  priceHistory    PriceHistory[]
-
-  @@index([campaignProductId, isActive])
-  @@map("pricing_rules")
-}
-
-// PriceHistory — lịch sử thay đổi giá để vẽ chart (Hướng 4)
-model PriceHistory {
-  id                String   @id @default(cuid()) @map("id") @db.VarChar(36)
-  campaignProductId String   @map("campaign_product_id") @db.VarChar(36)
-  ruleId            String?  @map("rule_id") @db.VarChar(36)
-  oldPrice          Float    @map("old_price")
-  newPrice          Float    @map("new_price")
-  changePct         Float    @map("change_pct")
-  reason            String   @map("reason") @db.VarChar(100)
-  triggeredBy       String   @default("SYSTEM") @map("triggered_by") @db.VarChar(50)
-  stockAtChange     Int      @map("stock_at_change")
-  velocityAtChange  Float    @map("velocity_at_change")
-  timeRemainingMin  Int      @map("time_remaining_min")
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamp(6)
-
-  campaignProduct CampaignProduct @relation(fields: [campaignProductId], references: [id], onDelete: Cascade)
-  rule            PricingRule?    @relation(fields: [ruleId], references: [id], onDelete: SetNull)
-
-  @@index([campaignProductId, createdAt])
-  @@map("price_history")
-}
-
 // CampaignAnalyticsSnapshot — time-series snapshot mỗi 5 phút (Hướng 5)
 model CampaignAnalyticsSnapshot {
   id                String   @id @default(cuid()) @map("id") @db.VarChar(36)
@@ -749,6 +687,7 @@ model CampaignAnalyticsSnapshot {
 
   @@index([campaignId, snapshotAt])
   @@index([campaignProductId, snapshotAt])
+  @@index([snapshotAt])
   @@map("campaign_analytics_snapshots")
 }
 
@@ -1097,18 +1036,6 @@ enum TicketStatus {
   WAITING_CUSTOMER
   RESOLVED
   CLOSED
-}
-
-enum PricingStrategy {
-  STOCK_BASED // Điều chỉnh theo tỉ lệ tồn kho
-  VELOCITY_BASED // Điều chỉnh theo tốc độ mua
-  TIME_BASED // Điều chỉnh theo thời gian còn lại
-  COMPOSITE // Kết hợp nhiều signals
-}
-
-enum PriceAction {
-  INCREASE
-  DECREASE
 }
 
 enum FunnelStep {

@@ -4,7 +4,7 @@
 **Engine**: PostgreSQL 16
 **ORM**: Prisma 6.x
 **Connection**: `DATABASE_URL` environment variable
-**Last updated**: 2026-04-03
+**Last updated**: 2026-04-18
 
 ---
 
@@ -93,6 +93,33 @@ sessions
 
 ---
 
+### campaign_analytics_snapshots (delta)
+
+**Purpose**: Lưu time-series analytics theo chu kỳ 5 phút cho campaign product đang ACTIVE.
+
+| Column | Type | Constraints | Description |
+|--------|------|------------|-------------|
+| `id` | VARCHAR(36) | PK | Snapshot id |
+| `campaign_id` | VARCHAR(36) | NOT NULL, INDEX | Campaign ID |
+| `campaign_product_id` | VARCHAR(36) | NOT NULL, INDEX | Campaign product ID |
+| `snapshot_at` | TIMESTAMP(6) | NOT NULL, DEFAULT now(), INDEX | Thời điểm snapshot |
+| `stock_remaining` | INT | NOT NULL | Tồn kho còn lại |
+| `stock_total` | INT | NOT NULL | Tổng tồn kho ban đầu |
+| `purchase_count` | INT | NOT NULL | Tổng đơn thành công |
+| `revenue` | FLOAT | NOT NULL | Tổng doanh thu |
+
+**Retention & Cleanup**:
+- Cleanup chạy hằng ngày (2:00 AM server time) bằng batch delete.
+- Chính sách mặc định giữ dữ liệu `30` ngày.
+- Config qua env:
+  - `ANALYTICS_SNAPSHOT_CLEANUP_ENABLED=true`
+  - `ANALYTICS_SNAPSHOT_RETENTION_DAYS=30`
+  - `ANALYTICS_SNAPSHOT_CLEANUP_BATCH_SIZE=5000`
+  - `ANALYTICS_SNAPSHOT_CLEANUP_MAX_BATCHES=24`
+- Nếu dữ liệu cũ vượt `batch_size * max_batches`, phần còn lại sẽ tiếp tục xóa ở chu kỳ kế tiếp để tránh spike tải DB.
+
+---
+
 ### notification_preferences (delta)
 
 **Purpose**: Lưu cấu hình nhận thông báo theo user.
@@ -146,6 +173,7 @@ sessions
 
 | Migration | Date | Description | Risk |
 |-----------|------|-------------|------|
+| `20260418102000_add_analytics_snapshot_time_index` | 2026-04-18 | Add index `campaign_analytics_snapshots(snapshot_at)` for retention cleanup query | Low |
 | `20260403130000_add_telegram_notifications_phase1` | 2026-04-03 | Add Telegram link + delivery tables and `notification_preferences.telegram_enabled` | Medium |
 | `20260403113000_add_merchant_hidden_campaign` | 2026-04-03 | Add `campaigns.merchant_hidden_at` | Low |
 | `20240115120000_initial_schema` | 2024-01-15 | Initial tables | Zero-downtime |

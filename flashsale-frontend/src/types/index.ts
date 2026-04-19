@@ -64,7 +64,6 @@ export type Permission =
   | 'admin_benchmark'
   | 'admin_fraud'
   | 'admin_analytics'
-  | 'admin_pricing'
 
 // ─── Domain interfaces ───────────────────────────────────────────────────────
 
@@ -808,45 +807,6 @@ export interface StockoutPrediction {
   /** Số snapshot dùng để tính */
   dataPoints: number
   computedAt: string
-}
-
-// ─── Pricing Types ────────────────────────────────────────────────────────────
-
-export type PricingStrategy = 'STOCK_BASED' | 'VELOCITY_BASED' | 'TIME_BASED' | 'COMPOSITE'
-export type PriceAction = 'INCREASE' | 'DECREASE'
-
-export interface PricingRule {
-  id: string
-  campaignProductId: string
-  name: string
-  strategy: PricingStrategy
-  priority: number
-  isActive: boolean
-  stockRatioLow?: number | null
-  stockRatioHigh?: number | null
-  stockAction?: PriceAction | null
-  velocityMin?: number | null
-  velocityMax?: number | null
-  velocityAction?: PriceAction | null
-  minutesBeforeEnd?: number | null
-  timeAction?: PriceAction | null
-  adjustmentPct: number
-  minPrice: number
-  maxPrice: number
-  createdAt: string
-}
-
-export interface PriceHistoryEntry {
-  id: string
-  oldPrice: number
-  newPrice: number
-  changePct: number
-  reason: string
-  triggeredBy: string
-  stockAtChange: number
-  velocityAtChange: number
-  timeRemainingMin: number
-  createdAt: string
 }
 
 // ─── Fulfillment Types ────────────────────────────────────────────────────────

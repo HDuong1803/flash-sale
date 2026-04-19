@@ -245,18 +245,18 @@ export class OrderGatewayService {
   }
 
   /**
-   * getMyOrders — Lấy danh sách đơn hàng của user hiện tại với phân trang
+   * getMyOrders — Lấy danh sách đơn hàng cá nhân của user hiện tại (với tư cách customer)
    *
    * [Context] Được gọi từ GET /orders với filter và pagination.
    *
-   * [Why] Phân tách query dựa trên role:
-   * - MERCHANT xem đơn hàng của products thuộc shop mình (orders cho merchant)
-   * - CUSTOMER xem đơn hàng do mình đặt
-   * Logic query khác nhau nên được tách ra 2 repository method để giữ rõ ràng.
+   * [Why] Endpoint GET /orders luôn trả đơn hàng mà user ĐÃ ĐẶT với tư cách customer,
+   * bất kể role. Merchant muốn xem đơn của shop mình thì dùng GET /merchants/orders.
+   * Điều này tránh trường hợp merchant đăng nhập rồi vào trang "Đơn hàng của tôi"
+   * lại thấy toàn bộ đơn của khách hàng khác đặt vào shop của họ.
    */
   async getMyOrders(
     userId: string,
-    role: string,
+    _role: string,
     query: { status?: OrderStatus; page?: number; limit?: number }
   ) {
     const filters = {
@@ -265,9 +265,7 @@ export class OrderGatewayService {
       limit: query.limit ?? 10
     }
 
-    if (role === UserRole.MERCHANT) {
-      return this.orderRepository.findAllForMerchant(userId, filters)
-    }
+    // Luôn lấy đơn hàng mà user này đặt (customer view), không phân biệt role
     return this.orderRepository.findAllForCustomer(userId, filters)
   }
 

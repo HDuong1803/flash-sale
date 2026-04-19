@@ -11,7 +11,6 @@ import type {
   BenchmarkAuditLogResponse, LockStrategy,
   FraudStats, FraudEvent, IpBlacklistEntry,
   CampaignOverview, FunnelStep, HeatmapHour, AnalyticsSnapshot, StockoutPrediction,
-  PricingRule, PriceHistoryEntry,
   FulfillmentOrder, FulfillmentRule, Carrier, QcCheckpoint,
 } from '@/types'
 
@@ -243,37 +242,6 @@ class AdminService {
         `/analytics/campaigns/${campaignId}/products/${campaignProductId}/predict-stockout`
       )
     )
-  }
-
-  // ─── Pricing API ────────────────────────────────────────────────────────────
-
-  /** Danh sách pricing rules của một campaign product. */
-  getPricingRules(campaignProductId: string): Promise<PricingRule[]> {
-    return withRetry(() => apiClient.get(`/pricing/${campaignProductId}/rules`))
-  }
-
-  /** Lịch sử thay đổi giá của campaign product. */
-  getPriceHistory(campaignProductId: string, limit?: number): Promise<PriceHistoryEntry[]> {
-    return withRetry(() =>
-      apiClient.get(`/pricing/${campaignProductId}/history`, {
-        params: limit ? { limit } : undefined,
-      })
-    )
-  }
-
-  /** Vô hiệu hóa một pricing rule. */
-  deactivatePricingRule(ruleId: string): Promise<{ ok: boolean }> {
-    return apiClient.delete(`/pricing/rules/${ruleId}`)
-  }
-
-  /** [Admin] Trigger pricing evaluation ngay lập tức cho một product. */
-  triggerPricingEvaluation(campaignProductId: string): Promise<{
-    shouldChange: boolean
-    oldPrice: number
-    newPrice: number
-    reason: string
-  }> {
-    return apiClient.post(`/pricing/${campaignProductId}/evaluate`)
   }
 
   // ─── Fulfillment ──────────────────────────────────────────────────────────

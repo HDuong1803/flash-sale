@@ -1,14 +1,17 @@
 'use client'
 
+// Danh sách đơn hàng merchant nhận được
+// Click vào một đơn sẽ chuyển sang trang /merchant/orders/[id] để xem chi tiết đầy đủ
+
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ClipboardList, AlertCircle, Download } from 'lucide-react'
 import { useMerchantOrders } from '@/hooks/queries/useMerchantOrders'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency, formatDate, maskString } from '@/lib/utils'
-import type { Order, OrderStatus } from '@/types'
+import type { OrderStatus } from '@/types'
 
 const TABS: { label: string; value: OrderStatus | 'ALL' }[] = [
   { label: 'Tất cả', value: 'ALL' },
@@ -20,8 +23,8 @@ const TABS: { label: string; value: OrderStatus | 'ALL' }[] = [
 ]
 
 export default function MerchantOrdersPage() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<OrderStatus | 'ALL'>('ALL')
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const { data: orders, loading, error, refetch } = useMerchantOrders(
     activeTab !== 'ALL' ? { status: activeTab } : undefined
   )
@@ -86,7 +89,7 @@ export default function MerchantOrdersPage() {
               </thead>
               <tbody>
                 {orders.map((order) => (
-                  <tr key={order.id} onClick={() => setSelectedOrder(order)}
+                  <tr key={order.id} onClick={() => router.push(`/merchant/orders/${order.id}`)}
                     className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors">
                     <td className="px-4 py-3 text-white/50 text-xs font-mono">#{order.id.slice(0, 8)}</td>
                     <td className="px-4 py-3 text-white/70 text-sm">{maskString(order.customerId.slice(0, 8))}</td>
@@ -108,53 +111,6 @@ export default function MerchantOrdersPage() {
         </div>
       )}
 
-      {/* Order detail modal */}
-      <Dialog open={!!selectedOrder} onOpenChange={(open) => { if (!open) setSelectedOrder(null) }}>
-        <DialogContent className="glass-strong border border-white/15 bg-[rgba(15,10,42,0.85)] backdrop-blur-2xl max-w-md w-full">
-          <DialogHeader>
-            <DialogTitle className="text-white">Đơn #{selectedOrder?.id.slice(0, 8)}</DialogTitle>
-          </DialogHeader>
-          {selectedOrder && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-white/50 text-sm">Trạng thái</span>
-                <StatusBadge status={selectedOrder.status} />
-              </div>
-              <div className="border-t border-white/10 pt-4 space-y-2">
-                <p className="text-white/50 text-xs font-semibold uppercase">Sản phẩm</p>
-                {selectedOrder.items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-sm">
-                    <span className="text-white/70 line-clamp-1">{item.productName} × {item.quantity}</span>
-                    <span className="text-indigo-300 font-medium">{formatCurrency(item.quantity * item.unitPrice)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between font-bold border-t border-white/10 pt-2">
-                  <span className="text-white">Tổng</span>
-                  <span className="text-indigo-300">{formatCurrency(selectedOrder.totalAmount)}</span>
-                </div>
-              </div>
-              <div className="border-t border-white/10 pt-4">
-                <p className="text-white/50 text-xs font-semibold uppercase mb-2">Thông tin giao hàng</p>
-                <p className="text-white/70 text-sm">{maskString(selectedOrder.customerId.slice(0, 12))}</p>
-                <p className="text-white/50 text-sm">{selectedOrder.shippingAddress}</p>
-              </div>
-              {selectedOrder.payment && (
-                <div className="border-t border-white/10 pt-4">
-                  <p className="text-white/50 text-xs font-semibold uppercase mb-2">Thanh toán</p>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-white/50">Phương thức</span>
-                    <span className="text-white">{selectedOrder.payment.method}</span>
-                  </div>
-                  <div className="flex justify-between text-sm mt-1">
-                    <span className="text-white/50">Trạng thái</span>
-                    <StatusBadge status={selectedOrder.payment.status} />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -163,8 +163,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   } | null>(null)
 
   // ─── WebSocket real-time ────────────────────────────────────────────────────
-  /** Nhận cập nhật tồn kho và giá real-time qua Socket.IO */
-  const { stockMap, priceMap, isConnected } = useStockSocket(campaign?.id)
+  /** Nhận cập nhật tồn kho real-time qua Socket.IO */
+  const { stockMap, isConnected } = useStockSocket(campaign?.id)
 
   /**
    * Feed giao dịch gần nhất — chỉ subscribe khi campaign đang ACTIVE.
@@ -189,9 +189,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     ? product.saleQuantity
     : (product?.remainingQuantity ?? 0)
 
-  /** Giá: ưu tiên WebSocket nếu pricing engine đã thay đổi */
-  const wsPrice = product ? (priceMap[product.id] ?? null) : null
-  const displayPrice = wsPrice !== null ? wsPrice : (product?.salePrice ?? 0)
+  const displayPrice = product?.salePrice ?? 0
 
   const originalPrice = product?.product?.originalPrice ?? 0
   const discount = product ? calculateDiscount(originalPrice, displayPrice) : 0
@@ -550,12 +548,6 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                   <span className="text-indigo-300 text-3xl font-black transition-all duration-300">
                     {formatCurrency(displayPrice)}
                   </span>
-                  {wsPrice !== null && wsPrice !== product.salePrice && (
-                    <span className="text-amber-300 text-xs font-medium flex items-center gap-1">
-                      <TrendingDown size={12} />
-                      Vừa cập nhật
-                    </span>
-                  )}
                 </div>
 
                 {/* Savings callout — nổi bật */}

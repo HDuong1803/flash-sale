@@ -9,7 +9,7 @@
  * Cơ chế room:
  * - Backend dùng room `campaign:{campaignId}` để nhóm clients
  * - Client phải gửi event 'subscribe' + { campaignId } để join room
- * - Sau khi join, client nhận 'stock:update' và 'price:update' chỉ cho campaign đó
+ * - Sau khi join, client nhận 'stock:update' chỉ cho campaign đó
  *
  * Graceful cleanup:
  * - Mỗi caller nhận về hàm disconnect() riêng để cleanup
@@ -25,16 +25,7 @@ export interface StockUpdatePayload {
   campaignProductId: string
   stockRemaining: number
   stockRatio: number
-  source: 'PURCHASE' | 'PRICE_UPDATE' | 'MANUAL'
-  timestamp: string
-}
-
-/** Payload nhận được khi giá thay đổi */
-export interface PriceUpdatePayload {
-  campaignProductId: string
-  oldPrice: number
-  newPrice: number
-  reason: string
+  source: 'PURCHASE' | 'MANUAL'
   timestamp: string
 }
 
@@ -103,18 +94,16 @@ function getSocket(): Socket {
  * Flow:
  * 1. Lấy/tạo socket connection
  * 2. Gửi event 'subscribe' để join room campaign:{campaignId}
- * 3. Đăng ký handler cho 'stock:update' và 'price:update'
+ * 3. Đăng ký handler cho 'stock:update'
  * 4. Trả về hàm cleanup để caller gọi khi unmount
  *
  * @param campaignId - ID campaign cần theo dõi
  * @param onStockUpdate - Callback khi tồn kho thay đổi
- * @param onPriceUpdate - Callback khi giá thay đổi (optional)
  * @returns Hàm cleanup để unsubscribe và remove listeners
  */
 export function subscribeToCamera(
   campaignId: string,
-  onStockUpdate: (payload: StockUpdatePayload) => void,
-  onPriceUpdate?: (payload: PriceUpdatePayload) => void
+  onStockUpdate: (payload: StockUpdatePayload) => void
 ): () => void {
   const sock = getSocket()
 
@@ -133,18 +122,10 @@ export function subscribeToCamera(
   // Đăng ký listener nhận stock update
   sock.on('stock:update', onStockUpdate)
 
-  // Đăng ký listener nhận price update nếu caller quan tâm
-  if (onPriceUpdate) {
-    sock.on('price:update', onPriceUpdate)
-  }
-
   // Trả về hàm cleanup để caller gọi khi component unmount
   return () => {
     sock.emit('unsubscribe', { campaignId })
     sock.off('stock:update', onStockUpdate)
-    if (onPriceUpdate) {
-      sock.off('price:update', onPriceUpdate)
-    }
     // Xóa connect listener nếu chưa fired
     sock.off('connect', joinRoom)
   }

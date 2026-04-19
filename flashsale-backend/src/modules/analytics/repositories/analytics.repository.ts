@@ -80,6 +80,35 @@ export class AnalyticsRepository {
     await this.prisma.campaignAnalyticsSnapshot.create({ data })
   }
 
+  /**
+   * Xóa snapshot cũ theo batch để tránh lock bảng quá lâu.
+   * Dùng CTE + LIMIT giúp cleanup chạy ổn định khi dữ liệu lớn.
+   */
+  async deleteSnapshotsOlderThan(cutoff: Date, limit: number): Promise<number> {
+    const safeLimit = Math.max(1, Math.min(limit, 50_000))
+
+    return this.prisma.$executeRaw`
+      WITH stale AS (
+        SELECT id
+        FROM campaign_analytics_snapshots
+        WHERE snapshot_at < ${cutoff}
+        ORDER BY snapshot_at ASC
+        LIMIT ${safeLimit}
+      )
+      DELETE FROM campaign_analytics_snapshots
+      WHERE id IN (SELECT id FROM stale)
+    `
+  }
+
+  async hasSnapshotsOlderThan(cutoff: Date): Promise<boolean> {
+    const row = await this.prisma.campaignAnalyticsSnapshot.findFirst({
+      where: { snapshotAt: { lt: cutoff } },
+      orderBy: { snapshotAt: 'asc' },
+      select: { id: true }
+    })
+    return row !== null
+  }
+
   /** Lấy snapshot mới nhất của campaign (dùng cho trang overview) */
   async findLatestSnapshot(campaignId: string) {
     return this.prisma.campaignAnalyticsSnapshot.findFirst({

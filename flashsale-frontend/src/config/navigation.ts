@@ -197,14 +197,6 @@ export const NAV_ITEMS: NavItem[] = [
     description: 'Funnel, heatmap, stockout prediction',
   },
   {
-    label: 'Định giá động',
-    href: '/admin/pricing',
-    iconName: 'Tag',
-    permission: 'admin_pricing',
-    section: 'admin',
-    description: 'Pricing rules, lịch sử thay đổi giá',
-  },
-  {
     label: 'Fulfillment & QC',
     href: '/admin/fulfillment',
     iconName: 'Truck',

@@ -345,40 +345,6 @@ export class RedisService {
     return token !== null
   }
 
-  // ─── Pricing Cooldown ─────────────────────────────────────────────────────
-
-  /**
-   * Đặt cooldown sau khi giá đã thay đổi — ngăn oscillation.
-   * Trong thời gian cooldown, sản phẩm này bị bỏ qua trong pricing cycle.
-   */
-  async setPricingCooldown(
-    campaignProductId: string,
-    ttlSeconds: number
-  ): Promise<void> {
-    await this._redisClient.set(
-      `pricing:cooldown:${campaignProductId}`,
-      '1',
-      'EX',
-      ttlSeconds
-    )
-  }
-
-  async hasPricingCooldown(campaignProductId: string): Promise<boolean> {
-    return (
-      (await this._redisClient.exists(
-        `pricing:cooldown:${campaignProductId}`
-      )) === 1
-    )
-  }
-
-  /** Batch check cooldowns — dùng khi scheduler cần lọc trước khi evaluate */
-  async filterCooldownIds(ids: string[]): Promise<Set<string>> {
-    if (ids.length === 0) return new Set()
-    const keys = ids.map(id => `pricing:cooldown:${id}`)
-    const exists = await this._redisClient.mget(...keys)
-    return new Set(ids.filter((_, i) => exists[i] !== null))
-  }
-
   async releaseLock(key: string): Promise<void> {
     await this._redisClient.del(`lock:${key}`)
   }

@@ -38,7 +38,6 @@ const ADMIN_PERMISSIONS: Permission[] = [
   'admin_benchmark',
   'admin_fraud',
   'admin_analytics',
-  'admin_pricing',
 ]
 
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
