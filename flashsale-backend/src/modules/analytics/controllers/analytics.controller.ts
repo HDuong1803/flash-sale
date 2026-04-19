@@ -256,7 +256,7 @@ export class AnalyticsController {
       campaignProductId
     )
     if (!ok) {
-      throw new ForbiddenException('Campaign product không thuộc campaign')
+      throw new ForbiddenException('Sản phẩm không thuộc chiến dịch này')
     }
   }
 }

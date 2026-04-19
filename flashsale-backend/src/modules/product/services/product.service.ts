@@ -49,9 +49,10 @@ export class ProductService {
 
   private async getApprovedMerchant(userId: string) {
     const merchant = await this.merchantRepository.findByUserId(userId)
-    if (!merchant) throw new ForbiddenException('Bạn chưa đăng ký làm merchant')
+    if (!merchant)
+      throw new ForbiddenException('Bạn chưa đăng ký làm nhà bán hàng')
     if (merchant.kycStatus !== KycStatus.APPROVED)
-      throw new ForbiddenException('Tài khoản merchant chưa được duyệt')
+      throw new ForbiddenException('Tài khoản nhà bán hàng chưa được duyệt')
     return merchant
   }
 

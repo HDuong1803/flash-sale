@@ -56,7 +56,8 @@ export class PaymentGatewayConfigService implements OnModuleInit {
     const found = await this.prisma.paymentGatewayConfig.findUnique({
       where: { gateway }
     })
-    if (!found) throw new NotFoundException('Gateway config không tồn tại')
+    if (!found)
+      throw new NotFoundException('Cấu hình cổng thanh toán không tồn tại')
     return found
   }
 

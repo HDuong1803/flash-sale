@@ -180,7 +180,8 @@ export class StripeService implements PaymentGatewayProvider {
     }
 
     const url = response.data?.url
-    if (!url) throw new BadRequestException('Stripe không trả về checkout URL')
+    if (!url)
+      throw new BadRequestException('Stripe không trả về đường dẫn thanh toán')
 
     this.logger.log({
       event: 'stripe_session_created',

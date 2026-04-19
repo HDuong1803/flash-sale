@@ -197,12 +197,12 @@ export const NAV_ITEMS: NavItem[] = [
   //   description: 'Funnel, heatmap, stockout prediction',
   // },
   {
-    label: 'Fulfillment & QC',
+    label: 'Vận hành & Kiểm soát',
     href: '/admin/fulfillment',
     iconName: 'Truck',
     permission: 'admin_system',
     section: 'admin',
-    description: 'Carriers, routing rules, QC station',
+    description: 'Đơn vị vận chuyển, quy tắc định tuyến, kiểm soát chất lượng',
   },
 ]
 

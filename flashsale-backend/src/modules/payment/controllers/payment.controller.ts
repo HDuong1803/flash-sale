@@ -83,7 +83,7 @@ export class PaymentController {
         event: 'legacy_webhook_rejected',
         reason: !expectedSecret ? 'secret_not_configured' : 'secret_mismatch'
       })
-      throw new ForbiddenException('Unauthorized webhook request')
+      throw new ForbiddenException('Yêu cầu webhook không được phép')
     }
 
     return this.paymentService.handleWebhook(dto)

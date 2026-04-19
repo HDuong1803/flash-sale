@@ -174,7 +174,7 @@ export class OrderGatewayService {
 
       // Cực kỳ hiếm: key expire ngay sau khi claim fail (TTL rất ngắn hoặc Redis eviction).
       // Trong trường hợp này buộc phải báo lỗi — client cần retry với key mới.
-      throw new BadRequestException('Request trùng lặp — vui lòng thử lại')
+      throw new BadRequestException('Yêu cầu trùng lặp — vui lòng thử lại')
     }
 
     // [Step 6] Đẩy job vào RabbitMQ queue. Idempotency key đã được claim atomic ở Step 5.

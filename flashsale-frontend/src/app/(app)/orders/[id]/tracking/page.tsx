@@ -17,7 +17,7 @@ const STEPS: Array<{
   label: string
   icon: React.ReactNode
 }> = [
-  { key: 'AWAITING',         label: 'Chờ fulfillment',   icon: <Package size={16} /> },
+  { key: 'AWAITING',         label: 'Chờ xử lý đơn',    icon: <Package size={16} /> },
   { key: 'LABEL_BOOKED',     label: 'Đã in nhãn',        icon: <CheckCircle2 size={16} /> },
   { key: 'PICKED',           label: 'Đã lấy hàng',       icon: <Truck size={16} /> },
   { key: 'PACKED',           label: 'Đã đóng gói',       icon: <Package size={16} /> },
@@ -39,7 +39,7 @@ const STATUS_ORDER: FulfillmentStatus[] = [
 ]
 
 const STATUS_LABELS: Partial<Record<FulfillmentStatus, string>> = {
-  AWAITING:           'Chờ fulfillment',
+  AWAITING:           'Chờ xử lý đơn hàng',
   ADDRESS_ISSUE:      'Địa chỉ giao hàng có vấn đề',
   LABEL_BOOKED:       'Đã in nhãn vận chuyển',
   PICKED:             'Đã lấy hàng khỏi kho',

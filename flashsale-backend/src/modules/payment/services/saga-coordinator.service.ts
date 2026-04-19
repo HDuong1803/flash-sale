@@ -52,7 +52,7 @@ export class SagaCoordinatorService {
     transactionId: string
   ): Promise<void> {
     const payment = await this.paymentRepository.findById(paymentId)
-    if (!payment) throw new NotFoundException('Payment không tồn tại')
+    if (!payment) throw new NotFoundException('Thanh toán không tồn tại')
 
     if (
       payment.status === PaymentStatus.SUCCESS ||
@@ -80,7 +80,7 @@ export class SagaCoordinatorService {
 
     const reservationId = payment.reservationId
     if (!reservationId)
-      throw new BadRequestException('Payment không liên kết với reservation')
+      throw new BadRequestException('Thanh toán không liên kết với đơn giữ chỗ')
 
     const resv = await this.paymentRepository.findReservationWithProduct(
       reservationId

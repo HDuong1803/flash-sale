@@ -15,7 +15,7 @@ const QC_CFG: Record<QcStatus, { label: string; color: string }> = {
   PENDING: { label: 'Chờ QC',    color: 'text-yellow-400' },
   PASSED:  { label: 'Đạt QC',    color: 'text-emerald-400' },
   FAILED:  { label: 'Không đạt', color: 'text-red-400' },
-  REWORK:  { label: 'Rework',    color: 'text-orange-400' },
+  REWORK:  { label: 'Làm lại',   color: 'text-orange-400' },
 }
 
 const DEFAULT_QC_CHECKLIST: QcChecklistItem[] = [
@@ -67,7 +67,7 @@ function CarrierCard({ carrier, onToggle }: {
               <p className="text-white text-sm font-semibold">{carrier.displayName}</p>
               {carrier.sandboxMode && (
                 <span className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">
-                  Sandbox
+                  Thử nghiệm
                 </span>
               )}
               {carrier.active ? (
@@ -86,7 +86,7 @@ function CarrierCard({ carrier, onToggle }: {
         <button
           onClick={handleToggle}
           disabled={toggling}
-          aria-label={carrier.active ? 'Tắt carrier' : 'Bật carrier'}
+          aria-label={carrier.active ? 'Tắt đơn vị vận chuyển' : 'Bật đơn vị vận chuyển'}
           className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
             carrier.active ? 'bg-indigo-600' : 'bg-white/15'
           }`}
@@ -128,7 +128,7 @@ function QcRow({ qc, onInit, onPass, onFail, onRework, loading }: {
             <span className="text-white/50 text-xs font-mono">#{qc.orderId.slice(-12)}</span>
           </div>
           <p className="text-white/40 text-xs mt-1.5">
-            Inspector: {qc.inspector?.fullName ?? qc.inspector?.email ?? 'Chưa nhận QC'}
+            Kiểm soát viên: {qc.inspector?.fullName ?? qc.inspector?.email ?? 'Chưa nhận QC'}
           </p>
           {qc.failReason && (
             <p className="text-red-400/70 text-xs mt-0.5 truncate">{qc.failReason}</p>
@@ -173,7 +173,7 @@ function QcRow({ qc, onInit, onPass, onFail, onRework, loading }: {
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-orange-300 bg-orange-500/15 border border-orange-500/25 hover:bg-orange-500/25 disabled:opacity-50 transition-colors"
               >
                 <Wrench size={11} />
-                Rework
+                Làm lại
               </button>
             )}
           </div>
@@ -206,7 +206,7 @@ function RuleRow({ rule, onDelete }: {
             </span>
             {!rule.active && (
               <span className="flex-shrink-0 px-2 py-0.5 rounded-full text-xs bg-white/5 text-white/40 border border-white/10">
-                Inactive
+                Tạm tắt
               </span>
             )}
           </div>
@@ -229,7 +229,7 @@ function RuleRow({ rule, onDelete }: {
             finally { setDeleting(false) }
           }}
           disabled={deleting}
-          aria-label="Xóa rule"
+          aria-label="Xóa quy tắc"
           className="flex-shrink-0 p-2 rounded-lg hover:bg-red-500/15 text-white/30 hover:text-red-400 transition-colors"
         >
           {deleting ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
@@ -272,7 +272,7 @@ function CreateRuleForm({ carriers, onSubmit, onCancel }: {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim() || !form.carrierId) {
-      toast.error('Vui lòng điền đầy đủ tên rule và chọn carrier')
+      toast.error('Vui lòng điền đầy đủ tên quy tắc và chọn đơn vị vận chuyển')
       return
     }
     setSubmitting(true)
@@ -285,7 +285,7 @@ function CreateRuleForm({ carriers, onSubmit, onCancel }: {
   return (
     <form onSubmit={handleSubmit} className="glass rounded-2xl p-5 space-y-4 border border-indigo-500/20">
       <div className="flex items-center justify-between">
-        <h3 className="text-white font-semibold text-sm">Tạo rule mới</h3>
+        <h3 className="text-white font-semibold text-sm">Tạo quy tắc mới</h3>
         <button type="button" onClick={onCancel} className="text-white/40 hover:text-white/70 transition-colors">
           <XCircle size={16} />
         </button>
@@ -293,15 +293,15 @@ function CreateRuleForm({ carriers, onSubmit, onCancel }: {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="text-white/50 text-xs block mb-1.5">Tên rule *</label>
+          <label className="text-white/50 text-xs block mb-1.5">Tên quy tắc *</label>
           <input type="text" value={form.name} onChange={set('name')}
             placeholder="VD: Hàng nặng toàn quốc" required className={inputCls} />
         </div>
         <div>
-          <label className="text-white/50 text-xs block mb-1.5">Carrier *</label>
+          <label className="text-white/50 text-xs block mb-1.5">Đơn vị vận chuyển *</label>
           <select value={form.carrierId} onChange={set('carrierId')} required
             className="w-full glass rounded-xl px-3 py-2.5 text-white text-sm bg-[#0f0a2a] outline-none border border-white/10">
-            <option value="">Chọn carrier</option>
+            <option value="">Chọn đơn vị vận chuyển</option>
             {carriers.filter(c => c.active).map(c => (
               <option key={c.id} value={c.id}>{c.displayName}</option>
             ))}
@@ -346,7 +346,7 @@ function CreateRuleForm({ carriers, onSubmit, onCancel }: {
           className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-sm font-semibold disabled:opacity-50 transition-all hover:scale-[1.02]"
           style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 20px rgba(99,102,241,0.3)' }}>
           {submitting ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-          {submitting ? 'Đang tạo...' : 'Tạo rule'}
+          {submitting ? 'Đang tạo...' : 'Tạo quy tắc'}
         </button>
       </div>
     </form>
@@ -399,7 +399,7 @@ export default function AdminFulfillmentPage() {
       setQcPage(0)
       setQcFilter('')
     } catch {
-      setError('Không thể tải dữ liệu fulfillment. Kiểm tra kết nối máy chủ.')
+      setError('Không thể tải dữ liệu vận hành. Kiểm tra kết nối máy chủ.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -443,16 +443,16 @@ export default function AdminFulfillmentPage() {
     try {
       const updated = await adminService.toggleCarrier(id, active)
       setCarriers(prev => prev.map(c => c.id === updated.id ? updated : c))
-      toast.success(`Carrier ${active ? 'đã bật' : 'đã tắt'}`)
+      toast.success(`Đơn vị vận chuyển ${active ? 'đã bật' : 'đã tắt'}`)
     } catch {
-      toast.error('Không thể cập nhật carrier')
+      toast.error('Không thể cập nhật đơn vị vận chuyển')
     }
   }
 
   const handleDeleteRule = async (id: string) => {
     await adminService.deleteFulfillmentRule(id)
     setRules(prev => prev.filter(r => r.id !== id))
-    toast.success('Đã xóa rule')
+    toast.success('Đã xóa quy tắc')
   }
 
   const handleCreateRule = async (formData: CreateRuleFormData) => {
@@ -468,7 +468,7 @@ export default function AdminFulfillmentPage() {
     })
     setRules(prev => [...prev, newRule])
     setShowCreateRule(false)
-    toast.success(`Đã tạo rule "${newRule.name}"`)
+    toast.success(`Đã tạo quy tắc "${newRule.name}"`)
   }
 
   const withQcAction = async (orderId: string, action: () => Promise<void>) => {
@@ -510,7 +510,7 @@ export default function AdminFulfillmentPage() {
   const handleReworkQc = async (orderId: string) =>
     withQcAction(orderId, async () => {
       await adminService.reworkQc(orderId, 'Yêu cầu xử lý lại tại kho')
-      toast.success(`Đã chuyển sang rework cho đơn #${orderId.slice(-8)}`)
+      toast.success(`Đã chuyển sang làm lại cho đơn #${orderId.slice(-8)}`)
     })
 
   const filteredQcList = useMemo(() => {
@@ -546,9 +546,9 @@ export default function AdminFulfillmentPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-400 via-violet-400 to-indigo-300 bg-clip-text text-transparent">
-            Quản lý Fulfillment
+            Vận hành & Kiểm soát chất lượng
           </h1>
-          <p className="text-white/40 text-sm mt-1">Carriers, rules vận chuyển và QC station</p>
+          <p className="text-white/40 text-sm mt-1">Đơn vị vận chuyển, quy tắc định tuyến và kiểm soát chất lượng</p>
         </div>
         <button onClick={() => loadAll(true)} disabled={refreshing}
           className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-white/70 hover:text-white text-sm transition-all">
@@ -559,22 +559,22 @@ export default function AdminFulfillmentPage() {
 
       {/* Overview Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Carriers hoạt động" value={activeCarriers}
+        <StatCard label="Đơn vị vận chuyển" value={activeCarriers}
           icon={<Truck size={18} />} color="text-indigo-400" />
-        <StatCard label="Rules đang dùng" value={activeRules}
+        <StatCard label="Quy tắc đang dùng" value={activeRules}
           icon={<Shield size={18} />} color="text-violet-400" />
-        <StatCard label="QC checkpoints" value={qcTotal}
+        <StatCard label="Điểm kiểm soát" value={qcTotal}
           icon={<Clock size={18} />} color="text-yellow-400" />
-        <StatCard label="Tổng rules" value={rules.length}
+        <StatCard label="Tổng quy tắc" value={rules.length}
           icon={<CheckCircle2 size={18} />} color="text-emerald-400" />
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap">
         {([
-          { key: 'qc', label: 'QC Station', icon: <CheckCircle2 size={14} /> },
-          { key: 'carriers', label: 'Carriers', icon: <Truck size={14} /> },
-          { key: 'rules', label: 'Rules', icon: <Shield size={14} /> },
+          { key: 'qc', label: 'Kiểm soát chất lượng', icon: <CheckCircle2 size={14} /> },
+          { key: 'carriers', label: 'Đơn vị vận chuyển', icon: <Truck size={14} /> },
+          { key: 'rules', label: 'Quy tắc', icon: <Shield size={14} /> },
         ] as const).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -591,13 +591,13 @@ export default function AdminFulfillmentPage() {
       {tab === 'qc' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            <p className="text-white/40 text-sm">{qcTotal} checkpoint tổng cộng</p>
+            <p className="text-white/40 text-sm">{qcTotal} điểm kiểm soát</p>
             <div className="flex gap-2 flex-wrap">
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
                 <input
                   type="text"
-                  placeholder="Tìm theo orderId..."
+                  placeholder="Tìm theo mã đơn hàng..."
                   value={qcSearch}
                   onChange={e => setQcSearch(e.target.value)}
                   className="glass rounded-xl pl-9 pr-3 py-2 text-white text-sm bg-transparent outline-none border border-white/10 w-52"
@@ -612,7 +612,7 @@ export default function AdminFulfillmentPage() {
                 <option value="PENDING">Chờ QC</option>
                 <option value="PASSED">Đạt QC</option>
                 <option value="FAILED">Không đạt</option>
-                <option value="REWORK">Rework</option>
+                <option value="REWORK">Làm lại</option>
               </select>
             </div>
           </div>
@@ -620,7 +620,7 @@ export default function AdminFulfillmentPage() {
           {filteredQcList.length === 0 ? (
             <div className="glass rounded-2xl p-12 text-center">
               <CheckCircle2 className="mx-auto mb-3 text-white/20" size={32} />
-              <p className="text-white/40 text-sm">Không có QC checkpoint nào</p>
+              <p className="text-white/40 text-sm">Không có điểm kiểm soát nào</p>
             </div>
           ) : (
             <div className="grid gap-3">
@@ -664,7 +664,7 @@ export default function AdminFulfillmentPage() {
           {carriers.length === 0 ? (
             <div className="glass rounded-2xl p-12 text-center">
               <Truck className="mx-auto mb-3 text-white/20" size={32} />
-              <p className="text-white/40 text-sm">Chưa có carrier nào được cấu hình</p>
+              <p className="text-white/40 text-sm">Chưa có đơn vị vận chuyển nào được cấu hình</p>
             </div>
           ) : (
             carriers.map(carrier => (
@@ -678,14 +678,14 @@ export default function AdminFulfillmentPage() {
       {tab === 'rules' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-white/40 text-sm">{rules.length} rule · {activeRules} đang hoạt động</p>
+            <p className="text-white/40 text-sm">{rules.length} quy tắc · {activeRules} đang hoạt động</p>
             {!showCreateRule && (
               <button
                 onClick={() => setShowCreateRule(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:scale-[1.02]"
                 style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 15px rgba(99,102,241,0.3)' }}
               >
-                <Plus size={14} />Tạo rule mới
+                <Plus size={14} />Tạo quy tắc mới
               </button>
             )}
           </div>
@@ -701,7 +701,7 @@ export default function AdminFulfillmentPage() {
           {rules.length === 0 && !showCreateRule ? (
             <div className="glass rounded-2xl p-12 text-center">
               <Shield className="mx-auto mb-3 text-white/20" size={32} />
-              <p className="text-white/40 text-sm">Chưa có fulfillment rule nào</p>
+              <p className="text-white/40 text-sm">Chưa có quy tắc vận hành nào</p>
             </div>
           ) : (
             <div className="space-y-2">

@@ -60,7 +60,7 @@ export class BenchmarkService {
       )
 
       if (!context) {
-        throw new NotFoundException('Campaign product không tồn tại')
+        throw new NotFoundException('Sản phẩm chiến dịch không tồn tại')
       }
 
       if (context.campaignStatus === 'ACTIVE') {

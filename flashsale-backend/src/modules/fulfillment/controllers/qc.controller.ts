@@ -331,7 +331,9 @@ export class QcController {
     }
 
     if (user.role === 'CUSTOMER') {
-      throw new ForbiddenException('Customer không được phép thao tác QC')
+      throw new ForbiddenException(
+        'Khách hàng không được phép thực hiện kiểm soát chất lượng'
+      )
     }
   }
 }

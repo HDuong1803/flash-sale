@@ -57,14 +57,14 @@ export class AdminService {
 
   async approveMerchant(merchantId: string) {
     const profile = await this.adminRepository.findMerchantById(merchantId)
-    if (!profile) throw new NotFoundException('Merchant không tồn tại')
+    if (!profile) throw new NotFoundException('Nhà bán hàng không tồn tại')
     await this.adminRepository.approveMerchant(merchantId, profile.userId)
     return { success: true }
   }
 
   async rejectMerchant(merchantId: string, reason: string) {
     const profile = await this.adminRepository.findMerchantById(merchantId)
-    if (!profile) throw new NotFoundException('Merchant không tồn tại')
+    if (!profile) throw new NotFoundException('Nhà bán hàng không tồn tại')
     return this.adminRepository.rejectMerchant(merchantId, reason)
   }
 
@@ -74,7 +74,7 @@ export class AdminService {
       merchantId,
       safeDays
     )
-    if (!overview) throw new NotFoundException('Merchant không tồn tại')
+    if (!overview) throw new NotFoundException('Nhà bán hàng không tồn tại')
     return overview
   }
 
@@ -424,7 +424,7 @@ export class AdminService {
 
   async retryJob(jobId: string) {
     const job = await this.adminRepository.findDeadLetterJobById(jobId)
-    if (!job) throw new NotFoundException('Job không tồn tại')
+    if (!job) throw new NotFoundException('Tác vụ không tồn tại')
 
     const queue =
       job.type === 'ORDER_PROCESSING' ? 'order.high' : 'notification'
@@ -435,7 +435,7 @@ export class AdminService {
 
   async discardJob(jobId: string) {
     const job = await this.adminRepository.findDeadLetterJobById(jobId)
-    if (!job) throw new NotFoundException('Job không tồn tại')
+    if (!job) throw new NotFoundException('Tác vụ không tồn tại')
     await this.adminRepository.deleteDeadLetterJob(jobId)
     return { discarded: true }
   }
@@ -660,7 +660,7 @@ export class AdminService {
     if (!request)
       throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
     if (request.requestType !== RescheduleRequestType.MERCHANT_REQUEST)
-      throw new BadRequestException('Chỉ có thể duyệt yêu cầu từ merchant')
+      throw new BadRequestException('Chỉ có thể duyệt yêu cầu từ nhà bán hàng')
     if (request.status !== RescheduleRequestStatus.PENDING_ADMIN)
       throw new BadRequestException('Yêu cầu này không ở trạng thái chờ duyệt')
     if (new Date() > request.expiresAt)
@@ -727,7 +727,9 @@ export class AdminService {
     if (!request)
       throw new NotFoundException('Yêu cầu thay đổi lịch không tồn tại')
     if (request.requestType !== RescheduleRequestType.MERCHANT_REQUEST)
-      throw new BadRequestException('Chỉ có thể từ chối yêu cầu từ merchant')
+      throw new BadRequestException(
+        'Chỉ có thể từ chối yêu cầu từ nhà bán hàng'
+      )
     if (request.status !== RescheduleRequestStatus.PENDING_ADMIN)
       throw new BadRequestException(
         'Yêu cầu này không thể từ chối hoặc đã được xử lý'

@@ -230,7 +230,7 @@ export class TelegramNotificationService {
     ok: boolean
   }> {
     if (!this.isWebhookAuthorized(secretToken, legacyPathSecret)) {
-      throw new UnauthorizedException('Unauthorized webhook request')
+      throw new UnauthorizedException('Yêu cầu webhook không được phép')
     }
 
     const callbackQuery = update.callback_query

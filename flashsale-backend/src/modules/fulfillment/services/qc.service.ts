@@ -176,7 +176,7 @@ export class QcService {
     }
 
     if (!input.failReason.trim()) {
-      throw new BadRequestException('failReason không được để trống')
+      throw new BadRequestException('Lý do không đạt không được để trống')
     }
 
     await this.qcRepo.markFailed(checkpoint.id, {
