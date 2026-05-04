@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -81,10 +82,12 @@ export class CreateQcCheckpointDto {
 
 export class QcPassDto {
   @ApiProperty({
-    description: 'Tất cả checklist items — tất cả phải passed=true',
+    description:
+      'Tất cả checklist items — tất cả phải passed=true, không được rỗng',
     type: [QcChecklistItemDto]
   })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => QcChecklistItemDto)
   checklist: QcChecklistItemDto[]
@@ -137,10 +140,11 @@ export class QcFailDto {
   failReason: string
 
   @ApiProperty({
-    description: 'Checklist items đã kiểm tra',
+    description: 'Checklist items đã kiểm tra — không được rỗng',
     type: [QcChecklistItemDto]
   })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => QcChecklistItemDto)
   checklist: QcChecklistItemDto[]

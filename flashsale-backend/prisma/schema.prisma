@@ -821,23 +821,24 @@ model TrackingEvent {
 // ─── QC Station ───────────────────────────────────────────────────────────────
 
 model QcCheckpoint {
-  id          String   @id @default(cuid()) @map("id") @db.VarChar(36)
-  orderId     String   @unique @map("order_id") @db.VarChar(36)
-  inspectorId String   @map("inspector_id") @db.VarChar(36)
-  status      QcStatus @default(PENDING) @map("status")
+  id          String    @id @default(cuid()) @map("id") @db.VarChar(36)
+  orderId     String    @unique @map("order_id") @db.VarChar(36)
+  // null = auto-created, belum diklaim inspector. Inspector gán khi /init (claim).
+  inspectorId String?   @map("inspector_id") @db.VarChar(36)
+  status      QcStatus  @default(PENDING) @map("status")
   // [{key:string, label:string, passed:boolean|null}]
-  checklist   Json     @map("checklist")
-  failReason  String?  @map("fail_reason") @db.Text
-  notes       String?  @map("notes") @db.Text
-  photoUrls   String[] @map("photo_urls")
+  checklist   Json      @map("checklist")
+  failReason  String?   @map("fail_reason") @db.Text
+  notes       String?   @map("notes") @db.Text
+  photoUrls   String[]  @map("photo_urls")
 
   passedAt  DateTime? @map("passed_at") @db.Timestamp(6)
   failedAt  DateTime? @map("failed_at") @db.Timestamp(6)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
 
-  order     Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  inspector User  @relation("user_qc_checkpoints", fields: [inspectorId], references: [id], onDelete: Restrict)
+  order     Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  inspector User?  @relation("user_qc_checkpoints", fields: [inspectorId], references: [id], onDelete: Restrict)
 
   @@index([status])
   @@index([inspectorId, createdAt(sort: Desc)])
@@ -964,6 +965,9 @@ enum NotificationType {
   CAMPAIGN_RESCHEDULED // Thời gian bắt đầu chiến dịch đã thay đổi
   RESCHEDULE_CONFIRMATION_NEEDED // Merchant cần xác nhận yêu cầu thay đổi lịch
   SYSTEM_ALERT // Cảnh báo vận hành/hệ thống cho admin
+  QC_REQUIRED // Merchant cần kiểm định chất lượng đơn hàng mới
+  ORDER_SHIPPED // Đơn hàng đã bàn giao carrier — thông báo cho customer
+  ORDER_DELIVERED // Đơn hàng đã giao thành công — thông báo cho customer
 }
 
 enum TelegramDeliveryStatus {

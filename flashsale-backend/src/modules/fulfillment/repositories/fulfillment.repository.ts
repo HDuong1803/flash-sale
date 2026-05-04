@@ -175,6 +175,28 @@ export class FulfillmentRepository {
     return order?.shippingAddress ?? null
   }
 
+  /**
+   * findOrderParticipants — Lấy customerId và merchantUserId từ orderId.
+   * Dùng để gửi notification khi tracking update xảy ra.
+   */
+  async findOrderParticipants(orderId: string): Promise<{
+    customerId: string
+    merchantUserId: string | null
+  } | null> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        customerId: true,
+        merchant: { select: { userId: true } }
+      }
+    })
+    if (!order) return null
+    return {
+      customerId: order.customerId,
+      merchantUserId: order.merchant.userId
+    }
+  }
+
   async findById(id: string): Promise<FulfillmentOrderWithCarrier | null> {
     return this.prisma.fulfillmentOrder.findUnique({
       where: { id },

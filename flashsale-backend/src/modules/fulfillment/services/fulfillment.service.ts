@@ -1,12 +1,14 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
-import { FulfillmentStatus } from '@prisma/client'
+import { FulfillmentStatus, NotificationType } from '@prisma/client'
 import { EasyPostService } from '@infrastructure/easypost/easypost.service'
 import { EasyPostError } from '@infrastructure/easypost/easypost.types'
 import { RedisService } from '@infrastructure/redis/redis.service'
+import { NotificationService } from '@modules/notification/services/notification.service'
 import {
   FulfillmentRepository,
   FulfillmentOrderWithCarrier
 } from '../repositories/fulfillment.repository'
+import { QcRepository } from '../repositories/qc.repository'
 import { FulfillmentRulesEngine } from './fulfillment-rules.engine'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -64,11 +66,20 @@ export interface BookLabelInput {
 export class FulfillmentService {
   private readonly logger = new Logger(FulfillmentService.name)
 
+  private static readonly DEFAULT_QC_CHECKLIST = [
+    { key: 'item_count', label: 'Số lượng sản phẩm đúng', passed: null },
+    { key: 'packaging', label: 'Đóng gói nguyên vẹn', passed: null },
+    { key: 'label_match', label: 'Label khớp với đơn hàng', passed: null },
+    { key: 'no_damage', label: 'Sản phẩm không bị hỏng hóc', passed: null }
+  ] as const
+
   constructor(
     private readonly fulfillmentRepo: FulfillmentRepository,
+    private readonly qcRepo: QcRepository,
     private readonly rulesEngine: FulfillmentRulesEngine,
     private readonly easypost: EasyPostService,
-    private readonly redis: RedisService
+    private readonly redis: RedisService,
+    private readonly notificationService: NotificationService
   ) {}
 
   /**
@@ -155,7 +166,15 @@ export class FulfillmentService {
         )
       }
 
-      // Step 6: Publish SSE event
+      // Step 6: Auto-create QcCheckpoint + notify merchant
+      if (addressResult.valid) {
+        await this.qcRepo.autoCreateCheckpointForOrder(orderId, [
+          ...FulfillmentService.DEFAULT_QC_CHECKLIST
+        ])
+        this.notifyMerchantQcRequired(input.merchantId, orderId)
+      }
+
+      // Step 7: Publish SSE event
       await this.publishFulfillmentEvent(campaignId, {
         type: 'FULFILLMENT_INITIALIZED',
         orderId,
@@ -402,6 +421,28 @@ export class FulfillmentService {
         `Tracking update: tracking=${trackingCode}, ` +
           `${fulfillment.fulfillStatus} → ${newStatus}`
       )
+
+      // Notify customer khi đơn được vận chuyển hoặc giao thành công
+      if (
+        newStatus === FulfillmentStatus.IN_TRANSIT ||
+        newStatus === FulfillmentStatus.DELIVERED
+      ) {
+        const notifyType =
+          newStatus === FulfillmentStatus.IN_TRANSIT
+            ? NotificationType.ORDER_SHIPPED
+            : NotificationType.ORDER_DELIVERED
+
+        const participants = await this.fulfillmentRepo.findOrderParticipants(
+          fulfillment.orderId
+        )
+        if (participants) {
+          this.notifyCustomer(
+            participants.customerId,
+            notifyType,
+            fulfillment.orderId
+          )
+        }
+      }
     }
 
     // Step 7: Publish SSE (fire-and-forget — không block webhook response)
@@ -519,7 +560,6 @@ export class FulfillmentService {
     campaignId: string,
     payload: Record<string, unknown>
   ): void {
-    // Fire and forget
     void this.redis
       .publishDashboardEvent(campaignId, payload)
       .catch((err: unknown) => {
@@ -546,6 +586,52 @@ export class FulfillmentService {
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
         this.logger.warn(`Failed to publish tracking event: ${msg}`)
+      })
+  }
+
+  /** Fire-and-forget — không throw nếu notification fail */
+  private notifyMerchantQcRequired(
+    merchantUserId: string,
+    orderId: string
+  ): void {
+    void this.notificationService
+      .createNotification(merchantUserId, {
+        type: NotificationType.QC_REQUIRED,
+        title: 'Đơn hàng mới cần kiểm định chất lượng',
+        message: `Đơn hàng ${orderId} đã được xác nhận và đang chờ QC. Vui lòng kiểm định trước khi giao.`
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        this.logger.warn(
+          `Failed to notify merchant QC_REQUIRED for order ${orderId}: ${msg}`
+        )
+      })
+  }
+
+  /** Fire-and-forget — không throw nếu notification fail */
+  private notifyCustomer(
+    customerId: string,
+    type: NotificationType,
+    orderId: string
+  ): void {
+    const [title, message] =
+      type === NotificationType.ORDER_SHIPPED
+        ? [
+            'Đơn hàng đang trên đường giao',
+            `Đơn hàng ${orderId} đã được bàn giao cho đơn vị vận chuyển và đang trên đường đến bạn.`
+          ]
+        : [
+            'Đơn hàng đã giao thành công',
+            `Đơn hàng ${orderId} đã được giao thành công. Cảm ơn bạn đã tin tưởng mua sắm!`
+          ]
+
+    void this.notificationService
+      .createNotification(customerId, { type, title, message })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err)
+        this.logger.warn(
+          `Failed to notify customer ${type} for order ${orderId}: ${msg}`
+        )
       })
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { QcCheckpoint, QcStatus } from '@prisma/client'
+import { FulfillmentStatus, QcCheckpoint, QcStatus } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,7 +20,8 @@ export type QcCheckpointWithInspector = QcCheckpoint & {
 
 export interface CreateQcCheckpointInput {
   orderId: string
-  inspectorId: string
+  /** null khi auto-created bởi fulfillment flow — inspector claim sau */
+  inspectorId: string | null
   checklist: QcChecklistItem[]
 }
 
@@ -109,11 +110,64 @@ export class QcRepository {
     return this.prisma.qcCheckpoint.create({
       data: {
         orderId: input.orderId,
-        inspectorId: input.inspectorId,
+        inspectorId: input.inspectorId ?? undefined,
         checklist: input.checklist,
         status: QcStatus.PENDING
       }
     })
+  }
+
+  /**
+   * autoCreateCheckpointForOrder — Tạo QcCheckpoint chưa có inspector.
+   * Gọi tự động từ FulfillmentService sau khi FulfillmentOrder được tạo.
+   * Idempotent: nếu đã tồn tại thì return existing.
+   */
+  async autoCreateCheckpointForOrder(
+    orderId: string,
+    checklist: QcChecklistItem[]
+  ): Promise<QcCheckpoint> {
+    const existing = await this.prisma.qcCheckpoint.findUnique({
+      where: { orderId }
+    })
+    if (existing) return existing
+
+    return this.prisma.qcCheckpoint.create({
+      data: {
+        orderId,
+        inspectorId: undefined,
+        checklist,
+        status: QcStatus.PENDING
+      }
+    })
+  }
+
+  /**
+   * claimCheckpoint — Inspector nhận đơn để kiểm định.
+   * Chỉ assign nếu inspectorId hiện tại là null (chưa có ai claim).
+   * Nếu đã có inspector → trả về checkpoint hiện tại (idempotent).
+   */
+  async claimCheckpoint(
+    checkpointId: string,
+    inspectorId: string
+  ): Promise<QcCheckpoint> {
+    const updated = await this.prisma.qcCheckpoint.updateMany({
+      where: { id: checkpointId, inspectorId: null },
+      data: { inspectorId }
+    })
+
+    if (updated.count === 0) {
+      const existing = await this.prisma.qcCheckpoint.findUnique({
+        where: { id: checkpointId }
+      })
+      if (!existing) throw new Error(`QcCheckpoint ${checkpointId} not found`)
+      return existing
+    }
+
+    const result = await this.prisma.qcCheckpoint.findUnique({
+      where: { id: checkpointId }
+    })
+    if (!result) throw new Error(`QcCheckpoint ${checkpointId} not found`)
+    return result
   }
 
   async markPassed(
@@ -153,6 +207,37 @@ export class QcRepository {
     return this.prisma.qcCheckpoint.update({
       where: { id },
       data: { status: QcStatus.REWORK }
+    })
+  }
+
+  /**
+   * markReworkWithFulfillmentReset — Atomic: FAILED → REWORK + FulfillmentOrder → AWAITING.
+   *
+   * Dùng optimistic locking (updateMany với điều kiện status=FAILED) để tránh
+   * race condition nếu có 2 request rework cùng lúc.
+   * Nếu transition.count === 0 nghĩa là QC đã được cập nhật bởi request khác → skip.
+   */
+  async markReworkWithFulfillmentReset(
+    checkpointId: string,
+    orderId: string,
+    note: string
+  ): Promise<void> {
+    await this.prisma.$transaction(async tx => {
+      const transition = await tx.qcCheckpoint.updateMany({
+        where: { id: checkpointId, status: QcStatus.FAILED },
+        data: { status: QcStatus.REWORK }
+      })
+
+      if (transition.count === 0) return
+
+      await tx.fulfillmentOrder.updateMany({
+        where: { orderId },
+        data: {
+          fulfillStatus: FulfillmentStatus.AWAITING,
+          exceptionReason: note,
+          exceptionAt: null
+        }
+      })
     })
   }
 }

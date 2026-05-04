@@ -4,8 +4,7 @@ import {
   Logger,
   NotFoundException
 } from '@nestjs/common'
-import { FulfillmentStatus, Prisma, QcStatus } from '@prisma/client'
-import { PrismaService } from '@infrastructure/prisma/prisma.service'
+import { FulfillmentStatus, QcStatus } from '@prisma/client'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
 import { QUEUE_NAMES } from '@infrastructure/rabbitmq/rabbitmq.constants'
 import {
@@ -64,18 +63,33 @@ export class QcService {
   constructor(
     private readonly qcRepo: QcRepository,
     private readonly fulfillmentRepo: FulfillmentRepository,
-    private readonly rabbitmq: RabbitMQService,
-    private readonly prisma: PrismaService
+    private readonly rabbitmq: RabbitMQService
   ) {}
 
+  /**
+   * createQcCheckpoint — Inspector claim đơn để kiểm định.
+   *
+   * Hai trường hợp:
+   * 1. Checkpoint đã được auto-created (inspectorId=null) → assign inspector vào
+   * 2. Checkpoint chưa tồn tại → create mới với inspector (backward compat)
+   *
+   * Idempotent: nếu checkpoint đã có inspector (kể cả khác người) → trả về existing.
+   */
   async createQcCheckpoint(
     input: CreateQcInput
   ): Promise<QcCheckpointWithInspector> {
-    // Idempotency: nếu đã có checkpoint cho order này thì trả về
     const existing = await this.qcRepo.findByOrderId(input.orderId)
-    if (existing) return existing
 
-    // Verify fulfillment order tồn tại
+    if (existing) {
+      if (existing.inspectorId === null) {
+        await this.qcRepo.claimCheckpoint(existing.id, input.inspectorId)
+        const claimed = await this.qcRepo.findByOrderId(input.orderId)
+        if (!claimed) throw new Error('Failed to fetch claimed QC checkpoint')
+        return claimed
+      }
+      return existing
+    }
+
     const fulfillment = await this.fulfillmentRepo.findByOrderId(input.orderId)
     if (!fulfillment) {
       throw new NotFoundException(
@@ -126,11 +140,23 @@ export class QcService {
       )
     }
 
-    // Verify tất cả checklist items đã được đánh dấu passed
+    if (input.checklist.length === 0) {
+      throw new BadRequestException(
+        'Checklist không được rỗng — phải có ít nhất 1 mục kiểm tra'
+      )
+    }
+
+    const hasUnchecked = input.checklist.some(item => item.passed === null)
+    if (hasUnchecked) {
+      throw new BadRequestException(
+        'Tất cả checklist items phải được đánh dấu rõ ràng (true/false), không được để null'
+      )
+    }
+
     const allPassed = input.checklist.every(item => item.passed === true)
     if (!allPassed) {
       throw new BadRequestException(
-        'Tất cả checklist items phải được đánh dấu passed trước khi QC pass'
+        'Tất cả checklist items phải passed=true trước khi QC pass. Dùng /fail nếu có mục không đạt.'
       )
     }
 
@@ -179,6 +205,12 @@ export class QcService {
       throw new BadRequestException('Lý do không đạt không được để trống')
     }
 
+    if (input.checklist.length === 0) {
+      throw new BadRequestException(
+        'Checklist không được rỗng — phải ghi nhận kết quả từng mục kiểm tra'
+      )
+    }
+
     await this.qcRepo.markFailed(checkpoint.id, {
       failReason: input.failReason,
       checklist: input.checklist,
@@ -220,9 +252,7 @@ export class QcService {
     if (checkpoint.status === QcStatus.REWORK) {
       await this.reconcileFulfillmentForRework(orderId, input.note)
       const current = await this.qcRepo.findByOrderId(orderId)
-      if (!current) {
-        throw new Error('Failed to fetch updated QC checkpoint')
-      }
+      if (!current) throw new Error('Failed to fetch updated QC checkpoint')
       return current
     }
 
@@ -232,33 +262,13 @@ export class QcService {
       )
     }
 
-    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const transition = await tx.qcCheckpoint.updateMany({
-        where: {
-          id: checkpoint.id,
-          status: QcStatus.FAILED
-        },
-        data: {
-          status: QcStatus.REWORK
-        }
-      })
+    const note = input.note ?? 'Đã chuyển REWORK để kiểm tra lại trước khi giao'
 
-      if (transition.count === 0) {
-        return
-      }
-
-      await tx.fulfillmentOrder.updateMany({
-        where: { orderId },
-        data: {
-          fulfillStatus: FulfillmentStatus.AWAITING,
-          exceptionReason:
-            input.note ?? 'Đã chuyển REWORK để kiểm tra lại trước khi giao',
-          exceptionAt: null
-        }
-      })
-    })
-
-    await this.reconcileFulfillmentForRework(orderId, input.note)
+    await this.qcRepo.markReworkWithFulfillmentReset(
+      checkpoint.id,
+      orderId,
+      note
+    )
 
     this.logger.log(`QC moved to REWORK for orderId=${orderId}`)
 
@@ -311,9 +321,7 @@ export class QcService {
     note?: string
   ): Promise<void> {
     const fulfillment = await this.fulfillmentRepo.findByOrderId(orderId)
-    if (!fulfillment) {
-      return
-    }
+    if (!fulfillment) return
 
     if (
       fulfillment.fulfillStatus === FulfillmentStatus.AWAITING &&
@@ -322,14 +330,12 @@ export class QcService {
       return
     }
 
+    const resolvedNote =
+      note ?? 'Đã chuyển REWORK để kiểm tra lại trước khi giao'
     await this.fulfillmentRepo.updateStatus(
       fulfillment.id,
       FulfillmentStatus.AWAITING,
-      {
-        exceptionReason:
-          note ?? 'Đã chuyển REWORK để kiểm tra lại trước khi giao',
-        exceptionAt: null
-      }
+      { exceptionReason: resolvedNote, exceptionAt: null }
     )
   }
 }
