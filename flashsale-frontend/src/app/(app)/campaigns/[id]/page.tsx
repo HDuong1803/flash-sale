@@ -48,6 +48,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import { useCampaign } from '@/hooks/queries/useCampaign'
+import { useMerchantProfile } from '@/hooks/queries/useMerchantProfile'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
 import { useCancelPreRegister } from '@/hooks/mutations/useCancelPreRegister'
@@ -145,8 +146,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const { purchase, loading: buyLoading } = usePurchase()
   const { preRegister, loading: regLoading } = usePreRegister()
   const { cancelPreRegister, loading: cancelRegLoading } = useCancelPreRegister()
-  const { isAuthenticated } = useAuthContext()
+  const { isAuthenticated, user } = useAuthContext()
   const { openAuthModal } = useUiContext()
+  const merchantProfile = useMerchantProfile()
+  // Chỉ block nếu đây là campaign của chính merchant đang đăng nhập
+  const isOwnCampaign = user?.role === 'MERCHANT' && !!merchantProfile?.id && !!campaign && merchantProfile.id === campaign.merchantId
 
   // ─── Local state ────────────────────────────────────────────────────────────
   const [quantity, setQuantity] = useState(1)
@@ -728,8 +732,18 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
 
             {/* ── CTA buttons ── */}
             <div className="space-y-2">
+              {/* Đây là campaign của merchant đang đăng nhập — không thể tự mua */}
+              {isOwnCampaign && (
+                <div className="glass rounded-xl p-4 border border-indigo-500/20 bg-indigo-500/5 flex items-center gap-3">
+                  <Store size={18} className="text-indigo-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white/70 text-sm font-medium">Đây là chiến dịch của bạn</p>
+                    <p className="text-white/40 text-xs">Merchant không thể mua sản phẩm từ chiến dịch của chính mình</p>
+                  </div>
+                </div>
+              )}
               {/* ACTIVE + còn hàng + chưa giữ chỗ */}
-              {isActive && !isSoldOut && !hasPendingForSelectedProduct && maxSelectableQuantity > 0 && (
+              {!isOwnCampaign && isActive && !isSoldOut && !hasPendingForSelectedProduct && maxSelectableQuantity > 0 && (
                 <button
                   onClick={handleBuy}
                   disabled={buyLoading}
@@ -748,7 +762,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               )}
 
               {/* SCHEDULED + đã đăng ký */}
-              {isScheduled && isAuthenticated && isPreRegistered === true && (
+              {!isOwnCampaign && isScheduled && isAuthenticated && isPreRegistered === true && (
                 <button
                   onClick={handleCancelPreRegister}
                   disabled={cancelRegLoading}
@@ -769,7 +783,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
               )}
 
               {/* SCHEDULED + chưa đăng ký */}
-              {isScheduled && (!isAuthenticated || isPreRegistered !== true) && (
+              {!isOwnCampaign && isScheduled && (!isAuthenticated || isPreRegistered !== true) && (
                 <button
                   onClick={handlePreRegister}
                   disabled={regLoading}

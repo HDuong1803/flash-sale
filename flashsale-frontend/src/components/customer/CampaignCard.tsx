@@ -10,6 +10,7 @@ import { useCountdown } from '@/hooks/useCountdown'
 import { usePurchase } from '@/hooks/mutations/usePurchase'
 import { usePreRegister } from '@/hooks/mutations/usePreRegister'
 import { useCancelPreRegister } from '@/hooks/mutations/useCancelPreRegister'
+import { useMerchantProfile } from '@/hooks/queries/useMerchantProfile'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { formatCurrency, calculateDiscount } from '@/lib/utils'
 import type { Campaign, CampaignProduct } from '@/types'
@@ -21,8 +22,11 @@ interface CampaignCardProps {
 
 export function CampaignCard({ campaign }: CampaignCardProps) {
   const router = useRouter()
-  const { isAuthenticated } = useAuthContext()
+  const { isAuthenticated, user } = useAuthContext()
   const { openAuthModal } = useUiContext()
+  const merchantProfile = useMerchantProfile()
+  // Chỉ block nếu đây là campaign của chính merchant đang đăng nhập
+  const isOwnCampaign = user?.role === 'MERCHANT' && !!merchantProfile?.id && merchantProfile.id === campaign.merchantId
   const { purchase, loading: buyLoading } = usePurchase()
   const { preRegister, loading: regLoading } = usePreRegister()
   const { cancelPreRegister, loading: cancelLoading } = useCancelPreRegister()
@@ -70,8 +74,13 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     } catch { /* toast shown */ }
   }
 
+  // Merchant click vào campaign của mình → trang quản lý, không phải customer detail
+  const campaignHref = isOwnCampaign
+    ? `/merchant/campaigns/${campaign.id}`
+    : `/campaigns/${campaign.id}`
+
   return (
-    <Link href={`/campaigns/${campaign.id}`} className="group block">
+    <Link href={campaignHref} className="group block">
       <div className="glass rounded-2xl overflow-hidden hover:border-white/20 transition-all hover:shadow-brand">
         {/* Image area */}
         <div className="relative aspect-square bg-white/5 overflow-hidden">
@@ -138,58 +147,67 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
 
           {/* CTA */}
           <div onClick={(e) => e.preventDefault()}>
-            {isActive && !isSoldOut && (
-              isAuthenticated ? (
-                <button
-                  onClick={handleBuy}
-                  disabled={buyLoading}
-                  className="btn-primary w-full text-sm py-2 disabled:opacity-50"
-                >
-                  {buyLoading ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Đang đặt...
-                    </span>
-                  ) : 'Mua ngay'}
-                </button>
-              ) : (
-                <button
-                  onClick={() => openAuthModal('login')}
-                  className="btn-glass w-full text-sm py-2"
-                >
-                  Đăng nhập để mua
-                </button>
-              )
-            )}
-            {isScheduled && (
-              <button
-                onClick={isPreRegistered ? handleCancelPreRegister : handlePreRegister}
-                onMouseEnter={() => setPreRegisterHovered(true)}
-                onMouseLeave={() => setPreRegisterHovered(false)}
-                onBlur={() => setPreRegisterHovered(false)}
-                disabled={regLoading || cancelLoading}
-                className={[
-                  'w-full text-sm py-2 rounded-xl border transition-colors disabled:opacity-50',
-                  isPreRegistered
-                    ? (preRegisterHovered
-                        ? 'bg-red-500/10 text-red-300 border-red-400/60 hover:bg-red-500/20'
-                        : 'bg-indigo-500/10 text-indigo-200 border-indigo-400/50 hover:bg-indigo-500/20')
-                    : 'btn-glass',
-                ].join(' ')}
-              >
-                {regLoading
-                  ? 'Đang đăng ký...'
-                  : cancelLoading
-                    ? 'Đang huỷ...'
-                    : isPreRegistered
-                      ? (preRegisterHovered ? 'Huỷ đăng ký' : 'Đã đăng ký nhắc nhở')
-                      : 'Đăng ký nhắc nhở'}
-              </button>
-            )}
-            {(isEnded || (isActive && isSoldOut)) && (
-              <button disabled className="w-full text-sm py-2 rounded-xl bg-white/5 text-white/30 cursor-not-allowed border border-white/10">
-                {isSoldOut ? 'Hết hàng' : 'Đã kết thúc'}
-              </button>
+            {isOwnCampaign ? (
+              /* Campaign của chính merchant — không cho mua */
+              <div className="w-full text-xs text-white/30 text-center py-2 rounded-xl border border-white/8 bg-white/[0.03]">
+                Chiến dịch của bạn
+              </div>
+            ) : (
+              <>
+                {isActive && !isSoldOut && (
+                  isAuthenticated ? (
+                    <button
+                      onClick={handleBuy}
+                      disabled={buyLoading}
+                      className="btn-primary w-full text-sm py-2 disabled:opacity-50"
+                    >
+                      {buyLoading ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Đang đặt...
+                        </span>
+                      ) : 'Mua ngay'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => openAuthModal('login')}
+                      className="btn-glass w-full text-sm py-2"
+                    >
+                      Đăng nhập để mua
+                    </button>
+                  )
+                )}
+                {isScheduled && (
+                  <button
+                    onClick={isPreRegistered ? handleCancelPreRegister : handlePreRegister}
+                    onMouseEnter={() => setPreRegisterHovered(true)}
+                    onMouseLeave={() => setPreRegisterHovered(false)}
+                    onBlur={() => setPreRegisterHovered(false)}
+                    disabled={regLoading || cancelLoading}
+                    className={[
+                      'w-full text-sm py-2 rounded-xl border transition-colors disabled:opacity-50',
+                      isPreRegistered
+                        ? (preRegisterHovered
+                            ? 'bg-red-500/10 text-red-300 border-red-400/60 hover:bg-red-500/20'
+                            : 'bg-indigo-500/10 text-indigo-200 border-indigo-400/50 hover:bg-indigo-500/20')
+                        : 'btn-glass',
+                    ].join(' ')}
+                  >
+                    {regLoading
+                      ? 'Đang đăng ký...'
+                      : cancelLoading
+                        ? 'Đang huỷ...'
+                        : isPreRegistered
+                          ? (preRegisterHovered ? 'Huỷ đăng ký' : 'Đã đăng ký nhắc nhở')
+                          : 'Đăng ký nhắc nhở'}
+                  </button>
+                )}
+                {(isEnded || (isActive && isSoldOut)) && (
+                  <button disabled className="w-full text-sm py-2 rounded-xl bg-white/5 text-white/30 cursor-not-allowed border border-white/10">
+                    {isSoldOut ? 'Hết hàng' : 'Đã kết thúc'}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

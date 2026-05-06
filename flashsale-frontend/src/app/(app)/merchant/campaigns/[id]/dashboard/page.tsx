@@ -177,6 +177,62 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
         </div>
       </div>
 
+      {/* Per-product stock breakdown */}
+      {campaign && (campaign.campaignProducts ?? []).length > 0 && (
+        <div className="glass rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+            <div>
+              <h2 className="text-white font-semibold">Tồn kho theo sản phẩm</h2>
+              <p className="text-white/40 text-xs mt-0.5">
+                {(campaign.campaignProducts ?? []).length} sản phẩm trong chiến dịch
+              </p>
+            </div>
+          </div>
+          <div className="divide-y divide-white/5">
+            {(campaign.campaignProducts ?? []).map((cp) => {
+              const remaining = cp.remainingQuantity
+              const total = cp.saleQuantity
+              const pct = total > 0 ? remaining / total : 0
+              const isCritical = pct < 0.1
+              const isLow = pct < 0.3
+              const sold = Math.max(0, total - remaining)
+              return (
+                <div key={cp.id} className="px-6 py-4 flex items-center gap-4">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <p className="text-white/80 text-sm font-medium truncate">
+                        {cp.product?.name ?? `Sản phẩm ${cp.productId.slice(-6)}`}
+                      </p>
+                      <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                        <span className="text-white/40">
+                          Đã bán: <span className="text-indigo-300 font-semibold">{sold}</span>
+                        </span>
+                        <span className="text-white/40">
+                          Còn:{' '}
+                          <span className={`font-semibold ${
+                            isCritical ? 'text-red-400' : isLow ? 'text-yellow-400' : 'text-emerald-400'
+                          }`}>{remaining}</span>
+                        </span>
+                        <span className="text-white/25">/ {total}</span>
+                      </div>
+                    </div>
+                    <StockProgressBar remaining={remaining} total={total} size="sm" />
+                  </div>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <p className="text-white/60 text-xs">{formatCurrency(cp.salePrice)}</p>
+                    <p className={`text-xs font-bold mt-0.5 ${
+                      isCritical ? 'text-red-400' : isLow ? 'text-yellow-400' : 'text-white/40'
+                    }`}>
+                      {Math.round(pct * 100)}%
+                    </p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Live order feed */}
       <div className="glass rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10">
