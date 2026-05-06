@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common'
 import * as ejs from 'ejs'
 import * as fs from 'fs'
 import * as path from 'path'
-import { ConfigService } from './config.service'
 import { ResendEmailProvider } from './resend-email.provider'
 import { EmailTemplate } from '../interfaces/email.interface'
 import { RabbitMQService } from '@infrastructure/rabbitmq/rabbitmq.service'
@@ -10,6 +9,7 @@ import {
   FAILED_QUEUE_NAMES,
   QUEUE_NAMES
 } from '@infrastructure/rabbitmq/rabbitmq.constants'
+import { ConfigService } from '@nestjs/config'
 
 type EmailJobType =
   | 'VERIFY_OTP'
