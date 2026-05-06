@@ -113,7 +113,7 @@ export default function CustomerDashboardPage() {
                 <div className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all">
                   <div>
                     <p className="text-sm text-white/80 font-medium">#{order.id.slice(-8).toUpperCase()}</p>
-                    <p className="text-xs text-white/40">{new Date(order.createdAt).toLocaleDateString('vi-VN')}</p>
+                    <p className="text-xs text-white/40">{new Date(order.createdAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                   </div>
                   <StatusBadge status={order.status} className="scale-90 origin-right" />
                 </div>

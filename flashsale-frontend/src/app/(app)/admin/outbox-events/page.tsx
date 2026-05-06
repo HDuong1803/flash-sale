@@ -79,11 +79,11 @@ export default function AdminOutboxEventsPage() {
     const csv = [
       ['Thời gian', 'Loại sự kiện', 'Mã đối tượng tổng hợp', 'Đã xử lý', 'Thời điểm xử lý', 'Mã sự kiện'].join(','),
       ...filteredEvents.map(e => [
-        new Date(e.createdAt).toLocaleString('vi-VN'),
+        new Date(e.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
         e.type,
         e.aggregateId,
         e.processed ? 'Có' : 'Không',
-        e.processedAt ? new Date(e.processedAt).toLocaleString('vi-VN') : 'Không có',
+        e.processedAt ? new Date(e.processedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'Không có',
         e.id,
       ].join(','))
     ].join('\n')
@@ -255,8 +255,8 @@ export default function AdminOutboxEventsPage() {
                 {filteredEvents.map((event) => (
                   <tr key={event.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="p-4">
-                      <p className="text-white/80 text-sm">{new Date(event.createdAt).toLocaleDateString('vi-VN')}</p>
-                      <p className="text-white/50 text-xs">{new Date(event.createdAt).toLocaleTimeString('vi-VN')}</p>
+                      <p className="text-white/80 text-sm">{new Date(event.createdAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+                      <p className="text-white/50 text-xs">{new Date(event.createdAt).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                     </td>
                     <td className="p-4">
                       {getEventTypeBadge(event.type)}
@@ -270,8 +270,8 @@ export default function AdminOutboxEventsPage() {
                     <td className="p-4">
                       {event.processedAt ? (
                         <>
-                          <p className="text-white/70 text-sm">{new Date(event.processedAt).toLocaleDateString('vi-VN')}</p>
-                          <p className="text-white/40 text-xs">{new Date(event.processedAt).toLocaleTimeString('vi-VN')}</p>
+                          <p className="text-white/70 text-sm">{new Date(event.processedAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+                          <p className="text-white/40 text-xs">{new Date(event.processedAt).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                         </>
                       ) : (
                         <p className="text-white/30 text-sm">—</p>
@@ -346,12 +346,12 @@ export default function AdminOutboxEventsPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-white/50 text-xs uppercase mb-1">Thời gian tạo</p>
-                    <p className="text-white/80">{new Date(selectedEvent.createdAt).toLocaleString('vi-VN')}</p>
+                    <p className="text-white/80">{new Date(selectedEvent.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                   </div>
                   {selectedEvent.processedAt && (
                     <div>
                       <p className="text-white/50 text-xs uppercase mb-1">Thời gian xử lý</p>
-                      <p className="text-white/80">{new Date(selectedEvent.processedAt).toLocaleString('vi-VN')}</p>
+                      <p className="text-white/80">{new Date(selectedEvent.processedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                     </div>
                   )}
                 </div>

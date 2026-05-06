@@ -213,7 +213,7 @@ export default function MerchantSettingsPage() {
 
         {connectStatus.connectedAt ? (
           <p className="text-white/45 text-xs">
-            Thời điểm kết nối thành công: {new Date(connectStatus.connectedAt).toLocaleString('vi-VN')}
+            Thời điểm kết nối thành công: {new Date(connectStatus.connectedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
           </p>
         ) : null}
 

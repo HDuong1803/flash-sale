@@ -82,7 +82,7 @@ export default function AdminUserActionLogsPage() {
     const csv = [
       ['Thời gian', 'Hành động', 'Mã người dùng', 'IP', 'Mã đối tượng', 'Mã log'].join(','),
       ...filteredLogs.map(log => [
-        new Date(log.createdAt).toLocaleString('vi-VN'),
+        new Date(log.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
         log.action,
         log.userId || 'Khách',
         log.ip || 'Không có',
@@ -261,8 +261,8 @@ export default function AdminUserActionLogsPage() {
                 {filteredLogs.map((log) => (
                   <tr key={log.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="p-4">
-                      <p className="text-white/80 text-sm">{new Date(log.createdAt).toLocaleDateString('vi-VN')}</p>
-                      <p className="text-white/50 text-xs">{new Date(log.createdAt).toLocaleTimeString('vi-VN')}</p>
+                      <p className="text-white/80 text-sm">{new Date(log.createdAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+                      <p className="text-white/50 text-xs">{new Date(log.createdAt).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                     </td>
                     <td className="p-4">
                       {getActionBadge(log.action)}
@@ -349,7 +349,7 @@ export default function AdminUserActionLogsPage() {
 
               <div>
                 <p className="text-white/50 text-xs uppercase mb-1">Thời gian</p>
-                <p className="text-white/90">{new Date(selectedLog.createdAt).toLocaleString('vi-VN', { 
+                <p className="text-white/90">{new Date(selectedLog.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh',  
                   dateStyle: 'full', 
                   timeStyle: 'medium' 
                 })}</p>

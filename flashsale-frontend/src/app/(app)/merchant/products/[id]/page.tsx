@@ -568,7 +568,7 @@ export default function ProductDetailPage() {
                       <div className="flex items-center gap-2 mt-0.5">
                         <Calendar size={9} className="text-white/30" />
                         <span className="text-white/30 text-[10px]">
-                          {new Date(c.startTime).toLocaleDateString('vi-VN')}
+                          {new Date(c.startTime).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
                         </span>
                         <span className="text-indigo-300/70 text-[10px] font-medium">
                           {formatCurrency(c.salePrice)}

@@ -68,7 +68,7 @@ export default function AdminMerchantProfilesPage() {
         p.businessPhone,
         p.kycStatus,
         `"${p.user.fullName}"`,
-        new Date(p.createdAt).toLocaleString('vi-VN'),
+        new Date(p.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }),
       ].join(','))
     ].join('\n')
     
@@ -227,8 +227,8 @@ export default function AdminMerchantProfilesPage() {
                       <StatusBadge status={profile.kycStatus} context="kyc" />
                     </td>
                     <td className="p-4">
-                      <p className="text-white/70 text-sm">{new Date(profile.createdAt).toLocaleDateString('vi-VN')}</p>
-                      <p className="text-white/40 text-xs">{new Date(profile.createdAt).toLocaleTimeString('vi-VN')}</p>
+                      <p className="text-white/70 text-sm">{new Date(profile.createdAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
+                      <p className="text-white/40 text-xs">{new Date(profile.createdAt).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                     </td>
                     <td className="p-4 text-right">
                       <Link
@@ -319,11 +319,11 @@ export default function AdminMerchantProfilesPage() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-white/50 text-xs uppercase mb-1">Ngày tạo</p>
-                    <p className="text-white/80">{new Date(selectedProfile.createdAt).toLocaleString('vi-VN')}</p>
+                    <p className="text-white/80">{new Date(selectedProfile.createdAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                   </div>
                   <div>
                     <p className="text-white/50 text-xs uppercase mb-1">Cập nhật lần cuối</p>
-                    <p className="text-white/80">{new Date(selectedProfile.updatedAt).toLocaleString('vi-VN')}</p>
+                    <p className="text-white/80">{new Date(selectedProfile.updatedAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
                   </div>
                 </div>
               </div>

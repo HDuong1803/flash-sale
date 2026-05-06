@@ -707,7 +707,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 </div>
                 <p className="text-white/50 text-xs">
                   Hết hạn lúc:{' '}
-                  {new Date(pendingReservation.expiredAt).toLocaleTimeString('vi-VN')}
+                  {new Date(pendingReservation.expiredAt).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
                 </p>
                 <div className="flex gap-2">
                   <button

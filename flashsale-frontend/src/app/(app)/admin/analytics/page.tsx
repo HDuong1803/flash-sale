@@ -81,9 +81,9 @@ function CampaignRow({ campaign, selected, onSelect }: {
           <p className="text-white text-sm font-medium truncate">{campaign.name}</p>
           <p className="text-white/40 text-xs truncate">
             {campaign.merchant?.businessName} ·{' '}
-            {new Date(campaign.startTime).toLocaleDateString('vi-VN')}
+            {new Date(campaign.startTime).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
             {' — '}
-            {new Date(campaign.endTime).toLocaleDateString('vi-VN')}
+            {new Date(campaign.endTime).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
           </p>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">

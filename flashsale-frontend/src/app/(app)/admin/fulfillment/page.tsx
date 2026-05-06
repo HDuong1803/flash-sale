@@ -136,7 +136,7 @@ function QcRow({ qc, onInit, onPass, onFail, onRework, loading }: {
         </div>
         <div className="flex-shrink-0 space-y-2">
           <p className="text-white/30 text-xs text-right">
-            {new Date(qc.createdAt).toLocaleDateString('vi-VN')}
+            {new Date(qc.createdAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
           </p>
           <div className="flex items-center justify-end gap-1.5 flex-wrap">
             {canInit && (

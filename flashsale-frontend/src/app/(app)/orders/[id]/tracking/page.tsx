@@ -67,7 +67,7 @@ function formatTimeAgo(iso: string): string {
   if (diff < 60_000) return 'vừa xong'
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} phút trước`
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} giờ trước`
-  return new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+  return new Date(iso).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh',  day: '2-digit', month: '2-digit' })
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ function CarrierCard({ fulfillment }: { fulfillment: FulfillmentOrder }) {
             <div className="flex items-center gap-1.5">
               <Clock size={13} className={fulfillment.slaBreached ? 'text-red-400' : 'text-emerald-400'} />
               <span className={`text-sm ${fulfillment.slaBreached ? 'text-red-400' : 'text-white/80'}`}>
-                {new Date(fulfillment.slaDeadline).toLocaleDateString('vi-VN', {
+                {new Date(fulfillment.slaDeadline).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', 
                   day: '2-digit', month: '2-digit', year: 'numeric'
                 })}
               </span>

@@ -22,7 +22,7 @@ export function RevenueTrendCard() {
   const { data, loading } = useMerchantRevenue(range)
 
   const chartData = data?.dailyRevenue.map(d => ({
-    date: new Date(d.date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }),
+    date: new Date(d.date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh',  day: '2-digit', month: '2-digit' }),
     revenue: d.revenue,
     orders: d.orders,
   })) ?? []

@@ -61,7 +61,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
       product: o.items[0]?.productName ?? 'Sản phẩm',
       qty: o.items.reduce((s, i) => s + i.quantity, 0),
       amount: o.totalAmount,
-      time: new Date(o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      time: new Date(o.createdAt).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh',  hour: '2-digit', minute: '2-digit' }),
       isHistorical: true,
     }))
 
@@ -94,7 +94,7 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
       )
 
       if (newOrdersCount > 0) {
-        const nowLabel = new Date().toLocaleTimeString('vi-VN')
+        const nowLabel = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
         const incomingOrders: LiveOrder[] = Array.from(
           { length: Math.min(newOrdersCount, 50) },
           (_, index) => ({

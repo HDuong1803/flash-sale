@@ -213,7 +213,7 @@ export default function AdminMerchantDetailPage() {
             <KpiCard
               label={`Doanh thu ${days} ngày`}
               value={formatCurrency(data.metrics.revenueInRange)}
-              hint={`${new Date(data.timeframe.since).toLocaleDateString('vi-VN')} - ${new Date(data.timeframe.until).toLocaleDateString('vi-VN')}`}
+              hint={`${new Date(data.timeframe.since).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} - ${new Date(data.timeframe.until).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`}
               icon={CreditCard}
             />
             <KpiCard

@@ -12,9 +12,37 @@ export function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+const VN_TZ = 'Asia/Ho_Chi_Minh'
+
+/** dd/mm/yyyy HH:MM — dùng cho hầu hết hiển thị ngày giờ */
 export function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleString('vi-VN', {
+    timeZone: VN_TZ,
     day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+}
+
+/** dd/mm/yyyy — chỉ ngày */
+export function formatDateOnly(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('vi-VN', {
+    timeZone: VN_TZ,
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  })
+}
+
+/** dd/mm — ngày/tháng ngắn gọn (dùng cho chart) */
+export function formatDateShort(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('vi-VN', {
+    timeZone: VN_TZ,
+    day: '2-digit', month: '2-digit',
+  })
+}
+
+/** HH:MM — chỉ giờ phút */
+export function formatTime(dateString: string): string {
+  return new Date(dateString).toLocaleTimeString('vi-VN', {
+    timeZone: VN_TZ,
     hour: '2-digit', minute: '2-digit',
   })
 }
