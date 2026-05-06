@@ -184,7 +184,7 @@ export function useSSE(campaignId: string | null) {
                   ...prev.metrics,
                   totalOrders: nextTotalOrders,
                   successOrders: nextSuccessOrders,
-                  revenue: prev.metrics.revenue + (event.revenue ?? 0),
+                  revenue: Number(prev.metrics.revenue) + Number(event.revenue ?? 0),
                   conversionRate:
                     prev.metrics.totalReservations > 0
                       ?
