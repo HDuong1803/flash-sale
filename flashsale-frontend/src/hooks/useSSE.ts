@@ -10,7 +10,7 @@ interface DashboardSnapshotEvent {
   totalOrders?: number
   successOrders?: number
   totalReservations?: number
-  revenue?: number
+  revenue?: number | string
   conversionRate?: number
   queueDepth?: number
 }
@@ -23,7 +23,7 @@ interface DashboardStockUpdateEvent {
 
 interface DashboardOrderConfirmedEvent {
   type: 'ORDER_CONFIRMED'
-  revenue?: number
+  revenue?: number | string
 }
 
 interface DashboardHeartbeatEvent {
@@ -39,6 +39,15 @@ type DashboardStreamEvent =
 interface CampaignMetricsState {
   campaignId: string
   metrics: DashboardMetrics
+}
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number') return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return 0
 }
 
 export function useSSE(campaignId: string | null) {
@@ -124,6 +133,7 @@ export function useSSE(campaignId: string | null) {
             const totalOrders = event.totalOrders ?? 0
             const successOrders = event.successOrders ?? 0
             const totalReservations = event.totalReservations ?? totalOrders
+            const revenue = toNumber(event.revenue)
             const conversionRate =
               event.conversionRate ??
               (totalReservations > 0
@@ -138,7 +148,7 @@ export function useSSE(campaignId: string | null) {
                 totalOrders,
                 successOrders,
                 totalReservations,
-                revenue: event.revenue ?? 0,
+                revenue,
                 conversionRate,
                 queueDepth: event.queueDepth ?? 0,
                 ordersPerSecond: getOrdersPerSecond(campaignId)
@@ -178,13 +188,14 @@ export function useSSE(campaignId: string | null) {
               const nextTotalOrders = prev.metrics.totalOrders + 1
               const nextSuccessOrders = prev.metrics.successOrders + 1
               const nextQueueDepth = Math.max(prev.metrics.queueDepth - 1, 0)
+              const revenueDelta = toNumber(event.revenue)
               return {
                 campaignId,
                 metrics: {
                   ...prev.metrics,
                   totalOrders: nextTotalOrders,
                   successOrders: nextSuccessOrders,
-                  revenue: Number(prev.metrics.revenue) + Number(event.revenue ?? 0),
+                  revenue: toNumber(prev.metrics.revenue) + revenueDelta,
                   conversionRate:
                     prev.metrics.totalReservations > 0
                       ?
