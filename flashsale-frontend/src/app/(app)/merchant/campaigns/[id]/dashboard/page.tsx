@@ -6,6 +6,7 @@ import { ArrowLeft, Wifi, WifiOff, AlertCircle } from 'lucide-react'
 import { useSSE } from '@/hooks/useSSE'
 import { useCampaign } from '@/hooks/queries/useCampaign'
 import { useMyCampaigns } from '@/hooks/queries/useMyCampaigns'
+import { useMerchantOrders } from '@/hooks/queries/useMerchantOrders'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -17,6 +18,7 @@ interface LiveOrder {
   customer: string
   qty: number
   time: string
+  isHistorical?: boolean
 }
 
 export default function CampaignLiveDashboardPage({ params }: { params: Promise<{ id: string }> }) {
@@ -24,12 +26,43 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
   const { data: campaign } = useCampaign(id)
   const { data: myCampaigns } = useMyCampaigns()
   const { data: metrics, connected, error } = useSSE(id)
+  const { data: allOrders } = useMerchantOrders()
   const [orderHistoryByCampaign, setOrderHistoryByCampaign] = useState<Record<string, LiveOrder[]>>({})
   const [opsHistoryByCampaign, setOpsHistoryByCampaign] = useState<Record<string, number[]>>({})
   const prevMetricsByCampaign = useRef<Record<string, DashboardMetrics | null>>({})
+  // Đánh dấu đã pre-populate feed từ API để không overwrite khi allOrders refetch
+  const histInitializedRef = useRef<Record<string, boolean>>({})
 
   const orderHistory = orderHistoryByCampaign[id] ?? []
   const opsHistory = opsHistoryByCampaign[id] ?? Array(30).fill(0)
+
+  // Pre-populate feed với orders lịch sử từ API — chạy một lần khi data load xong
+  useEffect(() => {
+    if (histInitializedRef.current[id]) return
+    if (!allOrders || allOrders.length === 0) return
+
+    const campaignOrders = allOrders
+      .filter(o => o.campaignId === id)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 50)
+
+    if (campaignOrders.length === 0) return
+
+    histInitializedRef.current[id] = true
+
+    const historicalItems: LiveOrder[] = campaignOrders.map(o => ({
+      id: o.id,
+      customer: o.customerId,
+      qty: o.items.reduce((s, i) => s + i.quantity, 0),
+      time: new Date(o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      isHistorical: true,
+    }))
+
+    setOrderHistoryByCampaign(prev => ({
+      ...prev,
+      [id]: historicalItems,
+    }))
+  }, [id, allOrders])
 
   useEffect(() => {
     if (!metrics) return
@@ -235,29 +268,72 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
 
       {/* Live order feed */}
       <div className="glass rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <h2 className="text-white font-semibold flex items-center gap-2">
-            Đơn hàng trực tiếp
-            <span className="flex items-center gap-1 text-xs text-emerald-400">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live" /> Trực tiếp
-            </span>
+            Đơn hàng
+            {connected && (
+              <span className="flex items-center gap-1 text-xs text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-live" /> Live
+              </span>
+            )}
           </h2>
+          {orderHistory.length > 0 && (
+            <span className="text-white/30 text-xs">{orderHistory.length} đơn</span>
+          )}
         </div>
-        <div className="max-h-72 overflow-y-auto divide-y divide-white/5">
+        <div className="max-h-80 overflow-y-auto divide-y divide-white/5">
           {orderHistory.length === 0 ? (
-            <p className="text-white/30 text-sm text-center py-8">Không có hoạt động</p>
+            <div className="py-10 text-center">
+              <p className="text-white/30 text-sm">Chưa có đơn hàng nào</p>
+              {!connected && <p className="text-white/20 text-xs mt-1">Đang chờ kết nối SSE...</p>}
+            </div>
           ) : (
             orderHistory.map((order) => (
-              <div key={order.id} className="px-6 py-3 flex items-center gap-4">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-emerald-400 text-xs font-bold">✓</span>
+              <div
+                key={order.id}
+                className={cn(
+                  'px-6 py-3 flex items-center gap-4 border-b border-white/5 last:border-0',
+                  !order.isHistorical && 'animate-order-arrive'
+                )}
+              >
+                {/* Icon trạng thái */}
+                <div className={cn(
+                  'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all',
+                  order.isHistorical
+                    ? 'bg-white/8 text-white/35'
+                    : 'bg-emerald-500/25 text-emerald-300 ring-2 ring-emerald-500/30'
+                )}>
+                  ✓
                 </div>
-                <div className="flex-1">
-                  <span className="text-white/70 text-sm">{maskString(order.customer)}</span>
-                  <span className="text-white/40 text-xs ml-2">× {order.qty}</span>
+
+                {/* Customer + qty */}
+                <div className="flex-1 min-w-0">
+                  <span className={cn(
+                    'text-sm',
+                    order.isHistorical ? 'text-white/55' : 'text-white/85 font-medium'
+                  )}>
+                    {maskString(order.customer)}
+                  </span>
+                  <span className="text-white/35 text-xs ml-2">× {order.qty}</span>
                 </div>
-                <span className="bg-emerald-500/15 text-emerald-300 text-xs px-2 py-0.5 rounded-full">ĐÃ CHỐT</span>
-                <span className="text-white/30 text-xs">{order.time}</span>
+
+                {/* Badge */}
+                <span className={cn(
+                  'text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium',
+                  order.isHistorical
+                    ? 'bg-white/8 text-white/30'
+                    : 'bg-emerald-500/20 text-emerald-300'
+                )}>
+                  {order.isHistorical ? 'ĐÃ XONG' : '🔥 VỪA CHỐT'}
+                </span>
+
+                {/* Time */}
+                <span className={cn(
+                  'text-xs flex-shrink-0',
+                  order.isHistorical ? 'text-white/25' : 'text-white/50'
+                )}>
+                  {order.time}
+                </span>
               </div>
             ))
           )}

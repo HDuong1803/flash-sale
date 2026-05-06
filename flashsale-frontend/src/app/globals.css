@@ -316,3 +316,14 @@ body {
   50%       { opacity: 0.7; }
 }
 .animate-bar-pulse { animation: bar-pulse 0.8s ease-in-out 2; }
+
+/* Order arrive — đơn realtime mới nhảy vào đầu feed */
+@keyframes order-arrive {
+  0%   { transform: translateY(-14px); opacity: 0; background: rgba(16,185,129,0.18); }
+  35%  { transform: translateY(2px);   opacity: 1; background: rgba(16,185,129,0.12); }
+  60%  { transform: translateY(0);               background: rgba(16,185,129,0.08); }
+  100% { transform: translateY(0);               background: transparent; }
+}
+.animate-order-arrive {
+  animation: order-arrive 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
