@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { RedisModule } from '@infrastructure/redis/redis.module'
 import { OrderModule } from '@modules/order/order.module'
 import { DemoController } from './controllers/demo.controller'
 import { DemoService } from './services/demo.service'
@@ -14,8 +15,8 @@ import { DemoRepository } from './repositories/demo.repository'
  */
 @Module({
   imports: [
-    // OrderModule cung cấp OrderGatewayService cho load test
-    OrderModule
+    RedisModule, // cung cấp RedisService cho DemoLoadTestService (reset purchase limits)
+    OrderModule // cung cấp OrderGatewayService cho load test
   ],
   controllers: [DemoController],
   providers: [DemoService, DemoSeedService, DemoLoadTestService, DemoRepository]

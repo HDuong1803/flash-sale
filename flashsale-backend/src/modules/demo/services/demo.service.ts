@@ -85,9 +85,12 @@ export class DemoService implements OnModuleDestroy {
    * Chạy concurrent purchase requests tới campaign đang ACTIVE
    */
   async startLoadTestJob(opts: {
-    campaignId: string
+    campaignId?: string
+    autoDetect?: boolean
     concurrency: number
     totalRequests: number
+    delayMs?: number
+    resetCounters?: boolean
   }): Promise<string> {
     const jobId = `demo-lt-${randomUUID().slice(0, 8)}`
 
@@ -112,7 +115,12 @@ export class DemoService implements OnModuleDestroy {
     this.runningJobs.set(jobId, jobPromise)
 
     this.logger.log(
-      `[${jobId}] Load test job started (campaignId=${opts.campaignId})`
+      `[${jobId}] Load test job started (campaignId=${
+        opts.campaignId ?? 'auto'
+      }, ` +
+        `total=${opts.totalRequests}, delay=${opts.delayMs ?? 0}ms, reset=${
+          opts.resetCounters ?? true
+        })`
     )
     return jobId
   }
@@ -166,7 +174,14 @@ export class DemoService implements OnModuleDestroy {
 
   private async runLoadTestJob(
     jobId: string,
-    opts: { campaignId: string; concurrency: number; totalRequests: number }
+    opts: {
+      campaignId?: string
+      autoDetect?: boolean
+      concurrency: number
+      totalRequests: number
+      delayMs?: number
+      resetCounters?: boolean
+    }
   ): Promise<void> {
     await this.updateJobStatus(
       jobId,

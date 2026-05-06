@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { randomUUID } from 'crypto'
+import { RedisService } from '@infrastructure/redis/redis.service'
 import { DemoRepository } from '../repositories/demo.repository'
 import { OrderGatewayService } from '@modules/order/services/order-gateway.service'
 
@@ -17,10 +18,13 @@ interface RequestResult {
  * DemoLoadTestService — chạy load test concurrent trên campaign ACTIVE
  *
  * Flow:
- *   1. Lấy campaign ACTIVE từ DB, lấy danh sách customers hist-customer-*
- *   2. Chia total requests thành batch, mỗi batch = concurrency requests song song
- *   3. Mỗi request gọi OrderGatewayService.purchase() với user khác nhau
- *   4. Tổng hợp kết quả (success rate, avg latency, errors)
+ *   1. Auto-detect hoặc tìm campaign ACTIVE theo ID
+ *   2. (Tùy chọn) Reset per-user purchase limit trong Redis → cho phép chạy lại nhiều lần
+ *   3. Chia total requests thành batches, mỗi batch = concurrency requests song song
+ *   4. Mỗi request gọi OrderGatewayService.purchase() với user khác nhau
+ *      → ghi vào Redis + RabbitMQ → Order Worker xử lý → dashboard chart nhảy
+ *   5. Delay tùy chọn giữa các batch để chart mượt hơn
+ *   6. Tổng hợp kết quả (success rate, avg/p50/p95/p99 latency, top errors)
  */
 @Injectable()
 export class DemoLoadTestService {
@@ -28,46 +32,97 @@ export class DemoLoadTestService {
 
   constructor(
     private readonly repo: DemoRepository,
-    private readonly orderGateway: OrderGatewayService
+    private readonly orderGateway: OrderGatewayService,
+    private readonly redis: RedisService
   ) {}
 
   /**
    * runLoadTest — thực thi load test và báo cáo kết quả
-   * @param opts - campaignId, concurrency, totalRequests
-   * @param onProgress - callback progress (0-100) + mô tả bước
+   *
+   * @param opts.campaignId     - ID campaign cụ thể (bỏ qua nếu autoDetect=true)
+   * @param opts.autoDetect     - tự tìm campaign ACTIVE đầu tiên
+   * @param opts.concurrency    - số requests song song mỗi batch
+   * @param opts.totalRequests  - tổng số purchases
+   * @param opts.delayMs        - ms chờ giữa các batch (0 = không chờ)
+   * @param opts.resetCounters  - xóa Redis purchase limit trước khi chạy
+   * @param onProgress          - callback progress (0-100) + mô tả bước hiện tại
    */
   async runLoadTest(
-    opts: { campaignId: string; concurrency: number; totalRequests: number },
+    opts: {
+      campaignId?: string
+      autoDetect?: boolean
+      concurrency: number
+      totalRequests: number
+      delayMs?: number
+      resetCounters?: boolean
+    },
     onProgress: (progress: number, step: string) => Promise<void>
   ): Promise<Record<string, unknown>> {
-    const { campaignId, concurrency, totalRequests } = opts
+    const { concurrency, totalRequests } = opts
+    const delayMs = opts.delayMs ?? 0
+    const resetCounters = opts.resetCounters ?? true
 
-    // Bước 1: Load campaign + customers
+    // Bước 1: Tìm campaign
     await onProgress(5, 'Đang tải thông tin campaign...')
-    const campaign = await this.repo.findActiveCampaignById(campaignId)
-    if (!campaign) {
-      throw new Error(
-        `Campaign "${campaignId}" không tồn tại hoặc không đang ACTIVE`
+    let campaign: Awaited<ReturnType<typeof this.repo.findActiveCampaignById>>
+
+    if (opts.autoDetect || !opts.campaignId) {
+      campaign = await this.repo.findAnyActiveCampaign()
+      if (!campaign) {
+        throw new Error(
+          'Không tìm thấy ACTIVE campaign. Chạy pnpm seed trước rồi thử lại.'
+        )
+      }
+    } else {
+      campaign = await this.repo.findActiveCampaignById(opts.campaignId)
+      if (!campaign) {
+        throw new Error(
+          `Campaign "${opts.campaignId}" không tồn tại hoặc không đang ACTIVE`
+        )
+      }
+    }
+
+    if (!campaign.campaignProducts.length) {
+      throw new Error(`Campaign "${campaign.id}" không có sản phẩm nào`)
+    }
+
+    // Bước 2: Reset purchase counters (cho phép chạy lại nhiều lần)
+    if (resetCounters) {
+      await onProgress(8, 'Đang reset per-user purchase limits...')
+      let totalDeleted = 0
+      for (const cp of campaign.campaignProducts) {
+        const n = await this.redis.deletePurchaseLimitKeys(
+          `purchase_limit:${cp.id}:*`
+        )
+        totalDeleted += n
+      }
+      this.logger.log(
+        `[LoadTest] Reset ${totalDeleted} purchase limit keys cho campaign ${campaign.id}`
       )
     }
-    if (!campaign.campaignProducts.length) {
-      throw new Error(`Campaign "${campaignId}" không có sản phẩm nào`)
-    }
 
+    // Bước 3: Tải customers
     await onProgress(10, 'Đang tải danh sách customers...')
     const customers = await this.repo.findHistoricalCustomers(500)
     if (customers.length === 0) {
       throw new Error(
-        'Không tìm thấy historical customers. Hãy chạy seed trước.'
+        'Không tìm thấy historical customers. Chạy pnpm seed:historical trước.'
       )
     }
 
     const cpIds = campaign.campaignProducts.map(cp => cp.id)
+    const campaignId = campaign.id
     const t0 = Date.now()
     const allResults: RequestResult[] = []
     let done = 0
 
-    // Bước 2: Chạy từng batch song song
+    this.logger.log(
+      `[LoadTest] Bắt đầu: campaign=${campaignId}, ` +
+        `customers=${customers.length}, products=${cpIds.length}, ` +
+        `total=${totalRequests}, concurrency=${concurrency}, delay=${delayMs}ms`
+    )
+
+    // Bước 4: Chạy từng batch song song
     while (done < totalRequests) {
       const batchSize = Math.min(concurrency, totalRequests - done)
       const progress = 10 + Math.round((done / totalRequests) * 85)
@@ -76,16 +131,16 @@ export class DemoLoadTestService {
         `Đang gửi request ${done + 1}–${done + batchSize} / ${totalRequests}...`
       )
 
-      // Tạo batchSize requests song song
       const batchResults = await Promise.allSettled(
         Array.from({ length: batchSize }, async (_, i) => {
           const reqIdx = done + i
-          // Xoay vòng customers và campaign products
+          // Xoay vòng customers và campaign products để phân tán đều
           const customer = customers[reqIdx % customers.length]
           const cpId = cpIds[reqIdx % cpIds.length]
+          // Mỗi request có idempotency key duy nhất → không bị dedup
           const idempotencyKey = `lt:${campaignId}:${
             customer.id
-          }:${reqIdx}-${randomUUID().slice(0, 8)}`
+          }:${reqIdx}:${randomUUID().slice(0, 8)}`
 
           const tReq = Date.now()
           try {
@@ -113,7 +168,6 @@ export class DemoLoadTestService {
         })
       )
 
-      // Collect kết quả từ settled promises
       for (const settled of batchResults) {
         if (settled.status === 'fulfilled') {
           allResults.push(settled.value)
@@ -129,6 +183,11 @@ export class DemoLoadTestService {
       }
 
       done += batchSize
+
+      // Delay giữa batches — tạo hiệu ứng mượt trên chart dashboard
+      if (delayMs > 0 && done < totalRequests) {
+        await new Promise(r => setTimeout(r, delayMs))
+      }
     }
 
     // Bước 3: Tổng hợp kết quả

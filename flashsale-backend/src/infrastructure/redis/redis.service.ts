@@ -486,4 +486,40 @@ export class RedisService {
     await this._redisClient.incrby(key, value)
     await this._redisClient.expire(key, ttlSeconds)
   }
+
+  // ─── Demo / Load Test Utilities ───────────────────────────────────────────
+
+  /**
+   * Xóa tất cả Redis keys khớp pattern dùng SCAN (không block event loop).
+   * Dùng để reset per-user purchase limit trước khi chạy load test lại.
+   *
+   * Pattern ví dụ: "purchase_limit:*" hoặc "purchase_limit:{cpId}:*"
+   * @returns số lượng key đã xóa
+   */
+  async deletePurchaseLimitKeys(pattern: string): Promise<number> {
+    let cursor = '0'
+    let deleted = 0
+
+    do {
+      const [nextCursor, keys] = await this._redisClient.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        '100'
+      )
+      cursor = nextCursor
+
+      if (keys.length > 0) {
+        const pipeline = this._redisClient.pipeline()
+        for (const k of keys) {
+          pipeline.del(k)
+        }
+        await pipeline.exec()
+        deleted += keys.length
+      }
+    } while (cursor !== '0')
+
+    return deleted
+  }
 }

@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min
+} from 'class-validator'
 
 // ─── Request DTOs ──────────────────────────────────────────────────────────────
 
@@ -40,12 +47,25 @@ export class StartSeedDto {
 
 export class StartLoadTestDto {
   @ApiProperty({
-    description: 'ID của campaign đang ACTIVE cần test',
+    description:
+      'ID của campaign ACTIVE cần test. Bỏ trống hoặc set autoDetect=true để tự tìm.',
     example: 'clxxxxxx',
-    required: true
+    required: false
   })
   @IsString()
-  campaignId!: string
+  @IsOptional()
+  campaignId?: string
+
+  @ApiProperty({
+    description:
+      'Tự động tìm campaign ACTIVE đầu tiên (bỏ qua campaignId nếu để true)',
+    example: true,
+    required: false,
+    default: true
+  })
+  @IsBoolean()
+  @IsOptional()
+  autoDetect?: boolean = true
 
   @ApiProperty({
     description: 'Số users đồng thời gửi request mỗi đợt (mặc định 20)',
@@ -59,7 +79,7 @@ export class StartLoadTestDto {
   concurrency?: number = 20
 
   @ApiProperty({
-    description: 'Tổng số request sẽ gửi (mặc định 100)',
+    description: 'Tổng số purchase request sẽ gửi (mặc định 100)',
     example: 100,
     required: false
   })
@@ -68,6 +88,30 @@ export class StartLoadTestDto {
   @Max(2000)
   @IsOptional()
   totalRequests?: number = 100
+
+  @ApiProperty({
+    description:
+      'Thời gian chờ (ms) giữa các batch. Tăng lên 200-500 để demo chart mượt hơn.',
+    example: 200,
+    required: false,
+    default: 0
+  })
+  @IsInt()
+  @Min(0)
+  @Max(5000)
+  @IsOptional()
+  delayMs?: number = 0
+
+  @ApiProperty({
+    description:
+      'Reset per-user purchase limit trong Redis trước khi chạy — cho phép chạy lại nhiều lần mà không bị block.',
+    example: true,
+    required: false,
+    default: true
+  })
+  @IsBoolean()
+  @IsOptional()
+  resetCounters?: boolean = true
 }
 
 // ─── Response DTOs ─────────────────────────────────────────────────────────────

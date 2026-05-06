@@ -90,8 +90,11 @@ export class DemoController {
   ): Promise<JobStartedResponseDto> {
     const jobId = await this.demoService.startLoadTestJob({
       campaignId: dto.campaignId,
+      autoDetect: dto.autoDetect ?? true,
       concurrency: dto.concurrency ?? 20,
-      totalRequests: dto.totalRequests ?? 100
+      totalRequests: dto.totalRequests ?? 100,
+      delayMs: dto.delayMs ?? 0,
+      resetCounters: dto.resetCounters ?? true
     })
     return {
       jobId,

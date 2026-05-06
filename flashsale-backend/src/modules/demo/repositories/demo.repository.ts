@@ -137,6 +137,28 @@ export class DemoRepository {
     })
   }
 
+  /**
+   * Tự động tìm campaign ACTIVE đầu tiên — dùng khi không chỉ định campaignId.
+   * Ưu tiên campaign có nhiều sản phẩm nhất để load test đa dạng hơn.
+   */
+  async findAnyActiveCampaign() {
+    return this.prisma.campaign.findFirst({
+      where: { status: 'ACTIVE' },
+      orderBy: { startTime: 'desc' },
+      include: {
+        campaignProducts: {
+          select: {
+            id: true,
+            salePrice: true,
+            saleQuantity: true,
+            remainingQuantity: true,
+            perUserLimit: true
+          }
+        }
+      }
+    })
+  }
+
   /** Lấy danh sách customers lịch sử (hist-customer-xxx) để dùng cho load test */
   async findHistoricalCustomers(
     limit: number

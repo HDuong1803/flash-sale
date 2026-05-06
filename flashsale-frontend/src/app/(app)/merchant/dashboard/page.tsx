@@ -11,6 +11,10 @@ import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { RevenueTrendCard } from '@/components/merchant/RevenueTrendCard'
+import { OrdersBreakdownCard } from '@/components/merchant/OrdersBreakdownCard'
+import { TopProductsCard } from '@/components/merchant/TopProductsCard'
+import { StockAlertsCard } from '@/components/merchant/StockAlertsCard'
 import { formatCurrency, formatTimeAgo, maskString } from '@/lib/utils'
 import type { MerchantStats } from '@/types'
 
@@ -209,6 +213,20 @@ export default function MerchantDashboardPage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Revenue trend + Orders breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <RevenueTrendCard />
+        </div>
+        <OrdersBreakdownCard />
+      </div>
+
+      {/* Top products + Stock alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <TopProductsCard />
+        <StockAlertsCard />
       </div>
     </div>
   )

@@ -1,0 +1,93 @@
+# Flash Sale Load Test — Artillery
+#
+# Yêu cầu:
+#   npm install -g artillery@2     (hoặc pnpm add -g artillery@2)
+#   pnpm seed && pnpm seed:historical   (tạo hist-customers và ACTIVE campaign)
+#
+# Cách chạy:
+#   cd flashsale-backend
+#
+#   # Lấy campaignProductId đầu tiên (chạy server trước)
+#   export API_URL=http://localhost:3000
+#   export CAMPAIGN_PRODUCT_ID=$(node load-test/get-cpid.js)
+#
+#   # Chạy load test
+#   artillery run load-test/artillery.yml
+#
+#   # Hoặc chạy với tùy chỉnh số users
+#   ARTILLERY_CUSTOMERS=100 artillery run load-test/artillery.yml
+#
+# Ghi chú:
+#   - processor.js tự login 150 hist-customers và cache JWT token
+#   - Mỗi VU (virtual user) xoay vòng qua customers, không bị conflict
+#   - perUserLimit sẽ bị hit sau N purchases — dùng POST /demo/load-test với resetCounters=true để reset
+
+config:
+  target: "{{ $processEnvironment.API_URL || 'http://localhost:3000' }}"
+  processor: "./processor.js"
+
+  # Cấu hình phases để chart nhảy mượt:
+  # Warm-up → Ramp-up → Peak → Cool-down
+  phases:
+    - name: "Khởi động (warm-up)"
+      duration: 20        # 20 giây
+      arrivalRate: 3      # 3 users/giây
+      maxVusers: 15
+
+    - name: "Tăng dần (ramp-up)"
+      duration: 40        # 40 giây
+      arrivalRate: 5
+      rampTo: 30          # tăng từ 5 → 30 users/giây
+      maxVusers: 100
+
+    - name: "Đỉnh tải (peak)"
+      duration: 60        # 60 giây
+      arrivalRate: 30     # 30 users/giây
+      maxVusers: 150
+
+    - name: "Giảm tải (cool-down)"
+      duration: 20
+      arrivalRate: 5
+      maxVusers: 20
+
+  # Biến dùng trong scenarios
+  variables:
+    quantity: 1
+
+  # Tắt TLS validation nếu chạy localhost với self-signed cert
+  tls:
+    rejectUnauthorized: false
+
+  # Report sau mỗi 10s
+  statsInterval: 10
+
+scenarios:
+  - name: "Flash Sale Purchase Flow"
+    weight: 100
+    flow:
+      # Bước 1: Lấy customer token + campaign product từ processor
+      - function: "generatePurchaseRequest"
+
+      # Bước 2: POST /orders/purchase
+      - post:
+          url: "/api/v1/orders/purchase"
+          headers:
+            Authorization: "Bearer {{ token }}"
+            X-Idempotency-Key: "{{ idempotencyKey }}"
+            Content-Type: "application/json"
+          json:
+            campaignProductId: "{{ campaignProductId }}"
+            quantity: "{{ quantity }}"
+          capture:
+            - json: "$.data.requestId"
+              as: "requestId"
+          expect:
+            - statusCode:
+                - 202   # dispatched to queue
+                - 400   # per-user limit (bình thường nếu đã mua)
+
+      # Bước 3 (tùy chọn): Poll kết quả — comment out nếu muốn test throughput thuần túy
+      # - get:
+      #     url: "/api/v1/orders/result/{{ requestId }}"
+      #     headers:
+      #       Authorization: "Bearer {{ token }}"

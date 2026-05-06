@@ -272,7 +272,7 @@ async function main(): Promise<void> {
   console.log(`✅ Merchants: TechViet Store, Fashion Hub, HomeLife Vietnam`)
 
   // ── 4. Commission Categories ───────────────────────────────────────────────
-  const [catElec, catFashion, catHome] = await Promise.all([
+  const [catElec, catFashion] = await Promise.all([
     prisma.commissionCategory.upsert({
       where: { code: 'ELECTRONICS' },
       update: {},
@@ -616,18 +616,20 @@ async function main(): Promise<void> {
     `✅ Tổng sản phẩm: ${allProductCount} (TechViet: ${products1.length}, Fashion Hub: ${products2.length}, HomeLife: ${products3.length})`
   )
 
-  // ── 6. Campaigns (10 chiến dịch) ──────────────────────────────────────────
-
-  // Campaign 1 — ACTIVE: Flash Sale Điện thoại Flagship (TechViet)
+  // ── 6. Campaigns ──────────────────────────────────────────────────────────
+  //
+  // Campaign 1 — ACTIVE: Flash Sale Flagship 7 ngày (TechViet)
+  // startTime = 24h trước để seed-historical có thể tạo orders lịch sử trong ngày đầu.
+  // endTime   = 6 ngày nữa → tổng 7 ngày, dùng new Date() nên flex khi chạy lại nhiều lần.
   const campaign1 = await createCampaign({
     merchantId: merchant1.id,
     commissionCategoryId: catElec.id,
-    name: 'Flash Sale Flagship Tháng 4',
+    name: 'Flash Sale Flagship - Điện Thoại & Laptop 7 Ngày',
     description:
-      'Ưu đãi lớn nhất năm cho các dòng điện thoại flagship: iPhone 15 Pro Max, Samsung S24 Ultra và Xiaomi 14 Ultra. Giảm đến 40% - số lượng cực kỳ có hạn!',
+      'Deal lớn nhất tháng: iPhone 15 Pro Max, Samsung Galaxy S24 Ultra, MacBook Air M3, iPad Pro M4, AirPods Pro. Giảm đến 40% — số lượng cực kỳ có hạn! Chạy suốt 7 ngày.',
     status: 'ACTIVE',
-    startTime: daysAgo(2),
-    endTime: daysFromNow(5),
+    startTime: new Date(Date.now() - 24 * 60 * 60 * 1000), // đã bắt đầu 24h trước
+    endTime: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000), // còn 6 ngày nữa
     commissionRate: 0.05,
     approvedBy: admin.id
   })
@@ -635,373 +637,92 @@ async function main(): Promise<void> {
     {
       productId: products1[0].id,
       salePrice: 22990000,
-      saleQuantity: 50,
+      saleQuantity: 100,
       perUserLimit: 1
     }, // iPhone
     {
       productId: products1[1].id,
       salePrice: 19990000,
-      saleQuantity: 40,
+      saleQuantity: 80,
       perUserLimit: 1
     }, // Samsung
     {
-      productId: products1[9].id,
-      salePrice: 13990000,
-      saleQuantity: 30,
-      perUserLimit: 1
-    } // Xiaomi
-  ])
-
-  // Campaign 2 — ACTIVE: Flash Sale Đồ gia dụng (HomeLife)
-  const campaign2 = await createCampaign({
-    merchantId: merchant3.id,
-    commissionCategoryId: catHome.id,
-    name: 'Smart Home Deal - Tuần Lễ Vàng',
-    description:
-      'Sắm đồ gia dụng thông minh cho ngôi nhà hiện đại. Robot hút bụi, máy lọc không khí, đèn LED thông minh giảm đến 35%. Mua ngay kẻo hết!',
-    status: 'ACTIVE',
-    startTime: daysAgo(1),
-    endTime: daysFromNow(3),
-    commissionRate: 0.06,
-    approvedBy: admin.id
-  })
-  await createCampaignProducts(campaign2.id, [
-    {
-      productId: products3[0].id,
-      salePrice: 12990000,
-      saleQuantity: 20,
-      perUserLimit: 1
-    }, // Air purifier Dyson
-    {
-      productId: products3[1].id,
-      salePrice: 11990000,
-      saleQuantity: 15,
-      perUserLimit: 1
-    }, // Robot Roomba
-    {
-      productId: products3[5].id,
-      salePrice: 1890000,
-      saleQuantity: 50,
-      perUserLimit: 2
-    }, // Smart light
-    {
-      productId: products3[6].id,
-      salePrice: 2290000,
-      saleQuantity: 40,
-      perUserLimit: 2
-    } // JBL Speaker
-  ])
-
-  // Campaign 3 — SCHEDULED: Back to School (TechViet)
-  const campaign3 = await createCampaign({
-    merchantId: merchant1.id,
-    commissionCategoryId: catElec.id,
-    name: 'Back To School - MacBook & iPad',
-    description:
-      'Mùa tựu trường với deal cực hot: MacBook Air M3 và iPad Pro M4 giảm giá đặc biệt dành cho sinh viên và học sinh. Kèm phần mềm bản quyền miễn phí!',
-    status: 'SCHEDULED',
-    startTime: daysFromNow(3),
-    endTime: daysFromNow(6),
-    commissionRate: 0.05,
-    approvedBy: admin.id
-  })
-  await createCampaignProducts(campaign3.id, [
-    {
       productId: products1[2].id,
       salePrice: 25990000,
-      saleQuantity: 30,
+      saleQuantity: 50,
       perUserLimit: 1
     }, // MacBook
     {
       productId: products1[3].id,
       salePrice: 18990000,
-      saleQuantity: 30,
+      saleQuantity: 60,
       perUserLimit: 1
     }, // iPad
     {
       productId: products1[4].id,
       salePrice: 3990000,
-      saleQuantity: 80,
+      saleQuantity: 150,
       perUserLimit: 2
     } // AirPods
   ])
 
-  // Campaign 4 — SCHEDULED: Thời Trang Thu Đông (Fashion Hub)
-  const campaign4 = await createCampaign({
+  // Campaign 2 — SCHEDULED: Flash Sale Thời Trang (Fashion Hub)
+  // Bắt đầu 8 ngày nữa — customers có thể đăng ký nhắc nhở trước.
+  const campaign2 = await createCampaign({
     merchantId: merchant2.id,
     commissionCategoryId: catFashion.id,
-    name: 'Thu Đông Sale - Áo Khoác & Boots',
+    name: 'Thu Đông Sale - Thời Trang Cao Cấp Chính Hãng',
     description:
-      'Bộ sưu tập thu đông chính hãng: áo khoác da Ý, boots Chelsea nhập khẩu, áo len Cashmere Merino. Giảm đến 45% cho đơn trên 5 triệu.',
+      'Flash sale thời trang sắp diễn ra: áo khoác da bò Ý, Chelsea boots da lộn, áo len Cashmere Merino, Nike Air Max. Đặt lịch nhắc ngay!',
     status: 'SCHEDULED',
-    startTime: daysFromNow(5),
-    endTime: daysFromNow(8),
+    startTime: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000),
+    endTime: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
     commissionRate: 0.08,
     approvedBy: admin.id
   })
-  await createCampaignProducts(campaign4.id, [
+  await createCampaignProducts(campaign2.id, [
     {
       productId: products2[0].id,
       salePrice: 2890000,
-      saleQuantity: 40,
+      saleQuantity: 60,
       perUserLimit: 2
     }, // Leather jacket
     {
+      productId: products2[6].id,
+      salePrice: 1990000,
+      saleQuantity: 80,
+      perUserLimit: 2
+    }, // Nike sneakers
+    {
       productId: products2[11].id,
       salePrice: 2490000,
-      saleQuantity: 30,
+      saleQuantity: 50,
       perUserLimit: 2
     }, // Chelsea boots
     {
       productId: products2[12].id,
       salePrice: 1890000,
-      saleQuantity: 60,
+      saleQuantity: 80,
       perUserLimit: 2
     } // Cashmere sweater
   ])
 
-  // Campaign 5 — APPROVED: Siêu Sale Gaming (TechViet)
-  const campaign5 = await createCampaign({
-    merchantId: merchant1.id,
-    commissionCategoryId: catElec.id,
-    name: 'Gaming Fiesta - PS5 & Nintendo',
-    description:
-      'Thiên đường game thủ: PlayStation 5, Nintendo Switch OLED, GoPro Hero12 và các phụ kiện gaming. Flash sale 48 giờ, số lượng rất giới hạn!',
-    status: 'APPROVED',
-    startTime: daysFromNow(10),
-    endTime: daysFromNow(12),
-    commissionRate: 0.05,
-    approvedBy: admin.id
-  })
-  await createCampaignProducts(campaign5.id, [
-    {
-      productId: products1[7].id,
-      salePrice: 9990000,
-      saleQuantity: 25,
-      perUserLimit: 1
-    }, // PS5
-    {
-      productId: products1[12].id,
-      salePrice: 5990000,
-      saleQuantity: 35,
-      perUserLimit: 1
-    }, // Nintendo
-    {
-      productId: products1[11].id,
-      salePrice: 6990000,
-      saleQuantity: 30,
-      perUserLimit: 1
-    } // GoPro
-  ])
-
-  // Campaign 6 — APPROVED: Kitchen Upgrade (HomeLife)
-  const campaign6 = await createCampaign({
-    merchantId: merchant3.id,
-    commissionCategoryId: catHome.id,
-    name: 'Kitchen Upgrade - Máy Móc Bếp',
-    description:
-      'Nâng cấp bếp nhà bạn với deal chưa từng có: DeLonghi, Vitamix, Zojirushi và Philips XXL nồi chiên. Giao hàng miễn phí toàn quốc!',
-    status: 'APPROVED',
-    startTime: daysFromNow(8),
-    endTime: daysFromNow(10),
-    commissionRate: 0.06,
-    approvedBy: admin.id
-  })
-  await createCampaignProducts(campaign6.id, [
-    {
-      productId: products3[2].id,
-      salePrice: 17490000,
-      saleQuantity: 15,
-      perUserLimit: 1
-    }, // DeLonghi
-    {
-      productId: products3[3].id,
-      salePrice: 3290000,
-      saleQuantity: 40,
-      perUserLimit: 2
-    }, // Air fryer
-    {
-      productId: products3[7].id,
-      salePrice: 10990000,
-      saleQuantity: 10,
-      perUserLimit: 1
-    }, // Vitamix
-    {
-      productId: products3[8].id,
-      salePrice: 5990000,
-      saleQuantity: 20,
-      perUserLimit: 1
-    } // Rice cooker
-  ])
-
-  // Campaign 7 — ENDED: Flash Sale Tết (TechViet)
-  const campaign7 = await createCampaign({
-    merchantId: merchant1.id,
-    commissionCategoryId: catElec.id,
-    name: 'Flash Sale Tết Bính Ngọ 2026',
-    description:
-      'Deal khủng mùa Tết: Apple Watch, Sony Headphone, Logitech MX Master 3S. Campaign đã kết thúc nhưng vẫn còn sản phẩm trong kho.',
-    status: 'ENDED',
-    startTime: daysAgo(25),
-    endTime: daysAgo(20),
-    commissionRate: 0.05,
-    approvedBy: admin.id
-  })
-  await createCampaignProducts(campaign7.id, [
-    {
-      productId: products1[8].id,
-      salePrice: 7990000,
-      saleQuantity: 50,
-      perUserLimit: 1
-    }, // Apple Watch
-    {
-      productId: products1[5].id,
-      salePrice: 5990000,
-      saleQuantity: 60,
-      perUserLimit: 1
-    }, // Sony
-    {
-      productId: products1[13].id,
-      salePrice: 1490000,
-      saleQuantity: 100,
-      perUserLimit: 2
-    } // Logitech mouse
-  ])
-
-  // Campaign 8 — ENDED: Clearance Fashion (Fashion Hub)
-  const campaign8 = await createCampaign({
-    merchantId: merchant2.id,
-    commissionCategoryId: catFashion.id,
-    name: 'Clearance Sale - Thanh Lý Tồn Kho',
-    description:
-      'Thanh lý cuối vụ: jeans Levis, polo Ralph Lauren, Nike Air Max, Casio G-Shock. Giảm 50-60%, không hoàn trả. Đã kết thúc.',
-    status: 'ENDED',
-    startTime: daysAgo(15),
-    endTime: daysAgo(12),
-    commissionRate: 0.08,
-    approvedBy: admin.id
-  })
-  await createCampaignProducts(campaign8.id, [
-    {
-      productId: products2[4].id,
-      salePrice: 890000,
-      saleQuantity: 100,
-      perUserLimit: 3
-    }, // Jeans
-    {
-      productId: products2[5].id,
-      salePrice: 990000,
-      saleQuantity: 100,
-      perUserLimit: 3
-    }, // Polo
-    {
-      productId: products2[6].id,
-      salePrice: 1990000,
-      saleQuantity: 60,
-      perUserLimit: 2
-    }, // Nike
-    {
-      productId: products2[8].id,
-      salePrice: 2490000,
-      saleQuantity: 50,
-      perUserLimit: 1
-    } // G-Shock
-  ])
-
-  // Campaign 9 — DRAFT: Siêu Sale Máy Lạnh (HomeLife)
-  const campaign9 = await createCampaign({
-    merchantId: merchant3.id,
-    commissionCategoryId: catHome.id,
-    name: 'Mùa Hè Sale - Điều Hòa & Tủ Lạnh',
-    description:
-      'Chuẩn bị cho mùa hè: điều hòa Daikin Inverter, tủ lạnh Samsung French Door, máy giặt LG AI DD. Đang trong giai đoạn chuẩn bị.',
-    status: 'DRAFT',
-    startTime: daysFromNow(20),
-    endTime: daysFromNow(23),
-    commissionRate: 0.06,
-    approvedBy: null
-  })
-  await createCampaignProducts(campaign9.id, [
-    {
-      productId: products3[10].id,
-      salePrice: 19490000,
-      saleQuantity: 15,
-      perUserLimit: 1
-    }, // AC
-    {
-      productId: products3[11].id,
-      salePrice: 13990000,
-      saleQuantity: 12,
-      perUserLimit: 1
-    }, // Washing machine
-    {
-      productId: products3[12].id,
-      salePrice: 33990000,
-      saleQuantity: 8,
-      perUserLimit: 1
-    } // Refrigerator
-  ])
-
-  // Campaign 10 — DRAFT: Sunglasses & Accessories (Fashion Hub)
-  const campaign10 = await createCampaign({
-    merchantId: merchant2.id,
-    commissionCategoryId: catFashion.id,
-    name: 'Summer Vibes - Kính Mát & Phụ Kiện',
-    description:
-      'Bộ sưu tập mùa hè: kính Rayban Aviator, túi xách da, thắt lưng Saffiano. Đang chuẩn bị submit để admin duyệt.',
-    status: 'DRAFT',
-    startTime: daysFromNow(18),
-    endTime: daysFromNow(21),
-    commissionRate: 0.08,
-    approvedBy: null
-  })
-  await createCampaignProducts(campaign10.id, [
-    {
-      productId: products2[9].id,
-      salePrice: 2290000,
-      saleQuantity: 50,
-      perUserLimit: 2
-    }, // Sunglasses
-    {
-      productId: products2[1].id,
-      salePrice: 2590000,
-      saleQuantity: 30,
-      perUserLimit: 1
-    }, // Handbag
-    {
-      productId: products2[10].id,
-      salePrice: 890000,
-      saleQuantity: 80,
-      perUserLimit: 2
-    }, // Belt
-    {
-      productId: products2[2].id,
-      salePrice: 1690000,
-      saleQuantity: 60,
-      perUserLimit: 2
-    } // Oxford shoes
-  ])
-
   console.log(
-    '✅ Campaigns: 2 ACTIVE, 2 SCHEDULED, 2 APPROVED, 2 ENDED, 2 DRAFT'
+    '✅ Campaigns: 1 ACTIVE (7 ngày, đã bắt đầu 24h trước) + 1 SCHEDULED (8 ngày nữa)'
   )
 
   // ── 7. Pre-registrations (customers đăng ký nhận thông báo campaign) ───────
-  await Promise.all([
-    // Customer 1 & 2 đăng ký campaign sắp diễn ra
-    prisma.preRegistration.createMany({
-      data: [
-        { customerId: customers[0].id, campaignId: campaign3.id },
-        { customerId: customers[1].id, campaignId: campaign3.id },
-        { customerId: customers[0].id, campaignId: campaign4.id },
-        { customerId: customers[2].id, campaignId: campaign4.id },
-        { customerId: customers[1].id, campaignId: campaign5.id },
-        { customerId: customers[2].id, campaignId: campaign5.id }
-      ],
-      skipDuplicates: true
-    })
-  ])
-  console.log('✅ Pre-registrations: 6 đăng ký nhận thông báo')
+  await prisma.preRegistration.createMany({
+    data: [
+      { customerId: customers[0].id, campaignId: campaign2.id },
+      { customerId: customers[1].id, campaignId: campaign2.id },
+      { customerId: customers[2].id, campaignId: campaign2.id }
+    ],
+    skipDuplicates: true
+  })
+  console.log(
+    '✅ Pre-registrations: 3 đăng ký nhận thông báo campaign SCHEDULED'
+  )
 
   // ── 8. User Action Logs (monitor + audit trail) ───────────────────────────
   const ACTIONS = [
@@ -1021,7 +742,7 @@ async function main(): Promise<void> {
     '14.186.45.23',
     '1.55.88.200'
   ]
-  const campaignIds = [campaign1.id, campaign2.id, campaign3.id, campaign4.id]
+  const campaignIds = [campaign1.id, campaign1.id, campaign2.id, campaign1.id]
 
   const now = Date.now()
   const actionLogData = Array.from({ length: 80 }, (_, i) => {
@@ -1089,19 +810,23 @@ async function main(): Promise<void> {
   console.log('─'.repeat(55))
   console.log(`  ✓ emailVerified = true → đăng nhập thẳng, không cần OTP`)
   console.log(`  ✓ Merchant kycStatus = APPROVED → tạo campaign được ngay`)
+  console.log(
+    `  ✓ Chạy tiếp: pnpm seed:historical để tạo 120+ orders cho ACTIVE campaign`
+  )
   // ── Fulfillment: Carriers + Rules ────────────────────────────────────────
   await seedCarriersAndRules()
 
   console.log('─'.repeat(55))
   console.log(`\n📊 THỐNG KÊ DỮ LIỆU:`)
   console.log(`  • ${allProductCount} sản phẩm (14 + 13 + 13)`)
-  console.log(
-    `  • 10 campaigns (2 ACTIVE, 2 SCHEDULED, 2 APPROVED, 2 ENDED, 2 DRAFT)`
-  )
+  console.log(`  • 2 campaigns (1 ACTIVE 7 ngày + 1 SCHEDULED 8 ngày nữa)`)
   console.log(`  • 3 commission categories`)
-  console.log(`  • 6 pre-registrations`)
+  console.log(`  • 3 pre-registrations (campaign SCHEDULED)`)
   console.log(`  • 3 carriers (USPS, UPS, FEDEX) + 4 fulfillment rules`)
   console.log(`  • 80 user action logs (7 ngày gần nhất)`)
+  console.log(
+    `\n💡 Bước tiếp theo: pnpm seed:historical → tạo 120+ orders + analytics cho ACTIVE campaign`
+  )
 }
 
 // ─── Fulfillment Seed ─────────────────────────────────────────────────────────
