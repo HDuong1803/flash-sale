@@ -52,7 +52,7 @@ export interface QcReworkInput {
  * 5. Sau rework → inspector có thể passQc() lại
  *
  * Design:
- * - QC không gọi EasyPost trực tiếp — delegate sang FulfillmentWorker async
+ * - QC không gọi GHN trực tiếp — delegate sang FulfillmentWorker async
  * - Không block QC HTTP response chờ label booking
  * - Idempotent: pass/fail check current status trước khi update
  */

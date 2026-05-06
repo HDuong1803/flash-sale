@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { EasyPostModule } from '@infrastructure/easypost/easypost.module'
+import { GHNModule } from '@infrastructure/ghn/ghn.module'
 import { RedisModule } from '@infrastructure/redis'
 import { NotificationModule } from '@modules/notification/notification.module'
 import { FulfillmentController } from './controllers/fulfillment.controller'
@@ -12,7 +12,7 @@ import { FulfillmentRepository } from './repositories/fulfillment.repository'
 import { QcRepository } from './repositories/qc.repository'
 
 @Module({
-  imports: [EasyPostModule, RedisModule, NotificationModule],
+  imports: [GHNModule, RedisModule, NotificationModule],
   controllers: [FulfillmentController, QcController],
   providers: [
     FulfillmentService,

@@ -757,9 +757,9 @@ model FulfillmentOrder {
   id                 String            @id @default(cuid()) @map("id") @db.VarChar(36)
   orderId            String            @unique @map("order_id") @db.VarChar(36)
   carrierId          String?           @map("carrier_id") @db.VarChar(36)
-  // EasyPost reference IDs
-  easypostShipmentId String?           @unique @map("easypost_shipment_id") @db.VarChar(128)
-  easypostRateId     String?           @map("easypost_rate_id") @db.VarChar(128)
+  // GHN reference IDs
+  ghnOrderCode       String?           @unique @map("ghn_order_code") @db.VarChar(128)
+  ghnServiceId       String?           @map("ghn_service_id") @db.VarChar(128)
   // Label
   labelUrl           String?           @map("label_url") @db.VarChar(512)
   labelPdfUrl        String?           @map("label_pdf_url") @db.VarChar(512)
@@ -780,7 +780,7 @@ model FulfillmentOrder {
   labelCostCents     Int?              @map("label_cost_cents")
   // Address validation
   addressValidated   Boolean           @default(false) @map("address_validated")
-  normalizedAddress  Json?             @map("normalized_address") // EasyPost normalized address object
+  normalizedAddress  Json?             @map("normalized_address") // GHN validated address JSON
   // Timestamps
   labelBookedAt      DateTime?         @map("label_booked_at") @db.Timestamp(6)
   shippedAt          DateTime?         @map("shipped_at") @db.Timestamp(6)
@@ -800,7 +800,7 @@ model FulfillmentOrder {
   @@map("fulfillment_orders")
 }
 
-// TrackingEvent — immutable log mọi tracking update từ EasyPost webhook
+// TrackingEvent — immutable log mọi tracking update từ GHN webhook
 model TrackingEvent {
   id            String           @id @default(cuid()) @map("id") @db.VarChar(36)
   fulfillmentId String           @map("fulfillment_id") @db.VarChar(36)

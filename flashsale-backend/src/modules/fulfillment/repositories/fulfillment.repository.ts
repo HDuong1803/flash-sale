@@ -29,8 +29,8 @@ export interface CreateFulfillmentOrderInput {
 }
 
 export interface UpdateFulfillmentLabelInput {
-  easypostShipmentId: string
-  easypostRateId: string
+  ghnOrderCode: string
+  ghnServiceId: string
   labelUrl: string
   labelPdfUrl: string | null
   labelZplUrl: string | null

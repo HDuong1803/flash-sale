@@ -90,12 +90,39 @@ export const config = {
     ALLOW_LEGACY_PATH_SECRET_AUTH: 'false'
   },
 
-  easypost: {
-    EASYPOST_API_KEY: '',
-    EASYPOST_WEBHOOK_SECRET: '',
-    // Sandbox mode: true khi API key bắt đầu bằng "EZAK" hoặc test key
-    // Production: sẽ override trong production.ts
-    EASYPOST_SANDBOX: 'true'
+  ghn: {
+    /** API Key từ GHN dashboard (https://sso.ghn.vn/) */
+    GHN_API_KEY: '',
+    /** Shop ID từ GHN dashboard — tạo shop để lấy */
+    GHN_SHOP_ID: '',
+    /**
+     * Sandbox mode: 'true' khi dùng dev-online-gateway.ghn.vn
+     * Production: override trong production.ts với 'false'
+     *
+     * Sandbox setup:
+     * 1. Đăng ký tại https://sso.ghn.vn/
+     * 2. Tạo shop → lấy ShopID
+     * 3. Settings → API → lấy API key
+     * 4. Sandbox URL: https://dev-online-gateway.ghn.vn/shiip/public-api
+     * 5. Production URL: https://online-gateway.ghn.vn/shiip/public-api
+     */
+    GHN_SANDBOX: 'true',
+    /**
+     * Token xác thực webhook — tự đặt khi cấu hình webhook trong GHN dashboard.
+     * GHN gửi token này trong header X-GHN-Token của mỗi webhook request.
+     */
+    GHN_WEBHOOK_TOKEN: '',
+    /**
+     * District ID của kho hàng mặc định.
+     * Ví dụ: 1442 = Quận 1, TP.HCM
+     * Dùng để tính phí vận chuyển và lấy danh sách dịch vụ.
+     */
+    GHN_FROM_DISTRICT_ID: 1442,
+    /**
+     * Ward code của kho hàng mặc định.
+     * Ví dụ: "20314" = Phường Bến Nghé, Quận 1, TP.HCM
+     */
+    GHN_FROM_WARD_CODE: '20314'
   },
 
   anthropic: {

@@ -28,7 +28,7 @@ interface LabelJob {
  * - Stale jobs (>24h) → ack và skip (không retry)
  * - Failure → throw để RabbitMQService handle retry + dead-letter
  *
- * Design: tách label booking ra async queue vì EasyPost API có thể
+ * Design: tách label booking ra async queue vì GHN API có thể
  * mất 1-3s, không nên block QC station HTTP response.
  */
 @Injectable()

@@ -1,7 +1,8 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 import { FulfillmentStatus, NotificationType } from '@prisma/client'
-import { EasyPostService } from '@infrastructure/easypost/easypost.service'
-import { EasyPostError } from '@infrastructure/easypost/easypost.types'
+import { GHNService } from '@infrastructure/ghn/ghn.service'
+import { GHNAddressService } from '@infrastructure/ghn/ghn.address.service'
+import { GHNError, GHNCreateOrderInput } from '@infrastructure/ghn/ghn.types'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { NotificationService } from '@modules/notification/services/notification.service'
 import {
@@ -13,26 +14,45 @@ import { FulfillmentRulesEngine } from './fulfillment-rules.engine'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** Từ kho hàng mặc định (San Francisco, CA) — dùng khi không config warehouse address */
-const DEFAULT_FROM_ADDRESS = {
-  company: 'Flash Sale Warehouse',
-  street1: '1 Market St',
-  city: 'San Francisco',
-  state: 'CA',
-  zip: '94105',
-  country: 'US',
-  phone: '4155551234'
-}
+/**
+ * GHN service_type_id mặc định khi không có rule match.
+ * 2 = E-commerce (Express), 5 = Traditional (Eco)
+ */
+const DEFAULT_GHN_SERVICE_TYPE_ID = 2 as const
 
-/** Default parcel dimensions khi không có thông tin (oz conversion: 1g ≈ 0.0353 oz) */
-const GRAMS_TO_OZ = 0.0353274
+/**
+ * GHN required_note mặc định.
+ * CHOTHUHANG = cho thử hàng (khách được xem trước khi nhận)
+ */
+const DEFAULT_REQUIRED_NOTE = 'CHOTHUHANG' as const
+
+/**
+ * GHN tracking URL template — dùng để tạo link theo dõi đơn hàng.
+ * Thay {order_code} bằng mã vận đơn thực tế.
+ */
+const GHN_TRACKING_URL_TEMPLATE =
+  'https://tracking.ghn.dev/?order_code={order_code}'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+/** Địa chỉ VN có cấu trúc — lưu dạng JSON trong Order.shippingAddress */
+export interface VNAddressInput {
+  /** Tên người nhận */
+  to_name: string
+  /** SĐT người nhận */
+  to_phone: string
+  /** Địa chỉ chi tiết (số nhà, tên đường) */
+  to_address: string
+  /** Mã phường (ví dụ: "20314") */
+  to_ward_code: string
+  /** ID quận (ví dụ: 1442) */
+  to_district_id: number
+}
 
 export interface InitializeFulfillmentInput {
   orderId: string
   shippingAddress: string
-  /** Total order amount in USD (Decimal string from Prisma) */
+  /** Total order amount in VND (Decimal string from Prisma) */
   totalAmount: string
   /** merchantId để route về đúng merchant */
   merchantId: string
@@ -42,7 +62,7 @@ export interface InitializeFulfillmentInput {
 
 export interface BookLabelInput {
   orderId: string
-  /** Weight in grams (default: 500g if not provided) */
+  /** Weight in grams (default: 500g nếu không cung cấp) */
   weightGrams?: number
   /** Dimensions in centimeters */
   dimensionsCm?: { l: number; w: number; h: number }
@@ -53,13 +73,13 @@ export interface BookLabelInput {
  *
  * Responsibilities:
  * - initializeFulfillment: trigger khi order CONFIRMED (fire-and-forget từ saga)
- * - bookLabel: gọi khi QC pass — mua label từ EasyPost
- * - handleTrackingWebhook: xử lý tracking update từ EasyPost webhook
+ * - bookLabel: gọi khi QC pass — tạo đơn vận chuyển GHN
+ * - handleGHNWebhook: xử lý tracking update từ GHN webhook
  *
  * Design decisions:
  * - initializeFulfillment là fire-and-forget: không throw nếu lỗi, chỉ log.
  *   Reason: không được làm fail payment saga vì fulfillment là side-effect.
- * - bookLabel có thể retry: idempotent check qua easypostShipmentId.
+ * - bookLabel có thể retry: idempotent check qua ghnOrderCode.
  * - Tracking events là append-only: không update, chỉ insert.
  */
 @Injectable()
@@ -77,7 +97,8 @@ export class FulfillmentService {
     private readonly fulfillmentRepo: FulfillmentRepository,
     private readonly qcRepo: QcRepository,
     private readonly rulesEngine: FulfillmentRulesEngine,
-    private readonly easypost: EasyPostService,
+    private readonly ghn: GHNService,
+    private readonly ghnAddress: GHNAddressService,
     private readonly redis: RedisService,
     private readonly notificationService: NotificationService
   ) {}
@@ -86,7 +107,7 @@ export class FulfillmentService {
    * initializeFulfillment — Tạo FulfillmentOrder ngay sau khi Order confirmed.
    *
    * Flow:
-   * 1. Validate address với EasyPost
+   * 1. Parse + validate địa chỉ VN (ward_code/district_id)
    * 2. Load active rules + evaluate → select carrier
    * 3. Tính SLA deadline
    * 4. Persist FulfillmentOrder
@@ -108,7 +129,7 @@ export class FulfillmentService {
       const existing = await this.fulfillmentRepo.findByOrderId(orderId)
       if (existing) {
         this.logger.debug(
-          `FulfillmentOrder already exists for order ${orderId}, skipping init`
+          `FulfillmentOrder đã tồn tại cho order ${orderId}, bỏ qua init`
         )
         return
       }
@@ -116,7 +137,7 @@ export class FulfillmentService {
       // Step 1: Load rules (batch, không N+1)
       const rules = await this.fulfillmentRepo.findActiveRules()
 
-      // Step 2: Validate address + evaluate rules concurrently
+      // Step 2: Validate địa chỉ VN + evaluate rules concurrently
       const totalCents = Math.round(parseFloat(totalAmount) * 100)
       const ctx = this.rulesEngine.buildContext({
         orderTotalCents: totalCents,
@@ -124,7 +145,7 @@ export class FulfillmentService {
       })
 
       const [addressResult, decision] = await Promise.all([
-        this.validateAddressSafe(shippingAddress),
+        this.validateVNAddressSafe(shippingAddress),
         Promise.resolve(this.rulesEngine.evaluateSync(rules, ctx))
       ])
 
@@ -140,8 +161,8 @@ export class FulfillmentService {
         const noMatchReason = (decision as { matched: false; reason: string })
           .reason
         this.logger.warn(
-          `No fulfillment rule matched for order ${orderId} (${noMatchReason}). ` +
-            'FulfillmentOrder created without carrier assignment.'
+          `Không có fulfillment rule phù hợp cho order ${orderId} (${noMatchReason}). ` +
+            'FulfillmentOrder tạo không có carrier assignment.'
         )
       }
 
@@ -197,29 +218,28 @@ export class FulfillmentService {
       // NEVER propagate — this is a fire-and-forget side effect of saga
       const message = err instanceof Error ? err.message : String(err)
       this.logger.error(
-        `initializeFulfillment failed for order ${orderId}: ${message}`
+        `initializeFulfillment thất bại cho order ${orderId}: ${message}`
       )
     }
   }
 
   /**
-   * bookLabel — Mua shipping label từ EasyPost.
+   * bookLabel — Tạo đơn vận chuyển GHN cho đơn hàng.
    *
    * Flow:
    * 1. Load FulfillmentOrder (phải tồn tại)
-   * 2. Idempotency: nếu đã có label → return existing
-   * 3. Tạo shipment trong EasyPost (address + parcel)
-   * 4. Select rate theo carrier rule
-   * 5. Buy label
-   * 6. Update DB + publish SSE
+   * 2. Idempotency: nếu đã có GHN order_code → return existing
+   * 3. Parse địa chỉ VN từ shippingAddress JSON
+   * 4. Gọi GHN createOrder
+   * 5. Update DB + publish SSE
    *
    * Throws NotFoundException nếu order không tồn tại.
-   * Throws EasyPostError nếu EasyPost API lỗi (caller xử lý retry).
+   * Throws GHNError nếu GHN API lỗi (caller xử lý retry).
    */
   async bookLabel(input: BookLabelInput): Promise<FulfillmentOrderWithCarrier> {
     const { orderId, weightGrams = 500, dimensionsCm } = input
 
-    // Fetch order + fulfillment details via Prisma join
+    // Fetch order + fulfillment details
     const fulfillment = await this.fulfillmentRepo.findByOrderId(orderId)
     if (!fulfillment) {
       throw new NotFoundException(
@@ -227,177 +247,152 @@ export class FulfillmentService {
       )
     }
 
-    // Idempotency: label đã booked → trả về existing
+    // Idempotency: GHN order đã tạo → trả về existing
     if (
       fulfillment.labelUrl &&
       fulfillment.fulfillStatus !== FulfillmentStatus.AWAITING
     ) {
-      this.logger.debug(`Label already booked for order ${orderId}`)
+      this.logger.debug(`GHN order đã tạo cho order ${orderId}`)
       return fulfillment
     }
 
     // Cannot book label for ADDRESS_ISSUE orders
     if (fulfillment.fulfillStatus === FulfillmentStatus.ADDRESS_ISSUE) {
       throw new Error(
-        `Không thể book label: địa chỉ giao hàng không hợp lệ cho order ${orderId}`
+        `Không thể tạo đơn GHN: địa chỉ giao hàng không hợp lệ cho order ${orderId}`
       )
     }
 
-    // Get order details (raw shippingAddress)
+    // Get order details (raw shippingAddress JSON)
     const orderData = await this.getOrderShippingAddress(orderId)
+    const toAddress = this.parseVNAddress(orderData.shippingAddress)
 
-    // Build parcel (convert grams → oz for EasyPost)
-    const weightOz = Math.max(0.1, weightGrams * GRAMS_TO_OZ)
-    const parcel = dimensionsCm
-      ? {
-          weight: weightOz,
-          // cm → inches (1 cm = 0.3937 inches)
-          length: Math.ceil(dimensionsCm.l * 0.3937),
-          width: Math.ceil(dimensionsCm.w * 0.3937),
-          height: Math.ceil(dimensionsCm.h * 0.3937)
+    // Build GHN create order payload
+    const ghnOrderInput: GHNCreateOrderInput = {
+      to_name: toAddress.to_name,
+      to_phone: toAddress.to_phone,
+      to_address: toAddress.to_address,
+      to_ward_code: toAddress.to_ward_code,
+      to_district_id: toAddress.to_district_id,
+      weight: weightGrams,
+      length: dimensionsCm?.l ?? 20,
+      width: dimensionsCm?.w ?? 20,
+      height: dimensionsCm?.h ?? 10,
+      service_type_id: this.resolveServiceTypeId(
+        fulfillment.carrier?.code ?? null
+      ),
+      payment_type_id: 1, // Shop trả phí vận chuyển
+      required_note: DEFAULT_REQUIRED_NOTE,
+      client_order_code: orderId.slice(0, 50), // GHN max 50 chars
+      cod_amount: 0, // Đã thanh toán online
+      items: [
+        {
+          name: `Đơn hàng ${orderId}`,
+          quantity: 1,
+          weight: weightGrams
         }
-      : { weight: weightOz }
+      ]
+    }
 
-    // Parse toAddress
-    const toAddress = this.parseShippingAddress(orderData.shippingAddress)
+    // Tạo đơn GHN
+    const created = await this.ghn.createOrder(ghnOrderInput)
 
-    // Create EasyPost shipment
-    const shipment = await this.easypost.createShipment(
-      DEFAULT_FROM_ADDRESS,
-      toAddress,
-      parcel
+    const trackingUrl = GHN_TRACKING_URL_TEMPLATE.replace(
+      '{order_code}',
+      created.order_code
     )
+    const costVnd = parseInt(created.total_fee, 10) || 0
 
-    // Select best rate for carrier
-    let selectedRate = fulfillment.carrier
-      ? this.easypost.selectRateForCarrier(
-          shipment.rates,
-          fulfillment.carrier.code
-        )
-      : null
-
-    // Fallback: cheapest available rate
-    if (!selectedRate && shipment.rates.length > 0) {
-      selectedRate =
-        shipment.rates.sort(
-          (a, b) => parseFloat(a.rate) - parseFloat(b.rate)
-        )[0] ?? null
-      this.logger.warn(
-        `Preferred carrier rate not available for order ${orderId}, using cheapest: ` +
-          `${selectedRate?.carrier} ${selectedRate?.service}`
-      )
-    }
-
-    if (!selectedRate) {
-      throw new Error(`No shipping rates available for order ${orderId}`)
-    }
-
-    // Purchase label
-    const purchased = await this.easypost.buyLabel(shipment.id, selectedRate.id)
-
-    const label = purchased.postage_label
-    if (!label?.label_url) {
-      throw new Error(`EasyPost did not return label URL for order ${orderId}`)
-    }
-
-    const costCents = Math.round(parseFloat(selectedRate.rate) * 100)
-
-    // Persist
     const updated = await this.fulfillmentRepo.updateLabel(fulfillment.id, {
-      easypostShipmentId: shipment.id,
-      easypostRateId: selectedRate.id,
-      labelUrl: label.label_url,
-      labelPdfUrl: label.label_pdf_url ?? null,
-      labelZplUrl: label.label_zpl_url ?? null,
-      trackingNumber: purchased.tracking_code ?? '',
-      trackingUrl: purchased.tracker?.public_url ?? null,
-      labelCostCents: costCents,
+      ghnOrderCode: created.order_code,
+      ghnServiceId: String(ghnOrderInput.service_type_id),
+      labelUrl: trackingUrl, // GHN tracking URL (không có label PDF)
+      labelPdfUrl: null,
+      labelZplUrl: null,
+      trackingNumber: created.order_code,
+      trackingUrl,
+      labelCostCents: costVnd, // GHN dùng VND không phải cents — lưu nguyên
       fulfillStatus: FulfillmentStatus.LABEL_BOOKED,
       labelBookedAt: new Date()
     })
 
-    // Update weight/dimensions
+    // Update status
     await this.fulfillmentRepo.updateStatus(
       fulfillment.id,
       FulfillmentStatus.LABEL_BOOKED
     )
 
     this.logger.log(
-      `Label booked: order=${orderId}, tracking=${purchased.tracking_code}, ` +
-        `carrier=${selectedRate.carrier} ${selectedRate.service}, cost=$${selectedRate.rate}`
+      `GHN order tạo thành công: orderId=${orderId}, ` +
+        `order_code=${created.order_code}, ` +
+        `phí=${costVnd}đ, ` +
+        `dự kiến giao: ${created.expected_delivery_time}`
     )
 
     return (await this.fulfillmentRepo.findById(updated.id))!
   }
 
   /**
-   * handleTrackingWebhook — Xử lý tracking update từ EasyPost.
+   * handleGHNWebhook — Xử lý tracking update từ GHN webhook.
    *
    * Flow:
-   * 1. Verify HMAC signature
+   * 1. Verify webhook token
    * 2. Parse payload
-   * 3. Find FulfillmentOrder bằng tracking_code
-   * 4. Map carrier status → FulfillmentStatus
+   * 3. Find FulfillmentOrder bằng GHN order_code (= trackingNumber)
+   * 4. Map GHN status → FulfillmentStatus
    * 5. Append TrackingEvent (immutable log)
    * 6. Update FulfillmentOrder status
    * 7. Publish SSE event
    *
    * Idempotent: nếu status không đổi → skip update (tránh duplicate events).
+   *
+   * @param rawBody - Buffer raw request body
+   * @param webhookToken - Token từ header X-GHN-Token hoặc query param
    */
-  async handleTrackingWebhook(
-    rawBody: Buffer,
-    signatureHeader: string
-  ): Promise<void> {
-    // Step 1: Verify signature TRƯỚC KHI xử lý bất kỳ gì
-    if (!this.easypost.verifyWebhookSignature(rawBody, signatureHeader)) {
-      throw new Error('EasyPost webhook signature verification failed')
+  async handleGHNWebhook(rawBody: Buffer, webhookToken: string): Promise<void> {
+    // Step 1: Verify token TRƯỚC KHI xử lý bất kỳ gì
+    if (!this.ghn.verifyWebhookToken(webhookToken)) {
+      throw new Error('GHN webhook token verification thất bại')
     }
 
     // Step 2: Parse payload
-    const payload = this.easypost.parseWebhookPayload(rawBody)
+    const payload = this.ghn.parseWebhookPayload(rawBody)
 
-    // Only handle tracker events
-    if (!payload.description.startsWith('tracker.')) {
+    // Chỉ xử lý status updates — bỏ qua create/update_weight/update_cod/update_fee
+    if (payload.Type !== 'switch_status' && payload.Type !== 'create') {
       return
     }
 
-    const trackingCode = payload.result.tracking_code
-    const carrierStatus = payload.result.status ?? 'unknown'
+    const ghnOrderCode = payload.OrderCode
+    const ghnStatus = payload.Status
 
-    if (!trackingCode) return
+    if (!ghnOrderCode) return
 
-    // Step 3: Find fulfillment order
+    // Step 3: Find fulfillment order bằng GHN order_code (lưu trong trackingNumber)
     const fulfillment = await this.fulfillmentRepo.findByTrackingNumber(
-      trackingCode
+      ghnOrderCode
     )
     if (!fulfillment) {
       this.logger.warn(
-        `Tracking webhook: no FulfillmentOrder found for tracking_code=${trackingCode}`
+        `GHN Webhook: không tìm thấy FulfillmentOrder cho order_code=${ghnOrderCode}`
       )
       return
     }
 
-    // Step 4: Map carrier status → FulfillmentStatus
-    const newStatus = this.mapCarrierStatus(carrierStatus)
+    // Step 4: Map GHN status → FulfillmentStatus
+    const newStatus = this.mapGHNStatus(ghnStatus)
 
     // Step 5: Append tracking event (always — immutable audit log)
-    const latestDetail = payload.result.tracking_details?.[0]
     await this.fulfillmentRepo.createTrackingEvent({
       fulfillmentId: fulfillment.id,
-      carrierStatus,
-      description: latestDetail?.message ?? payload.description,
-      location: latestDetail?.tracking_location
-        ? `${latestDetail.tracking_location.city ?? ''}, ${
-            latestDetail.tracking_location.state ?? ''
-          }`.trim()
-        : null,
-      occurredAt: latestDetail?.datetime
-        ? new Date(latestDetail.datetime)
-        : new Date(payload.updated_at),
+      carrierStatus: ghnStatus,
+      description: payload.Description || ghnStatus,
+      location: payload.ToAddress || null,
+      occurredAt: payload.Time ? new Date(payload.Time * 1000) : new Date(),
       sourcePayload: payload as unknown as object
     })
 
-    // Step 6: Update status only if it changed (avoid unnecessary DB writes)
+    // Step 6: Update status chỉ khi thay đổi (tránh unnecessary DB writes)
     if (newStatus && newStatus !== fulfillment.fulfillStatus) {
       const extraData: Parameters<typeof this.fulfillmentRepo.updateStatus>[2] =
         {}
@@ -408,7 +403,8 @@ export class FulfillmentService {
         extraData.deliveredAt = new Date()
       } else if (newStatus === FulfillmentStatus.EXCEPTION) {
         extraData.exceptionAt = new Date()
-        extraData.exceptionReason = latestDetail?.message ?? 'Carrier exception'
+        extraData.exceptionReason =
+          payload.Reason || payload.Description || 'GHN exception'
       }
 
       await this.fulfillmentRepo.updateStatus(
@@ -418,8 +414,8 @@ export class FulfillmentService {
       )
 
       this.logger.log(
-        `Tracking update: tracking=${trackingCode}, ` +
-          `${fulfillment.fulfillStatus} → ${newStatus}`
+        `GHN tracking update: order_code=${ghnOrderCode}, ` +
+          `${fulfillment.fulfillStatus} → ${newStatus} (GHN: ${ghnStatus})`
       )
 
       // Notify customer khi đơn được vận chuyển hoặc giao thành công
@@ -448,78 +444,120 @@ export class FulfillmentService {
     // Step 7: Publish SSE (fire-and-forget — không block webhook response)
     this.publishTrackingEvent(
       fulfillment.id,
-      trackingCode,
-      carrierStatus,
+      ghnOrderCode,
+      ghnStatus,
       newStatus
     )
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
-  private async validateAddressSafe(rawAddress: string): Promise<{
+  /**
+   * validateVNAddressSafe — Validate địa chỉ VN bằng GHN ward data.
+   *
+   * Kiểm tra ward_code có tồn tại trong district_id không.
+   * Không throw — trả về valid=true nếu API lỗi (tránh block fulfillment init).
+   */
+  private async validateVNAddressSafe(rawAddress: string): Promise<{
     valid: boolean
     normalized: object | null
     error: string | null
   }> {
     try {
-      const input = this.parseShippingAddress(rawAddress)
-      const result = await this.easypost.createAndVerifyAddress({
-        ...input,
-        verify: true
-      })
+      const parsed = this.parseVNAddress(rawAddress)
 
-      const delivery = result.verifications?.delivery
-      const valid = delivery?.success ?? true // Nếu không có verification, assume valid
+      // Validate ward belongs to district
+      const isValid = await this.ghnAddress.validateWardCode(
+        parsed.to_ward_code,
+        parsed.to_district_id
+      )
 
-      if (!valid) {
-        const errorMsg =
-          delivery?.errors?.[0]?.message ?? 'Address not deliverable'
-        return { valid: false, normalized: null, error: errorMsg }
+      if (!isValid) {
+        return {
+          valid: false,
+          normalized: null,
+          error: `Phường/xã "${parsed.to_ward_code}" không thuộc quận/huyện ${parsed.to_district_id}`
+        }
       }
 
       return {
         valid: true,
-        normalized: result as unknown as object,
+        normalized: parsed as unknown as object,
         error: null
       }
     } catch (err: unknown) {
-      if (err instanceof EasyPostError) {
+      if (err instanceof GHNError) {
         this.logger.warn(
-          `Address validation API error (will proceed): [${err.code}] ${err.message}`
+          `GHN address validation API lỗi (tiếp tục): [${err.code}] ${err.message}`
         )
-        // EasyPost API lỗi không được block fulfillment init
         return { valid: true, normalized: null, error: null }
       }
+
+      if (err instanceof SyntaxError) {
+        return {
+          valid: false,
+          normalized: null,
+          error: 'shippingAddress phải là JSON hợp lệ với các trường GHN'
+        }
+      }
+
       const message = err instanceof Error ? err.message : String(err)
       return { valid: false, normalized: null, error: message }
     }
   }
 
-  private parseShippingAddress(raw: string): {
-    name?: string
-    street1: string
-    street2?: string
-    city?: string
-    state?: string
-    zip?: string
-    country?: string
-    phone?: string
-  } {
+  /**
+   * parseVNAddress — Parse địa chỉ VN từ JSON string.
+   *
+   * Địa chỉ GHN phải là JSON với cấu trúc:
+   * {
+   *   "to_name": "Nguyễn Văn An",
+   *   "to_phone": "0901234567",
+   *   "to_address": "123 Nguyễn Huệ",
+   *   "to_ward_code": "20314",
+   *   "to_district_id": 1442
+   * }
+   *
+   * Throws SyntaxError nếu không parse được hoặc thiếu field bắt buộc.
+   */
+  private parseVNAddress(raw: string): VNAddressInput {
+    let parsed: Record<string, unknown>
     try {
-      const parsed = JSON.parse(raw) as Record<string, string>
-      return {
-        name: parsed['name'],
-        street1: parsed['street1'] ?? parsed['address'] ?? raw,
-        street2: parsed['street2'],
-        city: parsed['city'],
-        state: parsed['state'],
-        zip: parsed['zip'] ?? parsed['zipCode'] ?? parsed['postal_code'],
-        country: parsed['country'] ?? 'US',
-        phone: parsed['phone']
-      }
+      parsed = JSON.parse(raw) as Record<string, unknown>
     } catch {
-      // Free text → send as street1 and let EasyPost parse
-      return { street1: raw, country: 'US' }
+      throw new SyntaxError(
+        `shippingAddress không phải JSON hợp lệ: "${raw.slice(0, 80)}..."`
+      )
+    }
+
+    const toName = String(parsed['to_name'] ?? parsed['name'] ?? '')
+    const toPhone = String(parsed['to_phone'] ?? parsed['phone'] ?? '')
+    const toAddress = String(
+      parsed['to_address'] ?? parsed['address'] ?? parsed['street1'] ?? ''
+    )
+    const toWardCode = String(
+      parsed['to_ward_code'] ?? parsed['ward_code'] ?? ''
+    )
+    const toDistrictId =
+      typeof parsed['to_district_id'] === 'number'
+        ? parsed['to_district_id']
+        : parseInt(
+            String(parsed['to_district_id'] ?? parsed['district_id'] ?? '0'),
+            10
+          )
+
+    if (!toWardCode || !toDistrictId) {
+      throw new SyntaxError(
+        'shippingAddress thiếu trường bắt buộc: to_ward_code và to_district_id'
+      )
+    }
+
+    return {
+      to_name: toName || 'Người nhận',
+      to_phone: toPhone,
+      to_address: toAddress || 'Địa chỉ chi tiết',
+      to_ward_code: toWardCode,
+      to_district_id: toDistrictId
     }
   }
 
@@ -530,30 +568,68 @@ export class FulfillmentService {
       orderId
     )
     if (!shippingAddress) {
-      throw new NotFoundException(`Order ${orderId} not found`)
+      throw new NotFoundException(`Order ${orderId} không tìm thấy`)
     }
     return { shippingAddress }
   }
 
   /**
-   * mapCarrierStatus — Map EasyPost tracker status → FulfillmentStatus.
+   * resolveServiceTypeId — Map carrier code sang GHN service_type_id.
    *
-   * EasyPost statuses: https://docs.easypost.com/docs/trackers#tracker-statuses
+   * GHN service types:
+   * - 2 = E-commerce (Express / Chuyển phát nhanh)
+   * - 5 = Traditional (Eco / Tiết kiệm)
+   *
+   * Carrier code trong DB ví dụ: "GHN_EXPRESS", "GHN_ECO", "GHN"
    */
-  private mapCarrierStatus(carrierStatus: string): FulfillmentStatus | null {
+  private resolveServiceTypeId(
+    carrierCode: string | null
+  ): typeof DEFAULT_GHN_SERVICE_TYPE_ID | 5 {
+    if (!carrierCode) return DEFAULT_GHN_SERVICE_TYPE_ID
+
+    const upper = carrierCode.toUpperCase()
+    if (upper.includes('ECO') || upper.includes('5')) return 5
+    return DEFAULT_GHN_SERVICE_TYPE_ID
+  }
+
+  /**
+   * mapGHNStatus — Map GHN tracking status → FulfillmentStatus.
+   *
+   * GHN statuses (từ webhook Type=switch_status):
+   * https://api.ghn.vn/home/docs/detail?id=47
+   */
+  private mapGHNStatus(ghnStatus: string): FulfillmentStatus | null {
     const statusMap: Record<string, FulfillmentStatus> = {
-      pre_transit: FulfillmentStatus.LABEL_BOOKED,
-      in_transit: FulfillmentStatus.IN_TRANSIT,
-      out_for_delivery: FulfillmentStatus.OUT_FOR_DELIVERY,
+      // Chờ lấy hàng
+      ready_to_pick: FulfillmentStatus.LABEL_BOOKED,
+      // Đang lấy hàng (map sang SHIPPED vì chưa có PICKED_UP status)
+      picking: FulfillmentStatus.SHIPPED,
+      picked: FulfillmentStatus.SHIPPED,
+      // Đang vận chuyển
+      storing: FulfillmentStatus.IN_TRANSIT,
+      transporting: FulfillmentStatus.IN_TRANSIT,
+      sorting: FulfillmentStatus.IN_TRANSIT,
+      // Đang giao
+      delivering: FulfillmentStatus.OUT_FOR_DELIVERY,
+      // Đã giao thành công
       delivered: FulfillmentStatus.DELIVERED,
-      available_for_pickup: FulfillmentStatus.OUT_FOR_DELIVERY,
-      return_to_sender: FulfillmentStatus.EXCEPTION,
-      failure: FulfillmentStatus.EXCEPTION,
-      error: FulfillmentStatus.EXCEPTION,
-      unknown: FulfillmentStatus.IN_TRANSIT
+      // Giao thất bại / ngoại lệ
+      delivery_fail: FulfillmentStatus.EXCEPTION,
+      // Trả hàng
+      return: FulfillmentStatus.EXCEPTION,
+      return_transporting: FulfillmentStatus.EXCEPTION,
+      return_sorting: FulfillmentStatus.EXCEPTION,
+      return_transporting_to_return_sender: FulfillmentStatus.EXCEPTION,
+      returned: FulfillmentStatus.EXCEPTION,
+      // Huỷ / hỏng / mất
+      cancel: FulfillmentStatus.EXCEPTION,
+      damage: FulfillmentStatus.EXCEPTION,
+      lost: FulfillmentStatus.EXCEPTION,
+      // Chờ xem hàng
+      waiting_to_return: FulfillmentStatus.EXCEPTION
     }
 
-    return statusMap[carrierStatus.toLowerCase()] ?? null
+    return statusMap[ghnStatus.toLowerCase()] ?? null
   }
 
   private publishFulfillmentEvent(
@@ -564,14 +640,14 @@ export class FulfillmentService {
       .publishDashboardEvent(campaignId, payload)
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
-        this.logger.warn(`Failed to publish fulfillment event: ${msg}`)
+        this.logger.warn(`Không thể publish fulfillment event: ${msg}`)
       })
   }
 
   private publishTrackingEvent(
     fulfillmentId: string,
     trackingCode: string,
-    carrierStatus: string,
+    ghnStatus: string,
     newStatus: FulfillmentStatus | null
   ): void {
     void this.redis
@@ -579,13 +655,13 @@ export class FulfillmentService {
         type: 'TRACKING_UPDATE',
         fulfillmentId,
         trackingCode,
-        carrierStatus,
+        carrierStatus: ghnStatus,
         fulfillmentStatus: newStatus,
         timestamp: new Date().toISOString()
       })
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
-        this.logger.warn(`Failed to publish tracking event: ${msg}`)
+        this.logger.warn(`Không thể publish tracking event: ${msg}`)
       })
   }
 
@@ -603,7 +679,7 @@ export class FulfillmentService {
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
         this.logger.warn(
-          `Failed to notify merchant QC_REQUIRED for order ${orderId}: ${msg}`
+          `Không thể notify merchant QC_REQUIRED cho order ${orderId}: ${msg}`
         )
       })
   }
@@ -618,7 +694,7 @@ export class FulfillmentService {
       type === NotificationType.ORDER_SHIPPED
         ? [
             'Đơn hàng đang trên đường giao',
-            `Đơn hàng ${orderId} đã được bàn giao cho đơn vị vận chuyển và đang trên đường đến bạn.`
+            `Đơn hàng ${orderId} đã được bàn giao cho GHN và đang trên đường đến bạn.`
           ]
         : [
             'Đơn hàng đã giao thành công',
@@ -630,7 +706,7 @@ export class FulfillmentService {
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err)
         this.logger.warn(
-          `Failed to notify customer ${type} for order ${orderId}: ${msg}`
+          `Không thể notify customer ${type} cho order ${orderId}: ${msg}`
         )
       })
   }

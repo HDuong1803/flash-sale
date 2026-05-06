@@ -174,47 +174,48 @@ export class FulfillmentController {
     return this.mapFulfillmentResponse(result)
   }
 
-  // ─── EasyPost Webhook ──────────────────────────────────────────────────────
+  // ─── GHN Webhook ──────────────────────────────────────────────────────────
 
   /**
-   * handleEasyPostWebhook — Nhận tracking update từ EasyPost.
+   * handleGHNWebhook — Nhận tracking update từ GHN.
    *
    * Security:
-   * - Public endpoint (không cần auth) nhưng HMAC signature verified
-   * - Dùng raw body để verify signature (KHÔNG parse JSON trước)
-   * - Luôn trả về 200 để EasyPost không retry (xử lý error internally)
+   * - Public endpoint (không cần auth) nhưng token-based verified
+   * - GHN không dùng HMAC — dùng token đơn giản trong header X-GHN-Token
+   * - Dùng raw body để parse payload (KHÔNG parse JSON trước)
+   * - Luôn trả về 200 để GHN không retry (xử lý error internally)
    *
-   * EasyPost sẽ retry nếu nhận status != 2xx.
+   * GHN sẽ retry 10 lần cách nhau 5 giây nếu nhận status != 200.
    * Chúng ta luôn trả 200 và log error — tránh spam retry.
    */
   @ApiOperation({
-    summary: 'EasyPost tracking webhook — KHÔNG cần auth (HMAC verified)'
+    summary: 'GHN tracking webhook — KHÔNG cần auth (token verified)'
   })
   @ApiResponse({ status: HttpStatus.OK, description: 'Webhook accepted' })
-  @Post('webhooks/easypost')
+  @Post('webhooks/ghn')
   @HttpCode(HttpStatus.OK)
-  async handleEasyPostWebhook(
+  async handleGHNWebhook(
     @Req() req: RawBodyRequest<Request>,
-    @Headers('x-hmac-signature') signatureHeader: string
+    @Headers('x-ghn-token') webhookToken: string
   ): Promise<{ received: boolean }> {
     const rawBody = req.rawBody
     if (!rawBody) {
-      // rawBody không có nghĩa là app chưa config rawBody middleware
+      // rawBody không có → app chưa config rawBody middleware
       return { received: false }
     }
 
     try {
-      await this.fulfillmentService.handleTrackingWebhook(
+      await this.fulfillmentService.handleGHNWebhook(
         rawBody,
-        signatureHeader ?? ''
+        webhookToken ?? ''
       )
     } catch (err: unknown) {
-      // Log but don't re-throw — EasyPost should not retry on 200
+      // Log but don't re-throw — GHN should not retry on 200
       const message = err instanceof Error ? err.message : String(err)
-      // Using console here is acceptable since Logger is not injected — minimal overhead
+      // Using console here is acceptable since Logger is not injected
       // eslint-disable-next-line no-console
       console.error(
-        `[FulfillmentController] Webhook processing error: ${message}`
+        `[FulfillmentController] GHN Webhook processing error: ${message}`
       )
     }
 

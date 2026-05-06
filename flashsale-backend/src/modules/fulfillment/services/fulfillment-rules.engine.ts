@@ -6,12 +6,20 @@ import { FulfillmentRuleWithCarrier } from '../repositories/fulfillment.reposito
 export interface FulfillmentContext {
   /** Weight in grams */
   weightGrams: number
-  /** Total order amount in cents (USD) */
+  /** Total order amount in cents (VND quy đổi cents để đồng nhất logic) */
   orderValueCents: number
-  /** ISO 3166-1 alpha-2 country code */
-  destCountry: string
-  /** US state abbreviation (2 chars), null for non-US */
-  destState: string | null
+  /**
+   * Province ID của địa chỉ đích (GHN numeric ID).
+   * Ví dụ: 202 = Hồ Chí Minh, 201 = Hà Nội
+   * null nếu không parse được.
+   */
+  destProvinceId: number | null
+  /**
+   * District ID của địa chỉ đích (GHN numeric ID).
+   * Ví dụ: 1442 = Quận 1 HCM
+   * null nếu không parse được.
+   */
+  destDistrictId: number | null
 }
 
 export type FulfillmentDecision =
@@ -39,7 +47,11 @@ export type FulfillmentDecision =
  * - AND logic: tất cả non-null conditions đều phải thỏa mãn
  *
  * Fallback strategy: nếu không có rule nào match, FulfillmentService
- * sẽ dùng carrier đầu tiên trong DB (default USPS).
+ * sẽ dùng GHN Express (service_type_id=2) làm default.
+ *
+ * Note: destCountry và destState columns trong FulfillmentRule hiện tại
+ * dùng để lưu provinceId và districtId cho thị trường VN.
+ * Quy ước: destCountry = "VN" (hoặc null cho any), destState = province_id string.
  */
 @Injectable()
 export class FulfillmentRulesEngine {
@@ -85,20 +97,20 @@ export class FulfillmentRulesEngine {
 
   /**
    * buildContext — Tạo FulfillmentContext từ raw order data.
-   * Xử lý edge cases: missing weight → default 500g, missing country → "US".
+   * Xử lý edge cases: missing weight → default 500g.
    */
   buildContext(params: {
     weightGrams?: number | null
     orderTotalCents: number
     shippingAddress: string
   }): FulfillmentContext {
-    const parsed = this.parseAddressCountryState(params.shippingAddress)
+    const parsed = this.parseAddressIds(params.shippingAddress)
 
     return {
       weightGrams: params.weightGrams ?? 500, // default 500g nếu không có thông tin
       orderValueCents: params.orderTotalCents,
-      destCountry: parsed.country,
-      destState: parsed.state
+      destProvinceId: parsed.provinceId,
+      destDistrictId: parsed.districtId
     }
   }
 
@@ -109,6 +121,10 @@ export class FulfillmentRulesEngine {
    *
    * null condition = "don't care" — luôn pass.
    * Đây là pattern standard cho rules engines (Drools, Cedar, etc.)
+   *
+   * Mapping destCountry/destState → GHN VN context:
+   * - destCountry = "VN" → match tất cả VN (hoặc null = any)
+   * - destState = province_id string (e.g. "202") → match tỉnh cụ thể
    */
   private matchRule(
     rule: FulfillmentRuleWithCarrier,
@@ -136,18 +152,20 @@ export class FulfillmentRulesEngine {
       return false
     }
 
-    // Destination country (case-insensitive)
-    if (
-      rule.destCountry !== null &&
-      rule.destCountry.toUpperCase() !== ctx.destCountry.toUpperCase()
-    ) {
-      return false
+    // destCountry check — "VN" matches all Vietnam orders; null = any
+    if (rule.destCountry !== null) {
+      const ruleCountry = rule.destCountry.toUpperCase()
+      if (ruleCountry !== 'VN') {
+        // Non-VN rule — skip (GHN chỉ ship VN)
+        return false
+      }
     }
 
-    // Destination state (only checked when country matches or not set)
+    // destState = province_id (e.g. "202" for HCM)
     if (rule.destState !== null) {
-      if (!ctx.destState) return false
-      if (rule.destState.toUpperCase() !== ctx.destState.toUpperCase()) {
+      if (ctx.destProvinceId === null) return false
+      const ruleProvinceId = parseInt(rule.destState, 10)
+      if (isNaN(ruleProvinceId) || ruleProvinceId !== ctx.destProvinceId) {
         return false
       }
     }
@@ -156,43 +174,41 @@ export class FulfillmentRulesEngine {
   }
 
   /**
-   * parseAddressCountryState — Heuristic parse country + state từ địa chỉ string.
+   * parseAddressIds — Parse province_id và district_id từ JSON address string.
    *
-   * Current system lưu shippingAddress là free text string.
-   * Heuristic:
-   * - Nếu có ", US" hoặc ", USA" ở cuối → US
-   * - Tìm 2-letter state code trong chuỗi
-   * - Default về US nếu không rõ (phù hợp với JD target market)
+   * GHN address lưu dạng JSON:
+   * { "to_ward_code": "20314", "to_district_id": 1442, ... }
    *
-   * Sprint 3 improvement: structured address trong checkout DTO.
+   * Fallback: null nếu không parse được (rule condition vẫn có thể pass nếu destState null).
    */
-  private parseAddressCountryState(address: string): {
-    country: string
-    state: string | null
+  private parseAddressIds(address: string): {
+    provinceId: number | null
+    districtId: number | null
   } {
-    // Try JSON parse first (nếu address là JSON object)
     try {
       const parsed = JSON.parse(address) as Record<string, unknown>
-      const country =
-        typeof parsed['country'] === 'string'
-          ? parsed['country'].toUpperCase()
-          : 'US'
-      const state =
-        typeof parsed['state'] === 'string'
-          ? parsed['state'].toUpperCase()
+
+      const districtId =
+        typeof parsed['to_district_id'] === 'number'
+          ? parsed['to_district_id']
+          : typeof parsed['to_district_id'] === 'string'
+          ? parseInt(parsed['to_district_id'], 10)
           : null
-      return { country, state }
+
+      // province_id không bắt buộc trong GHN address — có thể suy từ ward/district
+      const provinceId =
+        typeof parsed['to_province_id'] === 'number'
+          ? parsed['to_province_id']
+          : typeof parsed['to_province_id'] === 'string'
+          ? parseInt(parsed['to_province_id'], 10)
+          : null
+
+      return {
+        provinceId: provinceId && !isNaN(provinceId) ? provinceId : null,
+        districtId: districtId && !isNaN(districtId) ? districtId : null
+      }
     } catch {
-      // Not JSON, try string heuristics
+      return { provinceId: null, districtId: null }
     }
-
-    // US state abbreviation pattern (e.g. "Los Angeles, CA 90001")
-    const stateMatch = /\b([A-Z]{2})\s+\d{5}/.exec(address.toUpperCase())
-    if (stateMatch) {
-      return { country: 'US', state: stateMatch[1] }
-    }
-
-    // Default to US
-    return { country: 'US', state: null }
   }
 }

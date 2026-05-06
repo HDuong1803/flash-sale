@@ -148,10 +148,13 @@ export const config = {
     ADMIN_NAME: process.env.ADMIN_NAME
   },
 
-  easypost: {
-    EASYPOST_API_KEY: process.env.EASYPOST_API_KEY,
-    EASYPOST_WEBHOOK_SECRET: process.env.EASYPOST_WEBHOOK_SECRET,
-    EASYPOST_SANDBOX: process.env.EASYPOST_SANDBOX
+  ghn: {
+    GHN_API_KEY: process.env.GHN_API_KEY,
+    GHN_SHOP_ID: process.env.GHN_SHOP_ID,
+    GHN_SANDBOX: process.env.GHN_SANDBOX,
+    GHN_WEBHOOK_TOKEN: process.env.GHN_WEBHOOK_TOKEN,
+    GHN_FROM_DISTRICT_ID: process.env.GHN_FROM_DISTRICT_ID,
+    GHN_FROM_WARD_CODE: process.env.GHN_FROM_WARD_CODE
   },
 
   apiagent: {
