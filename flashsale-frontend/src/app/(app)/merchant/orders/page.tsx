@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
 import { PaginationBar } from '@/components/shared/PaginationBar'
-import { formatCurrency, formatDate, maskString } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import type { OrderStatus } from '@/types'
 
 const PAGE_SIZE = 15
@@ -54,7 +54,7 @@ export default function MerchantOrdersPage() {
     const rows = [
       ['Mã đơn', 'Khách hàng', 'Sản phẩm', 'Giá trị', 'Trạng thái', 'Ngày'],
       ...orders.map((o) => [
-        o.id, maskString(o.customerId), o.items[0]?.productName ?? '',
+        o.id, o.customer?.fullName ?? o.customerId, o.items[0]?.productName ?? '',
         o.totalAmount, o.status, formatDate(o.createdAt),
       ])
     ]
@@ -112,7 +112,7 @@ export default function MerchantOrdersPage() {
                   <tr key={order.id} onClick={() => router.push(`/merchant/orders/${order.id}`)}
                     className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors">
                     <td className="px-4 py-3 text-white/50 text-xs font-mono">#{order.id.slice(0, 8)}</td>
-                    <td className="px-4 py-3 text-white/70 text-sm">{maskString(order.customerId.slice(0, 8))}</td>
+                    <td className="px-4 py-3 text-white/70 text-sm">{order.customer?.fullName ?? '—'}</td>
                     <td className="px-4 py-3 text-white/70 text-sm max-w-[180px]">
                       <p className="line-clamp-1">{order.items[0]?.productName}</p>
                       {order.items.length > 1 && <p className="text-white/40 text-xs">+{order.items.length - 1} khác</p>}

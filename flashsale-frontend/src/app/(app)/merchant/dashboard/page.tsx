@@ -15,7 +15,7 @@ import { RevenueTrendCard } from '@/components/merchant/RevenueTrendCard'
 import { OrdersBreakdownCard } from '@/components/merchant/OrdersBreakdownCard'
 import { TopProductsCard } from '@/components/merchant/TopProductsCard'
 import { StockAlertsCard } from '@/components/merchant/StockAlertsCard'
-import { formatCurrency, formatTimeAgo, maskString } from '@/lib/utils'
+import { formatCurrency, formatTimeAgo } from '@/lib/utils'
 import type { MerchantStats } from '@/types'
 
 function StatCard({
@@ -186,30 +186,28 @@ export default function MerchantDashboardPage() {
             ) : orders.length === 0 ? (
               <p className="text-white/30 text-sm text-center py-8">Chưa có đơn hàng</p>
             ) : (
-              orders.slice(0, 5).map((order) => (
-                <div key={order.id} className="px-4 py-3 flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0"
-                    style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.3), rgba(124,58,237,0.3))' }}>
-                    {order.customerId.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white/70 text-xs font-medium">{maskString(order.items[0]?.productName ?? 'Sản phẩm')}</p>
-                    <div className="flex items-center gap-1 mt-0.5">
-                      {order.campaignId ? (
-                        <Link href={`/merchant/campaigns/${order.campaignId}/dashboard`} className="text-indigo-400/70 text-xs hover:text-indigo-300 transition-colors truncate max-w-[120px]">
-                          {order.campaignName ?? 'Chiến dịch'}
-                        </Link>
-                      ) : null}
-                      <span className="text-white/25 text-xs">·</span>
-                      <p className="text-white/40 text-xs flex-shrink-0">{formatTimeAgo(order.createdAt)}</p>
+              orders.slice(0, 5).map((order) => {
+                const customerName = order.customer?.fullName ?? '—'
+                const initial = customerName !== '—' ? customerName.slice(0, 1).toUpperCase() : '?'
+                return (
+                  <Link key={order.id} href={`/merchant/orders/${order.id}`}
+                    className="px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors cursor-pointer">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-indigo-300 flex-shrink-0"
+                      style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.3), rgba(124,58,237,0.3))' }}>
+                      {initial}
                     </div>
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    <p className="text-indigo-300 text-xs font-bold">{formatCurrency(order.totalAmount)}</p>
-                    <StatusBadge status={order.status} className="scale-75 origin-right" />
-                  </div>
-                </div>
-              ))
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white/80 text-xs font-semibold truncate">{customerName}</p>
+                      <p className="text-white/45 text-xs truncate mt-0.5">{order.items[0]?.productName ?? 'Sản phẩm'}</p>
+                      <p className="text-white/30 text-xs mt-0.5">{formatTimeAgo(order.createdAt)}</p>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <p className="text-indigo-300 text-xs font-bold">{formatCurrency(order.totalAmount)}</p>
+                      <StatusBadge status={order.status} className="scale-75 origin-right" />
+                    </div>
+                  </Link>
+                )
+              })
             )}
           </div>
         </div>

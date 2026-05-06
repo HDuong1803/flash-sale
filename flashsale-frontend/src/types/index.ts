@@ -189,6 +189,7 @@ export interface Payment {
 export interface Order {
   id: string
   customerId: string
+  customer?: { fullName: string }
   merchantId: string
   reservationId: string
   status: OrderStatus

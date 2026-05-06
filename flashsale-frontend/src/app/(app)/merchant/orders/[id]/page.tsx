@@ -14,7 +14,7 @@ import {
 import { useOrder } from '@/hooks/queries/useOrder'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
-import { formatCurrency, formatDate, maskString } from '@/lib/utils'
+import { formatCurrency, formatDate } from '@/lib/utils'
 
 // ─── Nhãn trạng thái thanh toán bằng tiếng Việt ─────────────────────────────
 
@@ -192,10 +192,12 @@ export default function MerchantOrderDetailPage({
         {/* Cột phải — thông tin khách + thanh toán + trạng thái giao vận */}
         <div className="space-y-6">
 
-          {/* Thông tin khách hàng (ẩn danh để bảo vệ PII) */}
+          {/* Thông tin khách hàng */}
           <Section title="Khách hàng" icon={<User size={15} className="text-violet-400" />}>
-            <InfoRow label="Mã khách" value={maskString(order.customerId.slice(0, 12))} mono />
-            <InfoRow label="Mã đơn"   value={`#${order.id.slice(0, 10)}`}               mono />
+            {order.customer?.fullName && (
+              <InfoRow label="Tên khách" value={order.customer.fullName} />
+            )}
+            <InfoRow label="Mã đơn" value={`#${order.id.slice(0, 10)}`} mono />
           </Section>
 
           {/* Thông tin thanh toán */}

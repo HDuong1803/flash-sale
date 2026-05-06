@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Wifi, WifiOff, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Wifi, WifiOff, AlertCircle, ExternalLink } from 'lucide-react'
 import { useSSE } from '@/hooks/useSSE'
 import { useCampaign } from '@/hooks/queries/useCampaign'
 import { useMyCampaigns } from '@/hooks/queries/useMyCampaigns'
@@ -10,13 +10,17 @@ import { useMerchantOrders } from '@/hooks/queries/useMerchantOrders'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { StockProgressBar } from '@/components/shared/StockProgressBar'
 import { StatusBadge } from '@/components/shared/StatusBadge'
-import { formatCurrency, maskString, cn } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
 import type { DashboardMetrics } from '@/types'
 
 interface LiveOrder {
   id: string
-  customer: string
+  /** real order ID — chỉ có với historical orders, dùng để link sang detail */
+  orderId?: string
+  customerName: string
+  product: string
   qty: number
+  amount: number
   time: string
   isHistorical?: boolean
 }
@@ -52,8 +56,11 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
 
     const historicalItems: LiveOrder[] = campaignOrders.map(o => ({
       id: o.id,
-      customer: o.customerId,
+      orderId: o.id,
+      customerName: o.customer?.fullName ?? 'Khách hàng',
+      product: o.items[0]?.productName ?? 'Sản phẩm',
       qty: o.items.reduce((s, i) => s + i.quantity, 0),
+      amount: o.totalAmount,
       time: new Date(o.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       isHistorical: true,
     }))
@@ -91,10 +98,13 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
         const incomingOrders: LiveOrder[] = Array.from(
           { length: Math.min(newOrdersCount, 50) },
           (_, index) => ({
-            id: `${performance.now()}-${index}`,
-            customer: 'Nguyễn ***',
+            id: `sse-${performance.now()}-${index}`,
+            customerName: 'Khách hàng mới',
+            product: cpIds[index % cpIds.length] ?? 'Sản phẩm',
             qty: 1,
+            amount: 0,
             time: nowLabel,
+            isHistorical: false,
           })
         )
         setOrderHistoryByCampaign((prev) => {
@@ -109,6 +119,9 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
       prevMetricsByCampaign.current[id] = metrics
     }, 0)
   }, [id, metrics])
+
+  // Product names cho SSE orders (round-robin)
+  const cpIds = (campaign?.campaignProducts ?? []).map(cp => cp.product?.name ?? cp.productId)
 
   const stockRemaining = metrics?.stockRemaining ?? 0
   const stockTotal = metrics?.stockTotal ?? 1
@@ -288,54 +301,72 @@ export default function CampaignLiveDashboardPage({ params }: { params: Promise<
               {!connected && <p className="text-white/20 text-xs mt-1">Đang chờ kết nối SSE...</p>}
             </div>
           ) : (
-            orderHistory.map((order) => (
-              <div
-                key={order.id}
-                className={cn(
-                  'px-6 py-3 flex items-center gap-4 border-b border-white/5 last:border-0',
-                  !order.isHistorical && 'animate-order-arrive'
-                )}
-              >
-                {/* Icon trạng thái */}
-                <div className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold transition-all',
-                  order.isHistorical
-                    ? 'bg-white/8 text-white/35'
-                    : 'bg-emerald-500/25 text-emerald-300 ring-2 ring-emerald-500/30'
-                )}>
-                  ✓
-                </div>
-
-                {/* Customer + qty */}
-                <div className="flex-1 min-w-0">
-                  <span className={cn(
-                    'text-sm',
-                    order.isHistorical ? 'text-white/55' : 'text-white/85 font-medium'
+            orderHistory.map((order) => {
+              const rowCls = cn(
+                'px-5 py-3.5 flex items-center gap-3 border-b border-white/5 last:border-0 transition-colors',
+                !order.isHistorical && 'animate-order-arrive',
+                order.orderId && 'hover:bg-white/5 cursor-pointer group'
+              )
+              const inner = (<>
+                  {/* Avatar */}
+                  <div className={cn(
+                    'w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold',
+                    order.isHistorical
+                      ? 'bg-white/8 text-white/45'
+                      : 'bg-emerald-500/20 text-emerald-300 ring-2 ring-emerald-500/25'
                   )}>
-                    {maskString(order.customer)}
-                  </span>
-                  <span className="text-white/35 text-xs ml-2">× {order.qty}</span>
+                    {order.isHistorical
+                      ? order.customerName.slice(0, 1).toUpperCase()
+                      : '✓'}
+                  </div>
+
+                  {/* Main info */}
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        'text-sm font-medium truncate',
+                        order.isHistorical ? 'text-white/75' : 'text-white/90'
+                      )}>
+                        {order.customerName}
+                      </span>
+                      {!order.isHistorical && (
+                        <span className="flex-shrink-0 text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded-full">
+                          VỪA CHỐT
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-white/40 text-xs truncate">
+                      {order.product}
+                      {order.qty > 1 && <span className="ml-1 text-white/30">× {order.qty}</span>}
+                    </p>
+                  </div>
+
+                  {/* Amount + time */}
+                  <div className="text-right flex-shrink-0 space-y-0.5">
+                    {order.amount > 0 && (
+                      <p className="text-indigo-300 text-xs font-bold">
+                        {formatCurrency(order.amount)}
+                      </p>
+                    )}
+                    <p className="text-white/25 text-xs">{order.time}</p>
+                  </div>
+
+                  {/* Arrow for clickable */}
+                  {order.orderId && (
+                    <ExternalLink size={13} className="text-white/20 flex-shrink-0 group-hover:text-indigo-400 transition-colors" />
+                  )}
+                </>)
+
+              return order.orderId ? (
+                <Link key={order.id} href={`/merchant/orders/${order.orderId}`} className={rowCls}>
+                  {inner}
+                </Link>
+              ) : (
+                <div key={order.id} className={rowCls}>
+                  {inner}
                 </div>
-
-                {/* Badge */}
-                <span className={cn(
-                  'text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium',
-                  order.isHistorical
-                    ? 'bg-white/8 text-white/30'
-                    : 'bg-emerald-500/20 text-emerald-300'
-                )}>
-                  {order.isHistorical ? 'ĐÃ XONG' : '🔥 VỪA CHỐT'}
-                </span>
-
-                {/* Time */}
-                <span className={cn(
-                  'text-xs flex-shrink-0',
-                  order.isHistorical ? 'text-white/25' : 'text-white/50'
-                )}>
-                  {order.time}
-                </span>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </div>
