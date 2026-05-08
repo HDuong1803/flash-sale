@@ -155,6 +155,12 @@ export interface GHNCreateOrderInput {
   to_ward_code: string
   /** ID quận người nhận */
   to_district_id: number
+  /** Tên phường người nhận (text, để GHN match nếu cần) */
+  to_ward_name?: string
+  /** Tên quận người nhận */
+  to_district_name?: string
+  /** Tên tỉnh/thành người nhận */
+  to_province_name?: string
   /** Trọng lượng (gram, max 50000) */
   weight: number
   /** Loại dịch vụ: 2 = Express, 5 = Eco */

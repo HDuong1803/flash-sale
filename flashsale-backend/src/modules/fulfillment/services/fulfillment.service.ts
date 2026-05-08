@@ -37,16 +37,14 @@ const GHN_TRACKING_URL_TEMPLATE =
 
 /** Địa chỉ VN có cấu trúc — lưu dạng JSON trong Order.shippingAddress */
 export interface VNAddressInput {
-  /** Tên người nhận */
   to_name: string
-  /** SĐT người nhận */
   to_phone: string
-  /** Địa chỉ chi tiết (số nhà, tên đường) */
   to_address: string
-  /** Mã phường (ví dụ: "20314") */
   to_ward_code: string
-  /** ID quận (ví dụ: 1442) */
   to_district_id: number
+  to_ward_name: string
+  to_district_name: string
+  to_province_name: string
 }
 
 export interface InitializeFulfillmentInput {
@@ -268,12 +266,16 @@ export class FulfillmentService {
     const toAddress = this.parseVNAddress(orderData.shippingAddress)
 
     // Build GHN create order payload
+    // from_* fields omitted — GHN tự dùng warehouse mặc định của shop (ShopId)
     const ghnOrderInput: GHNCreateOrderInput = {
       to_name: toAddress.to_name,
       to_phone: toAddress.to_phone,
       to_address: toAddress.to_address,
       to_ward_code: toAddress.to_ward_code,
       to_district_id: toAddress.to_district_id,
+      to_ward_name: toAddress.to_ward_name || undefined,
+      to_district_name: toAddress.to_district_name || undefined,
+      to_province_name: toAddress.to_province_name || undefined,
       weight: weightGrams,
       length: dimensionsCm?.l ?? 20,
       width: dimensionsCm?.w ?? 20,
@@ -545,6 +547,11 @@ export class FulfillmentService {
             String(parsed['to_district_id'] ?? parsed['district_id'] ?? '0'),
             10
           )
+    const toWardName = String(parsed['to_ward_name'] ?? '')
+    const toDistrictName = String(parsed['to_district_name'] ?? '')
+    const toProvinceName = String(
+      parsed['to_province_name'] ?? parsed['province'] ?? ''
+    )
 
     if (!toWardCode || !toDistrictId) {
       throw new SyntaxError(
@@ -557,7 +564,10 @@ export class FulfillmentService {
       to_phone: toPhone,
       to_address: toAddress || 'Địa chỉ chi tiết',
       to_ward_code: toWardCode,
-      to_district_id: toDistrictId
+      to_district_id: toDistrictId,
+      to_ward_name: toWardName,
+      to_district_name: toDistrictName,
+      to_province_name: toProvinceName
     }
   }
 

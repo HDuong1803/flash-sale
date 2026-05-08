@@ -126,6 +126,7 @@ export class GHNService implements OnModuleInit {
         to_address: input.to_address,
         to_ward_code: input.to_ward_code,
         to_district_id: input.to_district_id,
+        // from_* omitted — GHN tự dùng warehouse mặc định của ShopId
         from_name: this.fromName,
         from_phone: this.fromPhone,
         from_address: this.fromAddress,
