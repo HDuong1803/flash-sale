@@ -258,6 +258,14 @@ class AdminService {
     return apiClient.post(`/fulfillment/carriers/${id}/toggle`, { active })
   }
 
+  updateCarrier(id: string, data: Partial<Pick<Carrier, 'displayName' | 'code' | 'sandboxMode' | 'logoUrl'>>): Promise<Carrier> {
+    return apiClient.patch(`/fulfillment/carriers/${id}`, data)
+  }
+
+  deleteCarrier(id: string): Promise<{ deleted: boolean }> {
+    return apiClient.delete(`/fulfillment/carriers/${id}`)
+  }
+
   getFulfillmentRules(): Promise<FulfillmentRule[]> {
     return withRetry(() => apiClient.get('/fulfillment/rules'))
   }

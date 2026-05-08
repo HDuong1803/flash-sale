@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Truck, AlertTriangle, CheckCircle2, Clock, XCircle, Loader2, RefreshCw,
-  Shield, Wrench, Search, Plus, ChevronLeft, ChevronRight
+  Shield, Wrench, Search, Plus, ChevronLeft, ChevronRight, Pencil, Trash2, Check, X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAdminStream } from '@/hooks/useAdminStream'
@@ -44,11 +44,19 @@ function StatCard({ label, value, icon, color }: {
   )
 }
 
-function CarrierCard({ carrier, onToggle }: {
+function CarrierCard({ carrier, onToggle, onUpdate, onDelete }: {
   carrier: Carrier
   onToggle: (id: string, active: boolean) => void
+  onUpdate: (id: string, data: Partial<Pick<Carrier, 'displayName' | 'code' | 'sandboxMode'>>) => Promise<void>
+  onDelete: (id: string) => Promise<void>
 }) {
   const [toggling, setToggling] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editName, setEditName] = useState(carrier.displayName)
+  const [editCode, setEditCode] = useState(carrier.code)
+  const [editSandbox, setEditSandbox] = useState(carrier.sandboxMode)
 
   const handleToggle = async () => {
     setToggling(true)
@@ -56,51 +64,94 @@ function CarrierCard({ carrier, onToggle }: {
     finally { setToggling(false) }
   }
 
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await onUpdate(carrier.id, { displayName: editName.trim(), code: editCode.trim(), sandboxMode: editSandbox })
+      setEditing(false)
+    } finally { setSaving(false) }
+  }
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try { await onDelete(carrier.id) }
+    finally { setDeleting(false) }
+  }
+
+  const inputCls = 'glass rounded-lg px-2.5 py-1.5 text-white text-sm bg-transparent outline-none border border-white/10 focus:border-indigo-500/50 w-full transition-colors'
+
   return (
-    <div className={`glass rounded-xl p-4 transition-all ${!carrier.active ? 'opacity-50' : ''}`}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
-            <Truck size={18} className="text-indigo-400" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-white text-sm font-semibold">{carrier.displayName}</p>
-              {carrier.sandboxMode && (
-                <span className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">
-                  Thử nghiệm
-                </span>
-              )}
-              {carrier.active ? (
-                <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                  Hoạt động
-                </span>
-              ) : (
-                <span className="text-xs bg-white/5 text-white/40 border border-white/10 px-2 py-0.5 rounded-full">
-                  Tắt
-                </span>
-              )}
+    <div className={`glass rounded-xl p-4 transition-all ${!carrier.active ? 'opacity-60' : ''}`}>
+      {editing ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="text-white/40 text-xs mb-1">Tên hiển thị</p>
+              <input value={editName} onChange={e => setEditName(e.target.value)} className={inputCls} />
             </div>
-            <p className="text-white/40 text-xs mt-0.5 font-mono">{carrier.code}</p>
+            <div>
+              <p className="text-white/40 text-xs mb-1">Mã carrier</p>
+              <input value={editCode} onChange={e => setEditCode(e.target.value)} className={inputCls} />
+            </div>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={editSandbox} onChange={e => setEditSandbox(e.target.checked)}
+              className="rounded border-white/20" />
+            <span className="text-white/60 text-xs">Chế độ sandbox (thử nghiệm)</span>
+          </label>
+          <div className="flex items-center justify-end gap-2">
+            <button onClick={() => setEditing(false)} className="p-1.5 rounded-lg text-white/40 hover:text-white transition-colors">
+              <X size={14} />
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors">
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+              Lưu
+            </button>
           </div>
         </div>
-        <button
-          onClick={handleToggle}
-          disabled={toggling}
-          aria-label={carrier.active ? 'Tắt đơn vị vận chuyển' : 'Bật đơn vị vận chuyển'}
-          className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-            carrier.active ? 'bg-indigo-600' : 'bg-white/15'
-          }`}
-        >
-          {toggling ? (
-            <Loader2 size={12} className="absolute inset-0 m-auto text-white animate-spin" />
-          ) : (
-            <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${
-              carrier.active ? 'translate-x-6' : 'translate-x-1'
-            }`} />
-          )}
-        </button>
-      </div>
+      ) : (
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center flex-shrink-0">
+              <Truck size={18} className="text-indigo-400" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-white text-sm font-semibold">{carrier.displayName}</p>
+                {carrier.sandboxMode && (
+                  <span className="text-xs bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 px-2 py-0.5 rounded-full">Thử nghiệm</span>
+                )}
+                {carrier.active
+                  ? <span className="text-xs bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full">Hoạt động</span>
+                  : <span className="text-xs bg-white/5 text-white/40 border border-white/10 px-2 py-0.5 rounded-full">Tắt</span>
+                }
+              </div>
+              <p className="text-white/40 text-xs mt-0.5 font-mono">{carrier.code}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button onClick={() => setEditing(true)}
+              className="p-1.5 rounded-lg text-white/30 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+              aria-label="Chỉnh sửa">
+              <Pencil size={13} />
+            </button>
+            <button onClick={handleDelete} disabled={deleting}
+              className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+              aria-label="Xóa">
+              {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+            </button>
+            <button onClick={handleToggle} disabled={toggling}
+              aria-label={carrier.active ? 'Tắt' : 'Bật'}
+              className={`relative w-11 h-6 rounded-full transition-colors ${carrier.active ? 'bg-indigo-600' : 'bg-white/15'}`}>
+              {toggling
+                ? <Loader2 size={12} className="absolute inset-0 m-auto text-white animate-spin" />
+                : <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${carrier.active ? 'translate-x-6' : 'translate-x-1'}`} />
+              }
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -356,12 +407,11 @@ function CreateRuleForm({ carriers, onSubmit, onCancel }: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-type Tab = 'qc' | 'carriers' | 'rules'
+type Tab = 'qc' | 'carriers'
 
 export default function AdminFulfillmentPage() {
   const [tab, setTab] = useState<Tab>('qc')
   const [carriers, setCarriers] = useState<Carrier[]>([])
-  const [rules, setRules] = useState<FulfillmentRule[]>([])
   const [qcList, setQcList] = useState<QcCheckpoint[]>([])
   const [qcTotal, setQcTotal] = useState(0)
   const [qcFilter, setQcFilter] = useState<QcStatus | ''>('')
@@ -372,7 +422,6 @@ export default function AdminFulfillmentPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
   const { sync: syncGhn, loading: syncing } = useSyncShippingStatus()
-  const [showCreateRule, setShowCreateRule] = useState(false)
 
   const refreshCooldownRef = useRef(false)
 
@@ -391,12 +440,8 @@ export default function AdminFulfillmentPage() {
     else setLoading(true)
     setError(null)
     try {
-      const [carriersData, rulesData] = await Promise.all([
-        adminService.getCarriers(),
-        adminService.getFulfillmentRules(),
-      ])
+      const carriersData = await adminService.getCarriers()
       setCarriers(carriersData)
-      setRules(rulesData)
       await loadQc(0, '')
       setQcPage(0)
       setQcFilter('')
@@ -451,26 +496,16 @@ export default function AdminFulfillmentPage() {
     }
   }
 
-  const handleDeleteRule = async (id: string) => {
-    await adminService.deleteFulfillmentRule(id)
-    setRules(prev => prev.filter(r => r.id !== id))
-    toast.success('Đã xóa quy tắc')
+  const handleUpdateCarrier = async (id: string, data: Partial<Pick<Carrier, 'displayName' | 'code' | 'sandboxMode'>>) => {
+    const updated = await adminService.updateCarrier(id, data)
+    setCarriers(prev => prev.map(c => c.id === updated.id ? updated : c))
+    toast.success('Đã cập nhật đơn vị vận chuyển')
   }
 
-  const handleCreateRule = async (formData: CreateRuleFormData) => {
-    const newRule = await adminService.createFulfillmentRule({
-      name: formData.name.trim(),
-      priority: Number(formData.priority),
-      carrierId: formData.carrierId,
-      slaHours: Number(formData.slaHours),
-      minWeightGrams: formData.minWeightGrams ? Number(formData.minWeightGrams) : undefined,
-      maxWeightGrams: formData.maxWeightGrams ? Number(formData.maxWeightGrams) : undefined,
-      destCountry: formData.destCountry.trim() || undefined,
-      destState: formData.destState.trim() || undefined,
-    })
-    setRules(prev => [...prev, newRule])
-    setShowCreateRule(false)
-    toast.success(`Đã tạo quy tắc "${newRule.name}"`)
+  const handleDeleteCarrier = async (id: string) => {
+    await adminService.deleteCarrier(id)
+    setCarriers(prev => prev.filter(c => c.id !== id))
+    toast.success('Đã xóa đơn vị vận chuyển')
   }
 
   const withQcAction = async (orderId: string, action: () => Promise<void>) => {
@@ -522,7 +557,6 @@ export default function AdminFulfillmentPage() {
   }, [qcList, qcSearch])
 
   const activeCarriers = carriers.filter(c => c.active).length
-  const activeRules = rules.filter(r => r.active).length
   const totalPages = Math.ceil(qcTotal / QC_PAGE_SIZE)
 
   if (loading) return (
@@ -567,23 +601,18 @@ export default function AdminFulfillmentPage() {
       </div>
 
       {/* Overview Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Đơn vị vận chuyển" value={activeCarriers}
+      <div className="grid grid-cols-2 gap-4">
+        <StatCard label="Đơn vị vận chuyển hoạt động" value={activeCarriers}
           icon={<Truck size={18} />} color="text-indigo-400" />
-        <StatCard label="Quy tắc đang dùng" value={activeRules}
-          icon={<Shield size={18} />} color="text-violet-400" />
-        <StatCard label="Điểm kiểm soát" value={qcTotal}
+        <StatCard label="Điểm kiểm soát chất lượng" value={qcTotal}
           icon={<Clock size={18} />} color="text-yellow-400" />
-        <StatCard label="Tổng quy tắc" value={rules.length}
-          icon={<CheckCircle2 size={18} />} color="text-emerald-400" />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2">
         {([
           { key: 'qc', label: 'Kiểm soát chất lượng', icon: <CheckCircle2 size={14} /> },
           { key: 'carriers', label: 'Đơn vị vận chuyển', icon: <Truck size={14} /> },
-          { key: 'rules', label: 'Quy tắc', icon: <Shield size={14} /> },
         ] as const).map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
@@ -677,52 +706,15 @@ export default function AdminFulfillmentPage() {
             </div>
           ) : (
             carriers.map(carrier => (
-              <CarrierCard key={carrier.id} carrier={carrier} onToggle={handleToggleCarrier} />
+              <CarrierCard key={carrier.id} carrier={carrier}
+                onToggle={handleToggleCarrier}
+                onUpdate={handleUpdateCarrier}
+                onDelete={handleDeleteCarrier} />
             ))
           )}
         </div>
       )}
 
-      {/* Rules Tab */}
-      {tab === 'rules' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-white/40 text-sm">{rules.length} quy tắc · {activeRules} đang hoạt động</p>
-            {!showCreateRule && (
-              <button
-                onClick={() => setShowCreateRule(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:scale-[1.02]"
-                style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 15px rgba(99,102,241,0.3)' }}
-              >
-                <Plus size={14} />Tạo quy tắc mới
-              </button>
-            )}
-          </div>
-
-          {showCreateRule && (
-            <CreateRuleForm
-              carriers={carriers}
-              onSubmit={handleCreateRule}
-              onCancel={() => setShowCreateRule(false)}
-            />
-          )}
-
-          {rules.length === 0 && !showCreateRule ? (
-            <div className="glass rounded-2xl p-12 text-center">
-              <Shield className="mx-auto mb-3 text-white/20" size={32} />
-              <p className="text-white/40 text-sm">Chưa có quy tắc vận hành nào</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {[...rules]
-                .sort((a, b) => b.priority - a.priority)
-                .map(rule => (
-                  <RuleRow key={rule.id} rule={rule} onDelete={handleDeleteRule} />
-                ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

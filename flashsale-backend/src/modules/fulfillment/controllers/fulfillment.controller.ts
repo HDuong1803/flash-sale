@@ -9,6 +9,7 @@ import {
   HttpStatus,
   NotFoundException,
   Param,
+  Patch,
   Post,
   RawBodyRequest,
   Req,
@@ -42,7 +43,8 @@ import {
   FulfillmentOrderResponseDto,
   FulfillmentRuleResponseDto,
   PendingQcOrderResponseDto,
-  ToggleCarrierDto
+  ToggleCarrierDto,
+  UpdateCarrierDto
 } from '../dto/fulfillment.dto'
 
 const moduleName = 'fulfillment'
@@ -307,6 +309,51 @@ export class FulfillmentController {
       sandboxMode: updated.sandboxMode,
       active: updated.active
     }
+  }
+
+  @ApiOperation({ summary: 'Cập nhật thông tin carrier (ADMIN)' })
+  @ApiParam({ name: 'id', description: 'ID carrier' })
+  @ApiBody({ type: UpdateCarrierDto })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Đã cập nhật',
+    type: CarrierResponseDto
+  })
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Patch('carriers/:id')
+  @HttpCode(HttpStatus.OK)
+  async updateCarrier(
+    @Param('id') id: string,
+    @Body() dto: UpdateCarrierDto
+  ): Promise<CarrierResponseDto> {
+    const carrier = await this.fulfillmentRepo.findCarrierById(id)
+    if (!carrier) throw new NotFoundException(`Carrier ${id} không tồn tại`)
+    const updated = await this.fulfillmentRepo.updateCarrier(id, dto)
+    return {
+      id: updated.id,
+      code: updated.code,
+      displayName: updated.displayName,
+      logoUrl: updated.logoUrl,
+      sandboxMode: updated.sandboxMode,
+      active: updated.active
+    }
+  }
+
+  @ApiOperation({ summary: 'Xóa carrier (ADMIN)' })
+  @ApiParam({ name: 'id', description: 'ID carrier' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Đã xóa' })
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Delete('carriers/:id')
+  @HttpCode(HttpStatus.OK)
+  async deleteCarrier(@Param('id') id: string): Promise<{ deleted: boolean }> {
+    const carrier = await this.fulfillmentRepo.findCarrierById(id)
+    if (!carrier) throw new NotFoundException(`Carrier ${id} không tồn tại`)
+    await this.fulfillmentRepo.deleteCarrier(id)
+    return { deleted: true }
   }
 
   private async assertOrderAccess(

@@ -261,6 +261,30 @@ export class ToggleCarrierDto {
   active: boolean
 }
 
+export class UpdateCarrierDto {
+  @ApiProperty({ description: 'Tên hiển thị', required: false })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  displayName?: string
+
+  @ApiProperty({ description: 'Mã carrier', required: false })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  code?: string
+
+  @ApiProperty({ description: 'Chế độ sandbox', required: false })
+  @IsOptional()
+  @IsBoolean()
+  sandboxMode?: boolean
+
+  @ApiProperty({ description: 'URL logo', required: false })
+  @IsOptional()
+  @IsString()
+  logoUrl?: string
+}
+
 // ─── Pending QC ───────────────────────────────────────────────────────────────
 
 class PendingQcOrderInfoDto {

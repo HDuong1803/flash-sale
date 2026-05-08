@@ -76,6 +76,19 @@ export class FulfillmentRepository {
     })
   }
 
+  async updateCarrier(
+    id: string,
+    data: Partial<
+      Pick<Carrier, 'displayName' | 'code' | 'sandboxMode' | 'logoUrl'>
+    >
+  ): Promise<Carrier> {
+    return this.prisma.carrier.update({ where: { id }, data })
+  }
+
+  async deleteCarrier(id: string): Promise<void> {
+    await this.prisma.carrier.delete({ where: { id } })
+  }
+
   // ─── Rules ─────────────────────────────────────────────────────────────────
 
   /**
