@@ -129,10 +129,7 @@ export class GHNService implements OnModuleInit {
       from_name: this.fromName,
       from_phone: this.fromPhone,
       from_address: this.fromAddress,
-      // Dùng numeric ID (ưu tiên hơn text) để GHN map chính xác kho gửi
-      from_ward_code: this.fromWardCode || undefined,
-      from_district_id: this.fromDistrictId || undefined,
-      // Text fallback — GHN dùng nếu không có numeric ID
+      // Không truyền from_ward_code/from_district_id — GHN tự dùng warehouse mặc định của shop
       from_ward_name: this.fromWardName || undefined,
       from_district_name: this.fromDistrictName || undefined,
       from_province_name: this.fromProvinceName || undefined
