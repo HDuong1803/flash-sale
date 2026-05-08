@@ -35,6 +35,8 @@ export class GHNService implements OnModuleInit {
   private fromWardName!: string
   private fromDistrictName!: string
   private fromProvinceName!: string
+  private fromDistrictId!: number
+  private fromWardCode!: string
 
   constructor(
     private readonly configService: ConfigService,
@@ -70,6 +72,16 @@ export class GHNService implements OnModuleInit {
     )
     this.fromProvinceName = this.configService.get<string>(
       'ghn.GHN_FROM_PROVINCE_NAME',
+      ''
+    )
+    this.fromDistrictId = parseInt(
+      String(
+        this.configService.get<string | number>('ghn.GHN_FROM_DISTRICT_ID', 0)
+      ),
+      10
+    )
+    this.fromWardCode = this.configService.get<string>(
+      'ghn.GHN_FROM_WARD_CODE',
       ''
     )
 
@@ -112,6 +124,8 @@ export class GHNService implements OnModuleInit {
       from_name: this.fromName,
       from_phone: this.fromPhone,
       from_address: this.fromAddress,
+      from_district_id: this.fromDistrictId || undefined,
+      from_ward_code: this.fromWardCode || undefined,
       from_ward_name: this.fromWardName || undefined,
       from_district_name: this.fromDistrictName || undefined,
       from_province_name: this.fromProvinceName || undefined
