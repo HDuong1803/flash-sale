@@ -40,6 +40,8 @@ export class GHNService implements OnModuleInit {
   private fromName!: string
   private fromPhone!: string
   private fromAddress!: string
+  private fromWardCode!: string
+  private fromDistrictId!: number
   private fromWardName!: string
   private fromDistrictName!: string
   private fromProvinceName!: string
@@ -67,6 +69,14 @@ export class GHNService implements OnModuleInit {
     this.fromAddress = this.configService.get<string>(
       'ghn.GHN_FROM_ADDRESS',
       ''
+    )
+    this.fromWardCode = this.configService.get<string>(
+      'ghn.GHN_FROM_WARD_CODE',
+      ''
+    )
+    this.fromDistrictId = parseInt(
+      this.configService.get<string>('ghn.GHN_FROM_DISTRICT_ID', '0'),
+      10
     )
     this.fromWardName = this.configService.get<string>(
       'ghn.GHN_FROM_WARD_NAME',
@@ -119,9 +129,13 @@ export class GHNService implements OnModuleInit {
       from_name: this.fromName,
       from_phone: this.fromPhone,
       from_address: this.fromAddress,
-      from_ward_name: this.fromWardName,
-      from_district_name: this.fromDistrictName,
-      from_province_name: this.fromProvinceName
+      // Dùng numeric ID (ưu tiên hơn text) để GHN map chính xác kho gửi
+      from_ward_code: this.fromWardCode || undefined,
+      from_district_id: this.fromDistrictId || undefined,
+      // Text fallback — GHN dùng nếu không có numeric ID
+      from_ward_name: this.fromWardName || undefined,
+      from_district_name: this.fromDistrictName || undefined,
+      from_province_name: this.fromProvinceName || undefined
     })
   }
 
