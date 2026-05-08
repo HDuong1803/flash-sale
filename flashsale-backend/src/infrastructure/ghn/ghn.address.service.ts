@@ -1,6 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { Ghn } from 'giaohangnhanh'
 import { GHNDistrict, GHNError, GHNProvince, GHNWard } from './ghn.types'
 
 const ADDRESS_CACHE_TTL_MS = 30 * 60 * 1_000
@@ -10,16 +9,25 @@ interface CacheEntry<T> {
   expiresAt: number
 }
 
+interface GHNAddressResponse<T> {
+  code: number
+  message: string
+  data: T | null
+}
+
 /**
- * GHNAddressService — Service cho GHN address master data.
+ * GHNAddressService — Lấy địa chỉ master data từ GHN production API.
  *
- * Sử dụng giaohangnhanh npm package để lấy dữ liệu địa chỉ.
- * Cache in-memory để tránh gọi API lặp lại (30 phút TTL).
+ * GHN address API (/master-data/*) chỉ yêu cầu header Token, không cần ShopId.
+ * Không dùng giaohangnhanh package ở đây vì package luôn gửi ShopId header
+ * khiến GHN trả về lỗi "Tài khoản không thuộc cửa hàng".
  */
 @Injectable()
 export class GHNAddressService implements OnModuleInit {
   private readonly logger = new Logger(GHNAddressService.name)
-  private ghn!: Ghn
+  private readonly baseUrl =
+    'https://online-gateway.ghn.vn/shiip/public-api/master-data'
+  private apiKey = ''
 
   private provincesCache: CacheEntry<GHNProvince[]> | null = null
   private readonly districtsCache = new Map<number, CacheEntry<GHNDistrict[]>>()
@@ -28,103 +36,49 @@ export class GHNAddressService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit(): void {
-    const apiKey = this.configService.get<string>('ghn.GHN_API_KEY', '')
-    const shopId = parseInt(
-      this.configService.get<string>('ghn.GHN_SHOP_ID', '0'),
-      10
+    this.apiKey = this.configService.get<string>('ghn.GHN_API_KEY', '')
+    this.logger.log(
+      'GHNAddressService initialized — production URL, Token-only auth'
     )
-    const isSandbox =
-      this.configService.get<string>('ghn.GHN_SANDBOX', 'true') === 'true'
-
-    // Address master-data API chỉ hoạt động trên production URL
-    // (dev/sandbox gateway không hỗ trợ /master-data/*)
-    this.ghn = new Ghn({
-      token: apiKey,
-      shopId,
-      host: 'https://online-gateway.ghn.vn',
-      testMode: false
-    })
-
-    if (isSandbox) {
-      this.logger.log(
-        'GHNAddressService — dùng production URL cho address API (sandbox không hỗ trợ master-data)'
-      )
-    }
   }
+
+  // ─── Public API ───────────────────────────────────────────────────────────────
 
   async getProvinces(): Promise<GHNProvince[]> {
     const cached = this.provincesCache
     if (cached && Date.now() < cached.expiresAt) return cached.data
 
-    try {
-      const data = await this.ghn.address.getProvinces()
-      const mapped: GHNProvince[] = data.map(p => ({
-        ProvinceID: p.ProvinceID,
-        ProvinceName: p.ProvinceName,
-        Code: p.Code,
-        NameExtension: p.NameExtension,
-        Status: p.Status,
-        CanUpdateCOD: false
-      }))
-      this.provincesCache = {
-        data: mapped,
-        expiresAt: Date.now() + ADDRESS_CACHE_TTL_MS
-      }
-      return mapped
-    } catch (err: unknown) {
-      throw this.wrapError(err, 'getProvinces')
-    }
+    const data = await this.get<GHNProvince[]>('/province')
+    this.provincesCache = { data, expiresAt: Date.now() + ADDRESS_CACHE_TTL_MS }
+    return data
   }
 
   async getDistricts(provinceId: number): Promise<GHNDistrict[]> {
     const cached = this.districtsCache.get(provinceId)
     if (cached && Date.now() < cached.expiresAt) return cached.data
 
-    try {
-      const data = await this.ghn.address.getDistricts(provinceId)
-      const mapped: GHNDistrict[] = data.map(d => ({
-        DistrictID: d.DistrictID,
-        ProvinceID: d.ProvinceID,
-        DistrictName: d.DistrictName,
-        Code: d.Code,
-        Type: d.Type,
-        SupportType: d.SupportType,
-        NameExtension: d.NameExtension,
-        Status: d.Status,
-        CanUpdateCOD: d.CanUpdateCOD
-      }))
-      this.districtsCache.set(provinceId, {
-        data: mapped,
-        expiresAt: Date.now() + ADDRESS_CACHE_TTL_MS
-      })
-      return mapped
-    } catch (err: unknown) {
-      throw this.wrapError(err, `getDistricts(${provinceId})`)
-    }
+    const data = await this.post<GHNDistrict[]>('/district', {
+      province_id: provinceId
+    })
+    this.districtsCache.set(provinceId, {
+      data,
+      expiresAt: Date.now() + ADDRESS_CACHE_TTL_MS
+    })
+    return data
   }
 
   async getWards(districtId: number): Promise<GHNWard[]> {
     const cached = this.wardsCache.get(districtId)
     if (cached && Date.now() < cached.expiresAt) return cached.data
 
-    try {
-      const data = await this.ghn.address.getWards(districtId)
-      const mapped: GHNWard[] = data.map(w => ({
-        WardCode: w.WardCode,
-        DistrictID: w.DistrictID,
-        WardName: w.WardName,
-        NameExtension: w.NameExtension,
-        Status: w.Status,
-        CanUpdateCOD: w.CanUpdateCOD
-      }))
-      this.wardsCache.set(districtId, {
-        data: mapped,
-        expiresAt: Date.now() + ADDRESS_CACHE_TTL_MS
-      })
-      return mapped
-    } catch (err: unknown) {
-      throw this.wrapError(err, `getWards(${districtId})`)
-    }
+    const data = await this.post<GHNWard[]>('/ward', {
+      district_id: districtId
+    })
+    this.wardsCache.set(districtId, {
+      data,
+      expiresAt: Date.now() + ADDRESS_CACHE_TTL_MS
+    })
+    return data
   }
 
   async validateWardCode(
@@ -143,10 +97,32 @@ export class GHNAddressService implements OnModuleInit {
     }
   }
 
-  private wrapError(err: unknown, context: string): GHNError {
-    if (err instanceof GHNError) return err
-    const message = err instanceof Error ? err.message : String(err)
-    this.logger.error(`GHN address ${context} thất bại: ${message}`)
-    return new GHNError(message, 'GHN_ADDRESS_ERROR', 0)
+  // ─── Private HTTP helpers (Token-only, no ShopId) ─────────────────────────────
+
+  private async get<T>(path: string): Promise<T> {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: 'GET',
+      headers: { Token: this.apiKey, 'Content-Type': 'application/json' }
+    })
+    return this.unwrap<T>((await res.json()) as GHNAddressResponse<T>, path)
+  }
+
+  private async post<T>(path: string, body: unknown): Promise<T> {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: 'POST',
+      headers: { Token: this.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    return this.unwrap<T>((await res.json()) as GHNAddressResponse<T>, path)
+  }
+
+  private unwrap<T>(response: GHNAddressResponse<T>, context: string): T {
+    if (response.code !== 200 || response.data === null) {
+      const msg =
+        response.message ?? `GHN address error (code ${response.code})`
+      this.logger.error(`GHN address ${context}: ${msg}`)
+      throw new GHNError(msg, 'GHN_ADDRESS_ERROR', response.code)
+    }
+    return response.data
   }
 }
