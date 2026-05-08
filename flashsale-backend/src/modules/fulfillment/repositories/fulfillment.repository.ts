@@ -86,7 +86,10 @@ export class FulfillmentRepository {
   }
 
   async deleteCarrier(id: string): Promise<void> {
-    await this.prisma.carrier.delete({ where: { id } })
+    await this.prisma.$transaction([
+      this.prisma.fulfillmentRule.deleteMany({ where: { carrierId: id } }),
+      this.prisma.carrier.delete({ where: { id } })
+    ])
   }
 
   // ─── Rules ─────────────────────────────────────────────────────────────────
