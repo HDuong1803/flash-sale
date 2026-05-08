@@ -67,6 +67,10 @@ class FulfillmentService {
   bookLabel(orderId: string, data?: BookLabelDto): Promise<FulfillmentOrder> {
     return apiClient.post(`/fulfillment/orders/${orderId}/book-label`, data ?? {})
   }
+
+  syncShippingStatuses(): Promise<{ synced: number; errors: number }> {
+    return apiClient.post('/fulfillment/sync-status', {})
+  }
 }
 
 export const fulfillmentService = new FulfillmentService()
