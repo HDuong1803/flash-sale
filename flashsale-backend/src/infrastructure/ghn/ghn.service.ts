@@ -37,6 +37,12 @@ export class GHNService implements OnModuleInit {
   private readonly logger = new Logger(GHNService.name)
   private axiosInstance!: AxiosInstance
   private webhookToken!: string
+  private fromName!: string
+  private fromPhone!: string
+  private fromAddress!: string
+  private fromWardName!: string
+  private fromDistrictName!: string
+  private fromProvinceName!: string
 
   constructor(
     private readonly configService: ConfigService,
@@ -51,6 +57,27 @@ export class GHNService implements OnModuleInit {
     )
     this.webhookToken = this.configService.get<string>(
       'ghn.GHN_WEBHOOK_TOKEN',
+      ''
+    )
+    this.fromName = this.configService.get<string>(
+      'ghn.GHN_FROM_NAME',
+      'Flash Sale Shop'
+    )
+    this.fromPhone = this.configService.get<string>('ghn.GHN_FROM_PHONE', '')
+    this.fromAddress = this.configService.get<string>(
+      'ghn.GHN_FROM_ADDRESS',
+      ''
+    )
+    this.fromWardName = this.configService.get<string>(
+      'ghn.GHN_FROM_WARD_NAME',
+      ''
+    )
+    this.fromDistrictName = this.configService.get<string>(
+      'ghn.GHN_FROM_DISTRICT_NAME',
+      ''
+    )
+    this.fromProvinceName = this.configService.get<string>(
+      'ghn.GHN_FROM_PROVINCE_NAME',
       ''
     )
     const isSandbox =
@@ -87,7 +114,15 @@ export class GHNService implements OnModuleInit {
   // ─── Order Management ─────────────────────────────────────────────────────────
 
   async createOrder(input: GHNCreateOrderInput): Promise<GHNCreatedOrder> {
-    return this.post<GHNCreatedOrder>('/v2/shipping-order/create', input)
+    return this.post<GHNCreatedOrder>('/v2/shipping-order/create', {
+      ...input,
+      from_name: this.fromName,
+      from_phone: this.fromPhone,
+      from_address: this.fromAddress,
+      from_ward_name: this.fromWardName,
+      from_district_name: this.fromDistrictName,
+      from_province_name: this.fromProvinceName
+    })
   }
 
   async cancelOrder(orderCode: string): Promise<GHNCancelOrderResult> {

@@ -122,7 +122,19 @@ export const config = {
      * Ward code của kho hàng mặc định.
      * Ví dụ: "20314" = Phường Bến Nghé, Quận 1, TP.HCM
      */
-    GHN_FROM_WARD_CODE: '20314'
+    GHN_FROM_WARD_CODE: '20314',
+    /** Tên người gửi / cửa hàng */
+    GHN_FROM_NAME: '',
+    /** SĐT cửa hàng */
+    GHN_FROM_PHONE: '',
+    /** Địa chỉ chi tiết kho (số nhà, tên đường) */
+    GHN_FROM_ADDRESS: '',
+    /** Tên phường/xã kho */
+    GHN_FROM_WARD_NAME: '',
+    /** Tên quận/huyện kho */
+    GHN_FROM_DISTRICT_NAME: '',
+    /** Tên tỉnh/thành phố kho */
+    GHN_FROM_PROVINCE_NAME: ''
   },
 
   anthropic: {
