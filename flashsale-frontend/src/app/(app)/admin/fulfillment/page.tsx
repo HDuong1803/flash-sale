@@ -146,7 +146,7 @@ function CarrierCard({ carrier, onToggle, onUpdate, onDelete }: {
               className={`relative w-11 h-6 rounded-full transition-colors ${carrier.active ? 'bg-indigo-600' : 'bg-white/15'}`}>
               {toggling
                 ? <Loader2 size={12} className="absolute inset-0 m-auto text-white animate-spin" />
-                : <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${carrier.active ? 'translate-x-6' : 'translate-x-1'}`} />
+                : <span className={`absolute top-1 left-0 w-4 h-4 rounded-full bg-white transition-transform ${carrier.active ? 'translate-x-6' : 'translate-x-1'}`} />
               }
             </button>
           </div>
