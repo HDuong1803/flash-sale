@@ -187,7 +187,7 @@ export class FulfillmentController {
   })
   @ApiBearerAuth('JWT-auth')
   @UseGuards(AccessTokenGuard, RolesGuard)
-  @Roles('ADMIN', 'MERCHANT')
+  @Roles('ADMIN')
   @Post('sync-status')
   @HttpCode(HttpStatus.OK)
   async syncShippingStatuses(): Promise<{ synced: number; errors: number }> {

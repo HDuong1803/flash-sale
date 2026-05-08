@@ -40,9 +40,9 @@ export class FulfillmentPollingService {
     private readonly notificationService: NotificationService
   ) {}
 
-  /** Chạy mỗi 5 phút — đồng bộ trạng thái GHN cho tất cả đơn đang vận chuyển */
+  /** Chạy mỗi 5 phút — đồng bộ toàn hệ thống (không filter merchant) */
   @Cron(CronExpression.EVERY_5_MINUTES)
-  async syncShippingStatuses(): Promise<void> {
+  async cronSyncAll(): Promise<void> {
     if (this.isRunning) {
       this.logger.debug('Polling đang chạy, bỏ qua lần này')
       return
@@ -50,19 +50,25 @@ export class FulfillmentPollingService {
 
     this.isRunning = true
     try {
-      await this.runSync()
+      await this.runSync() // undefined = toàn hệ thống
     } finally {
       this.isRunning = false
     }
   }
 
-  /** Trigger thủ công từ admin endpoint */
-  async triggerManualSync(): Promise<{ synced: number; errors: number }> {
-    return this.runSync()
+  /** Trigger thủ công — merchantId giới hạn chỉ đơn của merchant đó, undefined = toàn hệ thống (ADMIN) */
+  async triggerManualSync(
+    merchantId?: string
+  ): Promise<{ synced: number; errors: number }> {
+    return this.runSync(merchantId)
   }
 
-  private async runSync(): Promise<{ synced: number; errors: number }> {
-    const orders = await this.fulfillmentRepo.findActiveShippingOrders()
+  private async runSync(
+    merchantId?: string
+  ): Promise<{ synced: number; errors: number }> {
+    const orders = await this.fulfillmentRepo.findActiveShippingOrders(
+      merchantId
+    )
 
     if (orders.length === 0) {
       this.logger.debug('Không có đơn nào đang vận chuyển cần đồng bộ')
@@ -78,6 +84,7 @@ export class FulfillmentPollingService {
       if (!order.trackingNumber) continue
 
       try {
+        await new Promise(resolve => setTimeout(resolve, 200)) // 200ms giữa mỗi call
         const detail = await this.ghn.getOrderDetail(order.trackingNumber)
         const ghnStatus = detail.status?.toLowerCase() ?? ''
         const newStatus =

@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { useAdminStream } from '@/hooks/useAdminStream'
 import type { AdminStreamEvent } from '@/hooks/useAdminStream'
 import { adminService } from '@/services/admin.service'
+import { useSyncShippingStatus } from '@/hooks/mutations/useSyncShippingStatus'
 import type { Carrier, FulfillmentRule, QcCheckpoint, QcStatus, QcChecklistItem } from '@/types'
 
 const QC_CFG: Record<QcStatus, { label: string; color: string }> = {
@@ -370,6 +371,7 @@ export default function AdminFulfillmentPage() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({})
+  const { sync: syncGhn, loading: syncing } = useSyncShippingStatus()
   const [showCreateRule, setShowCreateRule] = useState(false)
 
   const refreshCooldownRef = useRef(false)
@@ -550,11 +552,18 @@ export default function AdminFulfillmentPage() {
           </h1>
           <p className="text-white/40 text-sm mt-1">Đơn vị vận chuyển, quy tắc định tuyến và kiểm soát chất lượng</p>
         </div>
-        <button onClick={() => loadAll(true)} disabled={refreshing}
-          className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-white/70 hover:text-white text-sm transition-all">
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          Làm mới
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => syncGhn()} disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-white/70 hover:text-white text-sm transition-all disabled:opacity-50">
+            {syncing ? <Loader2 size={14} className="animate-spin" /> : <Truck size={14} />}
+            Đồng bộ GHN
+          </button>
+          <button onClick={() => loadAll(true)} disabled={refreshing}
+            className="flex items-center gap-2 px-4 py-2 glass rounded-xl text-white/70 hover:text-white text-sm transition-all">
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            Làm mới
+          </button>
+        </div>
       </div>
 
       {/* Overview Stats */}

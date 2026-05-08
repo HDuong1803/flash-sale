@@ -3,10 +3,9 @@
 import Link from 'next/link'
 import {
   ClipboardCheck, AlertTriangle, CheckCircle2, XCircle,
-  RotateCcw, Clock, Loader2, RefreshCw, ArrowRight, Package, Truck
+  RotateCcw, Clock, Loader2, RefreshCw, ArrowRight, Package
 } from 'lucide-react'
 import { usePendingQcOrders } from '@/hooks/queries/useFulfillmentQc'
-import { useSyncShippingStatus } from '@/hooks/mutations/useSyncShippingStatus'
 import { formatDate } from '@/lib/utils'
 import type { QcCheckpoint, QcStatus } from '@/types'
 
@@ -112,17 +111,11 @@ function QcRow({ qc }: { qc: QcCheckpoint }) {
 
 export default function MerchantFulfillmentPage() {
   const { data: qcList, total, loading, error, refetch } = usePendingQcOrders(50)
-  const { sync, loading: syncing } = useSyncShippingStatus()
 
   const pendingCount = qcList.filter(q => q.status === 'PENDING').length
   const failedCount  = qcList.filter(q => q.status === 'FAILED').length
   const passedCount  = qcList.filter(q => q.status === 'PASSED').length
   const reworkCount  = qcList.filter(q => q.status === 'REWORK').length
-
-  const handleSync = async () => {
-    await sync()
-    refetch()
-  }
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -132,24 +125,13 @@ export default function MerchantFulfillmentPage() {
           <h1 className="text-white text-2xl font-bold">Kiểm định & Giao vận</h1>
           <p className="text-white/40 text-sm mt-1">Quản lý QC và tạo vận đơn cho đơn hàng</p>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            title="Đồng bộ trạng thái vận chuyển từ GHN"
-            className="flex items-center gap-2 px-3 py-2 glass rounded-xl text-white/60 hover:text-white text-xs font-medium transition-colors disabled:opacity-50"
-          >
-            {syncing ? <Loader2 size={14} className="animate-spin" /> : <Truck size={14} />}
-            Đồng bộ GHN
-          </button>
-          <button
-            onClick={refetch}
-            disabled={loading}
-            className="p-2.5 glass rounded-xl text-white/50 hover:text-white transition-colors"
-          >
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
+        <button
+          onClick={refetch}
+          disabled={loading}
+          className="p-2.5 glass rounded-xl text-white/50 hover:text-white transition-colors"
+        >
+          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+        </button>
       </div>
 
       {/* Stats */}

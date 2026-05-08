@@ -215,7 +215,9 @@ export class FulfillmentRepository {
     })
   }
 
-  async findActiveShippingOrders(): Promise<
+  async findActiveShippingOrders(
+    merchantId?: string
+  ): Promise<
     Pick<
       FulfillmentOrder,
       'id' | 'trackingNumber' | 'fulfillStatus' | 'orderId'
@@ -231,7 +233,8 @@ export class FulfillmentRepository {
             FulfillmentStatus.OUT_FOR_DELIVERY
           ]
         },
-        trackingNumber: { not: null }
+        trackingNumber: { not: null },
+        ...(merchantId ? { order: { merchantId } } : {})
       },
       select: {
         id: true,
