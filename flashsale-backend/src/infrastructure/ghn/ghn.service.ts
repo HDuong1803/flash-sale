@@ -43,6 +43,7 @@ export class GHNService implements OnModuleInit {
   private fromWardCode!: string
   private fromDistrictId!: number
   private fromWardName!: string
+  private sandboxMode!: boolean
   private fromDistrictName!: string
   private fromProvinceName!: string
 
@@ -90,8 +91,9 @@ export class GHNService implements OnModuleInit {
       'ghn.GHN_FROM_PROVINCE_NAME',
       ''
     )
-    const isSandbox =
+    this.sandboxMode =
       this.configService.get<string>('ghn.GHN_SANDBOX', 'true') === 'true'
+    const isSandbox = this.sandboxMode
 
     if (!apiKey) {
       this.logger.warn(
@@ -124,12 +126,39 @@ export class GHNService implements OnModuleInit {
   // ─── Order Management ─────────────────────────────────────────────────────────
 
   async createOrder(input: GHNCreateOrderInput): Promise<GHNCreatedOrder> {
+    // GHN sandbox không hỗ trợ tạo đơn thật — trả về mock response
+    if (this.sandboxMode) {
+      const mockCode = `GHN-SANDBOX-${Date.now()}`
+      this.logger.warn(
+        `[SANDBOX] Bỏ qua GHN API call, trả về mock order_code: ${mockCode}`
+      )
+      return {
+        order_code: mockCode,
+        sort_code: 'SBX',
+        expected_delivery_time: new Date(
+          Date.now() + 3 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+        fee: {
+          main_service: 0,
+          insurance: 0,
+          station_pu: 0,
+          station_do: 0,
+          return: 0,
+          r2s: 0,
+          coupon: 0
+        },
+        total_fee: '0',
+        trans_type: 'truck',
+        district_encode: '',
+        ward_encode: ''
+      }
+    }
+
     return this.post<GHNCreatedOrder>('/v2/shipping-order/create', {
       ...input,
       from_name: this.fromName,
       from_phone: this.fromPhone,
       from_address: this.fromAddress,
-      // Không truyền from_ward_code/from_district_id — GHN tự dùng warehouse mặc định của shop
       from_ward_name: this.fromWardName || undefined,
       from_district_name: this.fromDistrictName || undefined,
       from_province_name: this.fromProvinceName || undefined
