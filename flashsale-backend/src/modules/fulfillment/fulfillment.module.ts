@@ -7,6 +7,7 @@ import { QcController } from './controllers/qc.controller'
 import { FulfillmentService } from './services/fulfillment.service'
 import { FulfillmentRulesEngine } from './services/fulfillment-rules.engine'
 import { FulfillmentSlaService } from './services/fulfillment-sla.service'
+import { FulfillmentPollingService } from './services/fulfillment-polling.service'
 import { QcService } from './services/qc.service'
 import { FulfillmentRepository } from './repositories/fulfillment.repository'
 import { QcRepository } from './repositories/qc.repository'
@@ -18,10 +19,11 @@ import { QcRepository } from './repositories/qc.repository'
     FulfillmentService,
     FulfillmentRulesEngine,
     FulfillmentSlaService,
+    FulfillmentPollingService,
     QcService,
     FulfillmentRepository,
     QcRepository
   ],
-  exports: [FulfillmentService]
+  exports: [FulfillmentService, FulfillmentPollingService]
 })
 export class FulfillmentModule {}

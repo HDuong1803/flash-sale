@@ -215,6 +215,33 @@ export class FulfillmentRepository {
     })
   }
 
+  async findActiveShippingOrders(): Promise<
+    Pick<
+      FulfillmentOrder,
+      'id' | 'trackingNumber' | 'fulfillStatus' | 'orderId'
+    >[]
+  > {
+    return this.prisma.fulfillmentOrder.findMany({
+      where: {
+        fulfillStatus: {
+          in: [
+            FulfillmentStatus.LABEL_BOOKED,
+            FulfillmentStatus.SHIPPED,
+            FulfillmentStatus.IN_TRANSIT,
+            FulfillmentStatus.OUT_FOR_DELIVERY
+          ]
+        },
+        trackingNumber: { not: null }
+      },
+      select: {
+        id: true,
+        trackingNumber: true,
+        fulfillStatus: true,
+        orderId: true
+      }
+    })
+  }
+
   async updateLabel(
     id: string,
     data: UpdateFulfillmentLabelInput

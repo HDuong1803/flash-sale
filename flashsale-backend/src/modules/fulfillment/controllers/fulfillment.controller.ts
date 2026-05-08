@@ -33,6 +33,7 @@ import {
 } from '@common/decorators/current-user.decorator'
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
 import { FulfillmentService } from '../services/fulfillment.service'
+import { FulfillmentPollingService } from '../services/fulfillment-polling.service'
 import { FulfillmentRepository } from '../repositories/fulfillment.repository'
 import {
   BookLabelDto,
@@ -56,6 +57,7 @@ interface AuthUser extends IUserFromRequest {
 export class FulfillmentController {
   constructor(
     private readonly fulfillmentService: FulfillmentService,
+    private readonly fulfillmentPolling: FulfillmentPollingService,
     private readonly fulfillmentRepo: FulfillmentRepository
   ) {}
 
@@ -172,6 +174,24 @@ export class FulfillmentController {
       dimensionsCm: dto.dimensionsCm
     })
     return this.mapFulfillmentResponse(result)
+  }
+
+  // ─── Manual Sync ──────────────────────────────────────────────────────────
+
+  @ApiOperation({
+    summary: 'Đồng bộ trạng thái vận chuyển từ GHN (dùng khi không có webhook)'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Số đơn đã đồng bộ và số lỗi'
+  })
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(AccessTokenGuard, RolesGuard)
+  @Roles('ADMIN', 'MERCHANT')
+  @Post('sync-status')
+  @HttpCode(HttpStatus.OK)
+  async syncShippingStatuses(): Promise<{ synced: number; errors: number }> {
+    return this.fulfillmentPolling.triggerManualSync()
   }
 
   // ─── GHN Webhook ──────────────────────────────────────────────────────────
