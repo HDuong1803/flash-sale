@@ -36,14 +36,20 @@ export class GHNAddressService implements OnModuleInit {
     const isSandbox =
       this.configService.get<string>('ghn.GHN_SANDBOX', 'true') === 'true'
 
+    // Address master-data API chỉ hoạt động trên production URL
+    // (dev/sandbox gateway không hỗ trợ /master-data/*)
     this.ghn = new Ghn({
       token: apiKey,
       shopId,
-      host: isSandbox
-        ? 'https://dev-online-gateway.ghn.vn'
-        : 'https://online-gateway.ghn.vn',
-      testMode: isSandbox
+      host: 'https://online-gateway.ghn.vn',
+      testMode: false
     })
+
+    if (isSandbox) {
+      this.logger.log(
+        'GHNAddressService — dùng production URL cho address API (sandbox không hỗ trợ master-data)'
+      )
+    }
   }
 
   async getProvinces(): Promise<GHNProvince[]> {
