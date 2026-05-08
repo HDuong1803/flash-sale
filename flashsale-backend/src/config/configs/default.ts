@@ -91,8 +91,10 @@ export const config = {
   },
 
   ghn: {
-    /** API Key từ GHN dashboard (https://sso.ghn.vn/) */
+    /** API Key sandbox — dùng cho order/fee API (dev-online-gateway.ghn.vn) */
     GHN_API_KEY: '',
+    /** API Key production — dùng cho address master data (online-gateway.ghn.vn). Fallback về GHN_API_KEY nếu không set */
+    GHN_ADDRESS_API_KEY: '',
     /** Shop ID từ GHN dashboard — tạo shop để lấy */
     GHN_SHOP_ID: '',
     /**

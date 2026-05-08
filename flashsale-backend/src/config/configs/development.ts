@@ -150,6 +150,7 @@ export const config = {
 
   ghn: {
     GHN_API_KEY: process.env.GHN_API_KEY,
+    GHN_ADDRESS_API_KEY: process.env.GHN_ADDRESS_API_KEY,
     GHN_SHOP_ID: process.env.GHN_SHOP_ID,
     GHN_SANDBOX: process.env.GHN_SANDBOX,
     GHN_WEBHOOK_TOKEN: process.env.GHN_WEBHOOK_TOKEN,

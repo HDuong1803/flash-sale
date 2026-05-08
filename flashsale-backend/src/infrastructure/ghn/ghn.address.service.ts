@@ -17,10 +17,6 @@ interface GHNAddressResponse<T> {
 
 /**
  * GHNAddressService — Lấy địa chỉ master data từ GHN production API.
- *
- * GHN address API (/master-data/*) chỉ yêu cầu header Token, không cần ShopId.
- * Không dùng giaohangnhanh package ở đây vì package luôn gửi ShopId header
- * khiến GHN trả về lỗi "Tài khoản không thuộc cửa hàng".
  */
 @Injectable()
 export class GHNAddressService implements OnModuleInit {
@@ -36,9 +32,16 @@ export class GHNAddressService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit(): void {
-    this.apiKey = this.configService.get<string>('ghn.GHN_API_KEY', '')
+    const addressKey = this.configService.get<string>(
+      'ghn.GHN_ADDRESS_API_KEY',
+      ''
+    )
+    this.apiKey =
+      addressKey || this.configService.get<string>('ghn.GHN_API_KEY', '')
     this.logger.log(
-      'GHNAddressService initialized — production URL, Token-only auth'
+      `GHNAddressService initialized — production URL, key: ${
+        this.apiKey ? '***' + this.apiKey.slice(-4) : 'MISSING'
+      }`
     )
   }
 
