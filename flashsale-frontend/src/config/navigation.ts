@@ -91,14 +91,6 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'view_shop_revenue',
     section: 'shop_management',
   },
-  {
-    label: 'Cài đặt thanh toán',
-    href: '/merchant/settings',
-    iconName: 'CreditCard',
-    permission: 'view_shop_dashboard',
-    section: 'shop_management',
-    description: 'Kết nối Stripe và quản lý payout',
-  },
 
   // ── SECTION: QUẢN TRỊ HỆ THỐNG ────────────────────────────────────
   // Chỉ hiển thị cho: ADMIN

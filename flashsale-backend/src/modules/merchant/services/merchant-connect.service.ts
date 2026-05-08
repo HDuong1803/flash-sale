@@ -158,9 +158,9 @@ export class MerchantConnectService {
     const onboardingUrl = await this.stripeConnectService.createAccountLink({
       accountId: stripeAccountId,
       // refresh_url: khi link hết hạn, Stripe redirect về đây → frontend gọi lại initiate
-      refreshUrl: `${clientUrl}/merchant/settings?stripe=refresh`,
+      refreshUrl: `${clientUrl}/settings?stripe=refresh`,
       // return_url: sau khi merchant submit form KYC → Stripe redirect về đây → frontend gọi sync
-      returnUrl: `${clientUrl}/merchant/settings?stripe=return`
+      returnUrl: `${clientUrl}/settings?stripe=return`
     })
 
     return { onboardingUrl }
@@ -228,8 +228,8 @@ export class MerchantConnectService {
       )
       onboardingUrl = await this.stripeConnectService.createAccountLink({
         accountId: merchant.stripeAccountId,
-        refreshUrl: `${clientUrl}/merchant/settings?stripe=refresh`,
-        returnUrl: `${clientUrl}/merchant/settings?stripe=return`
+        refreshUrl: `${clientUrl}/settings?stripe=refresh`,
+        returnUrl: `${clientUrl}/settings?stripe=return`
       })
     }
 
