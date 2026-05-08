@@ -85,6 +85,10 @@ export class FulfillmentRepository {
     return this.prisma.carrier.update({ where: { id }, data })
   }
 
+  async countOrdersByCarrier(carrierId: string): Promise<number> {
+    return this.prisma.fulfillmentOrder.count({ where: { carrierId } })
+  }
+
   async deleteCarrier(id: string): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.fulfillmentRule.deleteMany({ where: { carrierId: id } }),

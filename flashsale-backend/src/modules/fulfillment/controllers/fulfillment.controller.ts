@@ -352,6 +352,12 @@ export class FulfillmentController {
   async deleteCarrier(@Param('id') id: string): Promise<{ deleted: boolean }> {
     const carrier = await this.fulfillmentRepo.findCarrierById(id)
     if (!carrier) throw new NotFoundException(`Carrier ${id} không tồn tại`)
+    const orderCount = await this.fulfillmentRepo.countOrdersByCarrier(id)
+    if (orderCount > 0) {
+      throw new Error(
+        `Không thể xóa carrier đang được dùng bởi ${orderCount} đơn hàng. Hãy tắt (inactive) thay vì xóa.`
+      )
+    }
     await this.fulfillmentRepo.deleteCarrier(id)
     return { deleted: true }
   }
