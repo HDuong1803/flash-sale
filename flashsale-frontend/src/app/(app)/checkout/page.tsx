@@ -18,16 +18,11 @@ import { useCheckoutPaymentMethods } from '@/hooks/queries/useCheckoutPaymentMet
 import type { PaymentMethod } from '@/types'
 import { useReservationDetail } from '@/hooks/queries/useReservationDetail'
 
+// Chỉ validate các field được register() với react-hook-form
+// Address (provinceId/districtId/wardCode/streetAddress) được validate riêng qua validateAddress()
 const schema = z.object({
   fullName: z.string().min(1, 'Vui lòng nhập họ tên'),
   phone: z.string().regex(/^(0[3-9]\d{8})$/, 'Số điện thoại không hợp lệ'),
-  streetAddress: z.string().min(3, 'Vui lòng nhập số nhà và tên đường'),
-  provinceId: z.number().positive('Vui lòng chọn tỉnh/thành phố'),
-  provinceName: z.string(),
-  districtId: z.number().positive('Vui lòng chọn quận/huyện'),
-  districtName: z.string(),
-  wardCode: z.string().min(1, 'Vui lòng chọn phường/xã'),
-  wardName: z.string(),
 })
 
 type CheckoutForm = z.infer<typeof schema>
