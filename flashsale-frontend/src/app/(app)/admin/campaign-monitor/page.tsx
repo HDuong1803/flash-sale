@@ -118,27 +118,27 @@ export default function AdminCampaignMonitorPage() {
             onValueChange={(value) => setCampaignId(value && value !== 'all' ? value : '')}
           >
             <SelectTrigger className="input-glass text-sm min-w-[280px] h-10 text-white border-white/10">
-              <SelectValue placeholder="Tất cả chiến dịch" />
+              <span className="truncate">
+                {campaignId
+                  ? (campaigns.find(c => c.id === campaignId)?.name ?? campaignId)
+                  : 'Tất cả chiến dịch'}
+              </span>
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-white">
               <SelectItem value="all">Tất cả chiến dịch</SelectItem>
-            {campaigns.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
+              {campaigns.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={String(minutes)} onValueChange={(value) => setMinutes(Number(value ?? 60))}>
             <SelectTrigger className="input-glass text-sm w-[140px] h-10 text-white border-white/10">
-              <SelectValue />
+              <span>{WINDOW_OPTIONS.find(o => o.value === minutes)?.label ?? `${minutes} phút`}</span>
             </SelectTrigger>
             <SelectContent className="bg-slate-900 border-white/10 text-white">
-            {WINDOW_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={String(o.value)}>
-                {o.label}
-              </SelectItem>
-            ))}
+              {WINDOW_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
