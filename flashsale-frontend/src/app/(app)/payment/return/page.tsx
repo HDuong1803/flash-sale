@@ -14,6 +14,29 @@ import { formatCurrency } from '@/lib/utils'
 import { useOrder } from '@/hooks/queries/useOrder'
 import { usePaymentStatus } from '@/hooks/queries/usePaymentStatus'
 
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function ShippingAddressSummary({ raw }: { raw: string }) {
+  try {
+    const p = JSON.parse(raw) as Record<string, string | number>
+    const name = p['to_name'] as string | undefined
+    const phone = p['to_phone'] as string | undefined
+    const street = p['to_address'] as string | undefined
+    const ward = p['to_ward_name'] as string | undefined
+    const district = p['to_district_name'] as string | undefined
+    const province = p['to_province_name'] as string | undefined
+    const addressLine = [street, ward, district, province].filter(Boolean).join(', ')
+    return (
+      <div className="space-y-0.5">
+        {name && <p className="text-white/80 text-xs font-medium">{name}{phone ? ` · ${phone}` : ''}</p>}
+        {addressLine && <p className="text-white/60 text-xs leading-relaxed">{addressLine}</p>}
+      </div>
+    )
+  } catch {
+    return <p className="text-white/70 text-xs leading-relaxed">{raw}</p>
+  }
+}
+
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 /** Hiển thị chi tiết đơn hàng: sản phẩm, số lượng, giá */
@@ -86,7 +109,7 @@ function OrderSummary({ orderId }: { orderId: string }) {
       {order.shippingAddress && (
         <div className="border-t border-white/5 pt-3">
           <p className="text-white/40 text-xs mb-1">Giao đến</p>
-          <p className="text-white/70 text-xs leading-relaxed">{order.shippingAddress}</p>
+          <ShippingAddressSummary raw={order.shippingAddress} />
         </div>
       )}
     </div>
