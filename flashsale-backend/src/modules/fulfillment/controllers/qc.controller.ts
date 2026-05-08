@@ -278,7 +278,10 @@ export class QcController {
 
   // ─── GET qc (Admin list) ─────────────────────────────────────────────────
 
-  @ApiOperation({ summary: 'Danh sách tất cả QC checkpoints (ADMIN)' })
+  @ApiOperation({
+    summary:
+      'Danh sách QC checkpoints — ADMIN thấy tất cả, MERCHANT chỉ thấy đơn của mình'
+  })
   @ApiQuery({ name: 'status', enum: QcStatus, required: false })
   @ApiQuery({ name: 'limit', type: Number, required: false })
   @ApiQuery({ name: 'offset', type: Number, required: false })
@@ -291,20 +294,34 @@ export class QcController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Chưa đăng nhập'
   })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Chỉ ADMIN' })
-  @Roles('ADMIN')
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'ADMIN hoặc MERCHANT'
+  })
+  @Roles('ADMIN', 'MERCHANT')
   @Get()
   @HttpCode(HttpStatus.OK)
   async listQcCheckpoints(
-    @Query() query: QcListQueryDto
+    @Query() query: QcListQueryDto,
+    @CurrentUser() user: AuthUser
   ): Promise<QcListResponseDto> {
     const limit = query.limit ?? 20
     const offset = query.offset ?? 0
 
+    // MERCHANT chỉ được thấy QC của shop mình
+    let merchantId: string | undefined
+    if (user.role === 'MERCHANT') {
+      const profile = await this.fulfillmentRepo.findMerchantProfileByUserId(
+        user.userId
+      )
+      merchantId = profile?.id
+    }
+
     const { items, total } = await this.qcService.listQcCheckpoints({
       status: query.status,
       limit,
-      offset
+      offset,
+      merchantId
     })
 
     return {

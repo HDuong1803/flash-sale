@@ -287,6 +287,7 @@ export class QcService {
     status?: QcStatus
     limit: number
     offset: number
+    merchantId?: string
   }): Promise<{ items: QcCheckpointWithInspector[]; total: number }> {
     return this.qcRepo.findAllWithPagination(params)
   }

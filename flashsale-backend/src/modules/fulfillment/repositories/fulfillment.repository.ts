@@ -406,4 +406,13 @@ export class FulfillmentRepository {
     })
     return event?.carrierStatus ?? null
   }
+
+  async findMerchantProfileByUserId(
+    userId: string
+  ): Promise<{ id: string } | null> {
+    return this.prisma.merchantProfile.findUnique({
+      where: { userId },
+      select: { id: true }
+    })
+  }
 }

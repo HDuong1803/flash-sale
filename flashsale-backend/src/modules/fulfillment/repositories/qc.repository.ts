@@ -89,8 +89,13 @@ export class QcRepository {
     status?: QcStatus
     limit: number
     offset: number
+    /** Filter by merchant — chỉ trả về QC của các order thuộc merchant này */
+    merchantId?: string
   }): Promise<{ items: QcCheckpointWithInspector[]; total: number }> {
-    const where = params.status ? { status: params.status } : {}
+    const where = {
+      ...(params.status ? { status: params.status } : {}),
+      ...(params.merchantId ? { order: { merchantId: params.merchantId } } : {})
+    }
     const [items, total] = await this.prisma.$transaction([
       this.prisma.qcCheckpoint.findMany({
         where,
