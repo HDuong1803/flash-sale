@@ -8,13 +8,40 @@ import { use } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
-  ArrowLeft, AlertCircle, Package, Truck, CreditCard,
+  ArrowLeft, AlertCircle, Package, CreditCard,
   MapPin, User, CheckCircle2, Clock, XCircle,
 } from 'lucide-react'
 import { useOrder } from '@/hooks/queries/useOrder'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
+import { FulfillmentQcCard } from '@/components/merchant/FulfillmentQcCard'
 import { formatCurrency, formatDate } from '@/lib/utils'
+
+// ─── Parse địa chỉ JSON hoặc text thuần ─────────────────────────────────────
+
+function ShippingAddressDisplay({ raw }: { raw: string }) {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, string | number>
+    const name = parsed['to_name'] as string | undefined
+    const phone = parsed['to_phone'] as string | undefined
+    const address = parsed['to_address'] as string | undefined
+    const ward = parsed['to_ward_name'] as string | undefined
+    const district = parsed['to_district_name'] as string | undefined
+    const province = parsed['to_province_name'] as string | undefined
+    const parts = [address, ward, district, province].filter(Boolean)
+    return (
+      <div className="space-y-1.5">
+        {name && <p className="text-white text-sm font-medium">{name}</p>}
+        {phone && <p className="text-white/60 text-sm">{phone}</p>}
+        {parts.length > 0 && (
+          <p className="text-white/70 text-sm leading-relaxed">{parts.join(', ')}</p>
+        )}
+      </div>
+    )
+  } catch {
+    return <p className="text-white/70 text-sm leading-relaxed">{raw}</p>
+  }
+}
 
 // ─── Nhãn trạng thái thanh toán bằng tiếng Việt ─────────────────────────────
 
@@ -184,7 +211,7 @@ export default function MerchantOrderDetailPage({
 
           {/* Địa chỉ giao hàng */}
           <Section title="Địa chỉ giao hàng" icon={<MapPin size={15} className="text-orange-400" />}>
-            <p className="text-white/70 text-sm leading-relaxed">{order.shippingAddress}</p>
+            <ShippingAddressDisplay raw={order.shippingAddress} />
           </Section>
 
         </div>
@@ -232,19 +259,8 @@ export default function MerchantOrderDetailPage({
             )}
           </Section>
 
-          {/* Trạng thái giao vận */}
-          <Section title="Giao vận" icon={<Truck size={15} className="text-blue-400" />}>
-            <div className="flex items-center gap-2">
-              <StatusBadge status={order.status} />
-              <span className="text-white/50 text-xs">
-                {order.status === 'PENDING'   && '— Chờ xác nhận'}
-                {order.status === 'CONFIRMED' && '— Đang chuẩn bị hàng'}
-                {order.status === 'SHIPPING'  && '— Đang trên đường giao'}
-                {order.status === 'DONE'      && '— Đã giao thành công'}
-                {order.status === 'CANCELLED' && '— Đã hủy'}
-              </span>
-            </div>
-          </Section>
+          {/* QC + Fulfillment */}
+          <FulfillmentQcCard orderId={order.id} />
 
         </div>
       </div>

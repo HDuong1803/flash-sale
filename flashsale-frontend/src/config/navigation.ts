@@ -77,6 +77,14 @@ export const NAV_ITEMS: NavItem[] = [
     description: 'Đơn khách đặt vào shop bạn',
   },
   {
+    label: 'Kiểm định & GVN',
+    href: '/merchant/fulfillment',
+    iconName: 'ClipboardCheck',
+    permission: 'view_shop_orders',
+    section: 'shop_management',
+    description: 'QC và tạo vận đơn GHN',
+  },
+  {
     label: 'Doanh thu',
     href: '/merchant/revenue',
     iconName: 'BarChart2',

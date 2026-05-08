@@ -3,7 +3,7 @@
 import { use } from 'react'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, AlertCircle, CheckCircle, Truck, Star, ShoppingBag, MapPin } from 'lucide-react'
+import { ArrowLeft, AlertCircle, CheckCircle, Truck, Star, ShoppingBag, MapPin, Navigation } from 'lucide-react'
 import { useOrder } from '@/hooks/queries/useOrder'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { OrderRowSkeleton } from '@/components/shared/skeletons/OrderRowSkeleton'
@@ -18,6 +18,28 @@ const TIMELINE_STEPS: { status: OrderStatus; label: string; icon: typeof Shoppin
 ]
 
 const STATUS_ORDER: OrderStatus[] = ['PENDING', 'CONFIRMED', 'SHIPPING', 'DONE']
+
+function CustomerShippingAddress({ raw }: { raw: string }) {
+  try {
+    const p = JSON.parse(raw) as Record<string, string | number>
+    const name = p['to_name'] as string | undefined
+    const phone = p['to_phone'] as string | undefined
+    const address = p['to_address'] as string | undefined
+    const ward = p['to_ward_name'] as string | undefined
+    const district = p['to_district_name'] as string | undefined
+    const province = p['to_province_name'] as string | undefined
+    const parts = [address, ward, district, province].filter(Boolean)
+    return (
+      <div className="space-y-1">
+        {name && <p className="text-white text-sm font-medium">{name}</p>}
+        {phone && <p className="text-white/60 text-sm">{phone}</p>}
+        {parts.length > 0 && <p className="text-white/70 text-sm leading-relaxed">{parts.join(', ')}</p>}
+      </div>
+    )
+  } catch {
+    return <p className="text-white/70 text-sm">{raw}</p>
+  }
+}
 
 export default function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -134,10 +156,13 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          {/* Shipping */}
+          {/* Shipping address */}
           <div className="glass rounded-2xl p-6">
-            <h2 className="text-white font-semibold mb-3">Địa chỉ giao hàng</h2>
-            <p className="text-white/70 text-sm">{order.shippingAddress}</p>
+            <h2 className="text-white font-semibold mb-3 flex items-center gap-2">
+              <MapPin size={15} className="text-orange-400" />
+              Địa chỉ giao hàng
+            </h2>
+            <CustomerShippingAddress raw={order.shippingAddress} />
           </div>
         </div>
 
@@ -183,15 +208,15 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
             )}
           </div>
 
-          {/* Tracking link */}
-          {(order.status === 'SHIPPING' || order.status === 'DONE' || order.status === 'CONFIRMED') && (
+          {/* Tracking link — hiển thị từ sau khi confirmed */}
+          {order.status !== 'PENDING' && order.status !== 'CANCELLED' && (
             <button
               onClick={() => router.push(`/orders/${order.id}/tracking`)}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all"
-              style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 20px rgba(99,102,241,0.3)' }}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99]"
+              style={{ background: 'linear-gradient(135deg,#4f46e5,#7c3aed)', boxShadow: '0 4px 20px rgba(99,102,241,0.35)' }}
             >
-              <MapPin size={16} />
-              Theo dõi vận chuyển
+              <Navigation size={16} />
+              {order.status === 'DONE' ? 'Xem lịch sử vận chuyển' : 'Theo dõi đơn hàng'}
             </button>
           )}
 
