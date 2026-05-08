@@ -233,13 +233,28 @@ export class GHNService implements OnModuleInit {
   // ─── Private HTTP helpers ─────────────────────────────────────────────────────
 
   private async post<T>(path: string, data: unknown): Promise<T> {
+    this.logger.log(`GHN ${path} request: ${JSON.stringify(data)}`)
     try {
       const response = await this.axiosInstance.post<GHNApiResponse<T>>(
         path,
         data
       )
+      this.logger.log(`GHN ${path} response: ${JSON.stringify(response.data)}`)
       return this.unwrap(response.data, `POST ${path}`)
     } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        'response' in err &&
+        (err as { response?: { data?: unknown } }).response
+      ) {
+        this.logger.error(
+          `GHN ${path} raw response: ${JSON.stringify(
+            (err as { response: { data: unknown } }).response.data,
+            null,
+            2
+          )}`
+        )
+      }
       throw this.wrapError(err, `POST ${path}`)
     }
   }
