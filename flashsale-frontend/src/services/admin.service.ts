@@ -104,7 +104,15 @@ class AdminService {
     )
   }
   
-  getUserActionLogs(params?: { from?: string; to?: string }): Promise<UserActionLog[]> {
+  getUserActionLogs(params: {
+    page: number
+    limit: number
+    action?: string
+    userId?: string
+    ip?: string
+    from?: string
+    to?: string
+  }): Promise<{ items: UserActionLog[]; total: number }> {
     return withRetry(() => apiClient.get('/admin/user-action-logs', { params }))
   }
   

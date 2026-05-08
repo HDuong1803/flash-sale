@@ -693,24 +693,38 @@ export class AdminRepository {
 
   // ─── User Action Logs ────────────────────────────────────────────────
 
-  async findUserActionLogs(params?: {
+  async findUserActionLogs(params: {
+    page: number
+    limit: number
+    action?: string
+    userId?: string
+    ip?: string
     from?: Date
     to?: Date
-    limit?: number
   }) {
-    return this.prisma.userActionLog.findMany({
-      where:
-        params?.from || params?.to
-          ? {
-              createdAt: {
-                ...(params.from ? { gte: params.from } : {}),
-                ...(params.to ? { lte: params.to } : {})
-              }
+    const where = {
+      ...(params.action ? { action: params.action } : {}),
+      ...(params.userId ? { userId: params.userId } : {}),
+      ...(params.ip ? { ip: { contains: params.ip } } : {}),
+      ...(params.from || params.to
+        ? {
+            createdAt: {
+              ...(params.from ? { gte: params.from } : {}),
+              ...(params.to ? { lte: params.to } : {})
             }
-          : undefined,
-      orderBy: { createdAt: 'desc' },
-      take: params?.limit ?? 200
-    })
+          }
+        : {})
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.userActionLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (params.page - 1) * params.limit,
+        take: params.limit
+      }),
+      this.prisma.userActionLog.count({ where })
+    ])
+    return { items, total }
   }
 
   // ─── Outbox Events ───────────────────────────────────────────────────

@@ -519,10 +519,23 @@ export class AdminService {
 
   // ─── User Action Logs ────────────────────────────────────────────────
 
-  async getUserActionLogs(params?: { from?: string; to?: string }) {
+  async getUserActionLogs(params: {
+    page: number
+    limit: number
+    action?: string
+    userId?: string
+    ip?: string
+    from?: string
+    to?: string
+  }) {
     return this.adminRepository.findUserActionLogs({
-      from: params?.from ? new Date(params.from) : undefined,
-      to: params?.to ? new Date(params.to) : undefined
+      page: params.page,
+      limit: params.limit,
+      action: params.action,
+      userId: params.userId,
+      ip: params.ip,
+      from: params.from ? new Date(params.from) : undefined,
+      to: params.to ? new Date(params.to) : undefined
     })
   }
 

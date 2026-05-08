@@ -684,10 +684,23 @@ export class AdminController {
   @Get('user-action-logs')
   @HttpCode(HttpStatus.OK)
   async getUserActionLogs(
+    @Query('page') page = '1',
+    @Query('limit') limit = '50',
+    @Query('action') action?: string,
+    @Query('userId') userId?: string,
+    @Query('ip') ip?: string,
     @Query('from') from?: string,
     @Query('to') to?: string
-  ): Promise<unknown[]> {
-    return this.adminService.getUserActionLogs({ from, to })
+  ): Promise<unknown> {
+    return this.adminService.getUserActionLogs({
+      page: Math.max(1, parseInt(page, 10) || 1),
+      limit: Math.min(100, parseInt(limit, 10) || 50),
+      action,
+      userId,
+      ip,
+      from,
+      to
+    })
   }
 
   // ─── Outbox Events (admin) ───────────────────────────────────────────
