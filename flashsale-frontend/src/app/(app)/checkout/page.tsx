@@ -11,19 +11,23 @@ import { useCheckout } from '@/hooks/mutations/useCheckout'
 import { useAuthContext } from '@/contexts/auth-context'
 import { CountdownTimer } from '@/components/shared/CountdownTimer'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { AddressPicker } from '@/components/shared/AddressPicker'
 import { formatCurrency } from '@/lib/utils'
 import type { CheckoutDto } from '@/services/checkout.service'
 import { useCheckoutPaymentMethods } from '@/hooks/queries/useCheckoutPaymentMethods'
 import type { PaymentMethod } from '@/types'
 import { useReservationDetail } from '@/hooks/queries/useReservationDetail'
 
-const PROVINCES = ['Hà Nội', 'TP. Hồ Chí Minh', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ', 'An Giang', 'Bình Dương', 'Đồng Nai', 'Khánh Hòa', 'Lâm Đồng']
-
 const schema = z.object({
   fullName: z.string().min(1, 'Vui lòng nhập họ tên'),
   phone: z.string().regex(/^(0[3-9]\d{8})$/, 'Số điện thoại không hợp lệ'),
-  address: z.string().min(5, 'Vui lòng nhập địa chỉ'),
-  city: z.string().min(1, 'Vui lòng chọn tỉnh/thành phố'),
+  streetAddress: z.string().min(3, 'Vui lòng nhập số nhà và tên đường'),
+  provinceId: z.number().positive('Vui lòng chọn tỉnh/thành phố'),
+  provinceName: z.string(),
+  districtId: z.number().positive('Vui lòng chọn quận/huyện'),
+  districtName: z.string(),
+  wardCode: z.string().min(1, 'Vui lòng chọn phường/xã'),
+  wardName: z.string(),
 })
 
 type CheckoutForm = z.infer<typeof schema>
@@ -44,6 +48,21 @@ function CheckoutContent() {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null)
   const [expiredDialog, setExpiredDialog] = useState(false)
 
+  // Address picker state (outside react-hook-form for cascade selects)
+  const [provinceId, setProvinceId] = useState<number | null>(null)
+  const [provinceName, setProvinceName] = useState('')
+  const [districtId, setDistrictId] = useState<number | null>(null)
+  const [districtName, setDistrictName] = useState('')
+  const [wardCode, setWardCode] = useState<string | null>(null)
+  const [wardName, setWardName] = useState('')
+  const [streetAddress, setStreetAddress] = useState('')
+  const [addressErrors, setAddressErrors] = useState<{
+    province?: string
+    district?: string
+    ward?: string
+    streetAddress?: string
+  }>({})
+
   useEffect(() => {
     if (!reservationId) router.replace('/campaigns')
   }, [reservationId, router])
@@ -60,12 +79,36 @@ function CheckoutContent() {
     defaultValues: { fullName: user?.fullName ?? '' },
   })
 
+  const validateAddress = (): boolean => {
+    const errs: typeof addressErrors = {}
+    if (!provinceId) errs.province = 'Vui lòng chọn tỉnh/thành phố'
+    if (!districtId) errs.district = 'Vui lòng chọn quận/huyện'
+    if (!wardCode) errs.ward = 'Vui lòng chọn phường/xã'
+    if (!streetAddress.trim()) errs.streetAddress = 'Vui lòng nhập số nhà và tên đường'
+    setAddressErrors(errs)
+    return Object.keys(errs).length === 0
+  }
+
   const onSubmit = async (formData: CheckoutForm) => {
+    if (!validateAddress()) return
     if (!reservationId || !effectiveSelectedMethod || reservation?.status !== 'HOLDING') return
+
+    const shippingAddress = JSON.stringify({
+      to_name: formData.fullName,
+      to_phone: formData.phone,
+      to_address: streetAddress.trim(),
+      to_ward_code: wardCode!,
+      to_ward_name: wardName,
+      to_district_id: districtId!,
+      to_district_name: districtName,
+      to_province_id: provinceId!,
+      to_province_name: provinceName,
+    })
+
     try {
       const { paymentUrl } = await checkout({
         reservationId,
-        shippingAddress: `${formData.address}, ${formData.city}`,
+        shippingAddress,
         paymentMethod: effectiveSelectedMethod,
         clientOrigin: window.location.origin,
       } as CheckoutDto)
@@ -118,24 +161,46 @@ function CheckoutContent() {
             <div className="glass rounded-2xl p-6 space-y-4">
               <h2 className="text-white font-semibold">Thông tin giao hàng</h2>
               <div className="space-y-3">
+                {/* Name */}
                 <div>
-                  <input {...register('fullName')} placeholder="Họ và tên" className="input-glass" />
+                  <input {...register('fullName')} placeholder="Họ và tên" className="input-glass w-full" />
                   {errors.fullName && <p className="text-red-400 text-xs mt-1">{errors.fullName.message}</p>}
                 </div>
+                {/* Phone */}
                 <div>
-                  <input {...register('phone')} placeholder="Số điện thoại" className="input-glass" />
+                  <input {...register('phone')} placeholder="Số điện thoại" className="input-glass w-full" />
                   {errors.phone && <p className="text-red-400 text-xs mt-1">{errors.phone.message}</p>}
                 </div>
-                <div>
-                  <input {...register('address')} placeholder="Địa chỉ" className="input-glass" />
-                  {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address.message}</p>}
-                </div>
-                <div>
-                  <select {...register('city')} defaultValue="" className="input-glass">
-                    <option value="" disabled>Chọn tỉnh/thành phố</option>
-                    {PROVINCES.map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  {errors.city && <p className="text-red-400 text-xs mt-1">{errors.city.message}</p>}
+
+                {/* Address picker */}
+                <div className="pt-1">
+                  <p className="text-white/50 text-xs mb-2">Địa chỉ giao hàng</p>
+                  <AddressPicker
+                    provinceId={provinceId}
+                    districtId={districtId}
+                    wardCode={wardCode}
+                    streetAddress={streetAddress}
+                    onProvinceChange={(id, name) => {
+                      setProvinceId(id)
+                      setProvinceName(name)
+                      setAddressErrors(prev => ({ ...prev, province: undefined }))
+                    }}
+                    onDistrictChange={(id, name) => {
+                      setDistrictId(id)
+                      setDistrictName(name)
+                      setAddressErrors(prev => ({ ...prev, district: undefined }))
+                    }}
+                    onWardChange={(code, name) => {
+                      setWardCode(code)
+                      setWardName(name)
+                      setAddressErrors(prev => ({ ...prev, ward: undefined }))
+                    }}
+                    onStreetAddressChange={val => {
+                      setStreetAddress(val)
+                      setAddressErrors(prev => ({ ...prev, streetAddress: undefined }))
+                    }}
+                    errors={addressErrors}
+                  />
                 </div>
               </div>
             </div>

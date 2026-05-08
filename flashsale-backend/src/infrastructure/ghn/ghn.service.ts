@@ -1,10 +1,8 @@
 import * as crypto from 'crypto'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { HttpService } from '@nestjs/axios'
-import { AxiosInstance } from 'axios'
+import { Ghn } from 'giaohangnhanh'
 import {
-  GHNApiResponse,
   GHNCancelOrderResult,
   GHNCalculateFeeInput,
   GHNCreateOrderInput,
@@ -16,16 +14,11 @@ import {
   GHNWebhookPayload
 } from './ghn.types'
 
-/** Sandbox base URL — đăng ký tại https://sso.ghn.vn/ */
-const GHN_SANDBOX_URL = 'https://dev-online-gateway.ghn.vn/shiip/public-api'
-/** Production base URL */
-const GHN_PRODUCTION_URL = 'https://online-gateway.ghn.vn/shiip/public-api'
-
-/** Timeout cho API calls — GHN thường < 3s */
-const REQUEST_TIMEOUT_MS = 15_000
-
 /**
  * GHNService — thin infrastructure wrapper around GHN Shipping API.
+ *
+ * Sử dụng giaohangnhanh npm package để giao tiếp với GHN API.
+ * Sandbox URL: https://dev-online-gateway.ghn.vn
  *
  * Responsibilities:
  * - createOrder: tạo đơn vận chuyển GHN
@@ -35,32 +28,18 @@ const REQUEST_TIMEOUT_MS = 15_000
  * - calculateFee: tính phí vận chuyển
  * - verifyWebhookToken: verify token từ GHN webhook
  * - parseWebhookPayload: parse raw webhook body
- *
- * Không chứa business logic. FulfillmentService quyết định WHEN và HOW to use.
- *
- * GHN Sandbox:
- * 1. Đăng ký tại https://sso.ghn.vn/
- * 2. Tạo shop để lấy ShopID
- * 3. Lấy API key từ settings
- * 4. Sandbox URL: https://dev-online-gateway.ghn.vn/shiip/public-api
  */
 @Injectable()
 export class GHNService implements OnModuleInit {
   private readonly logger = new Logger(GHNService.name)
-  private axiosInstance!: AxiosInstance
-  private apiKey!: string
-  private shopId!: number
+  private ghn!: Ghn
   private webhookToken!: string
-  private sandboxMode!: boolean
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly httpService: HttpService
-  ) {}
+  constructor(private readonly configService: ConfigService) {}
 
   onModuleInit(): void {
-    this.apiKey = this.configService.get<string>('ghn.GHN_API_KEY', '')
-    this.shopId = parseInt(
+    const apiKey = this.configService.get<string>('ghn.GHN_API_KEY', '')
+    const shopId = parseInt(
       this.configService.get<string>('ghn.GHN_SHOP_ID', '0'),
       10
     )
@@ -68,141 +47,179 @@ export class GHNService implements OnModuleInit {
       'ghn.GHN_WEBHOOK_TOKEN',
       ''
     )
-    this.sandboxMode =
+    const isSandbox =
       this.configService.get<string>('ghn.GHN_SANDBOX', 'true') === 'true'
 
-    if (!this.apiKey) {
+    if (!apiKey) {
       this.logger.warn(
-        'GHN_API_KEY không được cấu hình — GHN API calls sẽ thất bại. ' +
+        'GHN_API_KEY chưa cấu hình — API calls sẽ thất bại. ' +
           'Đăng ký tại https://sso.ghn.vn/ để lấy sandbox key.'
       )
     }
-    if (!this.shopId) {
+    if (!shopId) {
       this.logger.warn(
-        'GHN_SHOP_ID không được cấu hình — tạo shop tại https://sso.ghn.vn/'
+        'GHN_SHOP_ID chưa cấu hình — tạo shop tại https://sso.ghn.vn/'
       )
     }
 
-    const baseUrl = this.sandboxMode ? GHN_SANDBOX_URL : GHN_PRODUCTION_URL
+    this.ghn = new Ghn({
+      token: apiKey,
+      shopId,
+      host: isSandbox
+        ? 'https://dev-online-gateway.ghn.vn'
+        : 'https://online-gateway.ghn.vn',
+      testMode: isSandbox
+    })
 
-    this.axiosInstance = this.httpService.axiosRef
-    this.axiosInstance.defaults.baseURL = baseUrl
-    this.axiosInstance.defaults.timeout = REQUEST_TIMEOUT_MS
-    this.axiosInstance.defaults.headers.common['Token'] = this.apiKey
-    this.axiosInstance.defaults.headers.common['ShopId'] = this.shopId
-    this.axiosInstance.defaults.headers.common['Content-Type'] =
-      'application/json'
-
-    const mode = this.sandboxMode ? 'SANDBOX' : 'PRODUCTION'
-    this.logger.log(`GHN initialized — mode: ${mode}, shopId: ${this.shopId}`)
+    this.logger.log(
+      `GHN initialized — mode: ${
+        isSandbox ? 'SANDBOX' : 'PRODUCTION'
+      }, shopId: ${shopId}`
+    )
   }
 
   // ─── Order Management ─────────────────────────────────────────────────────────
 
-  /**
-   * createOrder — Tạo đơn vận chuyển mới trong GHN.
-   *
-   * Sau khi tạo thành công:
-   * - GHN trả về order_code (mã vận đơn / tracking code)
-   * - Đơn sẽ có status "ready_to_pick" (chờ lấy hàng)
-   * - GHN sẽ gửi webhook khi trạng thái thay đổi
-   *
-   * @param input - Thông tin đơn hàng cần tạo
-   * @returns GHNCreatedOrder với order_code là tracking number
-   */
   async createOrder(input: GHNCreateOrderInput): Promise<GHNCreatedOrder> {
-    return this.post<GHNCreatedOrder>('/v2/shipping-order/create', input)
-  }
+    try {
+      const result = await this.ghn.order.createOrder({
+        to_name: input.to_name,
+        to_phone: input.to_phone,
+        to_address: input.to_address,
+        to_ward_code: input.to_ward_code,
+        to_district_id: input.to_district_id,
+        from_name: '',
+        from_phone: '',
+        from_address: '',
+        from_ward_name: '',
+        from_district_name: '',
+        from_province_name: '',
+        weight: input.weight,
+        length: input.length ?? 20,
+        width: input.width ?? 20,
+        height: input.height ?? 10,
+        service_type_id: input.service_type_id,
+        payment_type_id: input.payment_type_id,
+        required_note: input.required_note,
+        client_order_code: input.client_order_code ?? null,
+        cod_amount: input.cod_amount ?? 0,
+        insurance_value: input.insurance_value,
+        content: input.content,
+        note: input.note,
+        return_phone: input.return_phone,
+        return_address: input.return_address,
+        return_district_id: input.return_district_id ?? null,
+        return_ward_code: input.return_ward_code,
+        items: input.items.map(item => ({
+          name: item.name,
+          code: item.code,
+          quantity: item.quantity,
+          price: item.price,
+          weight: item.weight,
+          length: item.length,
+          width: item.width,
+          height: item.height
+        }))
+      })
 
-  /**
-   * cancelOrder — Huỷ đơn vận chuyển GHN.
-   *
-   * Chỉ có thể huỷ khi đơn ở trạng thái chưa lấy hàng.
-   * @param orderCode - Mã vận đơn GHN (order_code)
-   */
-  async cancelOrder(orderCode: string): Promise<GHNCancelOrderResult> {
-    const response = await this.post<GHNCancelOrderResult[]>(
-      '/v2/switch-status/cancel',
-      {
-        order_codes: [orderCode]
+      return {
+        order_code: result.order_code,
+        sort_code: result.sort_code,
+        expected_delivery_time:
+          result.expected_delivery_time instanceof Date
+            ? result.expected_delivery_time.toISOString()
+            : String(result.expected_delivery_time),
+        fee: {
+          main_service: result.fee.main_service,
+          insurance: result.fee.insurance,
+          station_pu: result.fee.station_pu,
+          station_do: result.fee.station_do,
+          return: result.fee.return,
+          r2s: result.fee.r2s,
+          coupon: result.fee.coupon
+        },
+        total_fee: String(result.total_fee),
+        trans_type: result.trans_type,
+        district_encode: result.district_encode ?? '',
+        ward_encode: result.ward_encode ?? ''
       }
-    )
-    const result = Array.isArray(response) ? response[0] : null
-    if (!result) {
-      throw new GHNError(
-        `GHN cancel order không trả về kết quả cho ${orderCode}`,
-        'NO_RESULT',
-        200
-      )
+    } catch (err: unknown) {
+      throw this.wrapError(err, 'createOrder')
     }
-    return result
   }
 
-  /**
-   * getOrderDetail — Lấy thông tin chi tiết đơn hàng GHN.
-   *
-   * @param orderCode - Mã vận đơn GHN
-   */
+  async cancelOrder(orderCode: string): Promise<GHNCancelOrderResult> {
+    try {
+      await this.ghn.order.cancelOrder({ orderCodes: [orderCode] })
+      return { order_code: orderCode, result: true, message: 'Cancelled' }
+    } catch (err: unknown) {
+      throw this.wrapError(err, 'cancelOrder')
+    }
+  }
+
   async getOrderDetail(orderCode: string): Promise<GHNOrderDetail> {
-    return this.post<GHNOrderDetail>('/v2/shipping-order/detail', {
-      order_code: orderCode
-    })
+    try {
+      const result = await this.ghn.order.orderInfo({ order_code: orderCode })
+      return result as unknown as GHNOrderDetail
+    } catch (err: unknown) {
+      throw this.wrapError(err, 'getOrderDetail')
+    }
   }
 
   // ─── Service & Fee ────────────────────────────────────────────────────────────
 
-  /**
-   * getAvailableServices — Lấy danh sách dịch vụ vận chuyển khả dụng.
-   *
-   * @param fromDistrictId - ID quận kho gửi
-   * @param toDistrictId - ID quận người nhận
-   */
   async getAvailableServices(
     fromDistrictId: number,
     toDistrictId: number
   ): Promise<GHNServiceItem[]> {
-    return this.post<GHNServiceItem[]>(
-      '/v2/shipping-order/available-services',
-      {
-        shop_id: this.shopId,
-        from_district: fromDistrictId,
-        to_district: toDistrictId
-      }
-    )
+    try {
+      const results = await this.ghn.calculateFee.getServiceList(
+        fromDistrictId,
+        toDistrictId
+      )
+      return results.map(s => ({
+        service_id: s.service_id,
+        short_name: s.short_name,
+        service_type_id: s.service_type_id
+      }))
+    } catch (err: unknown) {
+      throw this.wrapError(err, 'getAvailableServices')
+    }
   }
 
-  /**
-   * calculateFee — Tính phí vận chuyển ước tính.
-   *
-   * @param input - Thông tin kiện hàng và địa chỉ
-   */
   async calculateFee(input: GHNCalculateFeeInput): Promise<GHNFeeResult> {
-    return this.post<GHNFeeResult>('/v2/shipping-order/fee', input)
+    try {
+      const result = await this.ghn.calculateFee.calculateShippingFee({
+        service_id: input.service_id,
+        service_type_id: input.service_type_id,
+        from_district_id: input.from_district_id,
+        to_district_id: input.to_district_id,
+        to_ward_code: input.to_ward_code,
+        weight: input.weight,
+        length: input.length,
+        width: input.width,
+        height: input.height,
+        insurance_value: input.insurance_value,
+        coupon: input.coupon
+      })
+      return result as unknown as GHNFeeResult
+    } catch (err: unknown) {
+      throw this.wrapError(err, 'calculateFee')
+    }
   }
 
   // ─── Webhook Security ─────────────────────────────────────────────────────────
 
-  /**
-   * verifyWebhookToken — Verify token đơn giản từ GHN webhook.
-   *
-   * GHN không dùng HMAC signature. Thay vào đó, webhook được cấu hình
-   * với một token do merchant tự đặt — GHN gửi token này trong body payload.
-   *
-   * Dùng so sánh hằng thời gian (timingSafeEqual) để tránh timing attack.
-   *
-   * @param receivedToken - Token nhận được từ header X-GHN-Token hoặc query param
-   */
   verifyWebhookToken(receivedToken: string): boolean {
     if (!this.webhookToken) {
       this.logger.warn(
-        'GHN_WEBHOOK_TOKEN chưa được cấu hình — bỏ qua xác thực webhook'
+        'GHN_WEBHOOK_TOKEN chưa cấu hình — bỏ qua xác thực webhook'
       )
-      return true // Cho phép trong dev; production phải fail-closed
+      return true
     }
 
     if (!receivedToken) return false
 
-    // Sử dụng timingSafeEqual để tránh timing attack
     const expected = new Uint8Array(Buffer.from(this.webhookToken, 'utf-8'))
     const received = new Uint8Array(Buffer.from(receivedToken, 'utf-8'))
 
@@ -210,10 +227,6 @@ export class GHNService implements OnModuleInit {
     return crypto.timingSafeEqual(expected, received)
   }
 
-  /**
-   * parseWebhookPayload — Parse raw body của GHN webhook.
-   * Throws nếu không phải valid JSON hoặc thiếu OrderCode.
-   */
   parseWebhookPayload(rawBody: Buffer): GHNWebhookPayload {
     let parsed: unknown
     try {
@@ -241,59 +254,13 @@ export class GHNService implements OnModuleInit {
     return parsed as GHNWebhookPayload
   }
 
-  // ─── Private HTTP helpers ─────────────────────────────────────────────────────
-
-  private async post<T>(path: string, data: unknown): Promise<T> {
-    try {
-      const response = await this.axiosInstance.post<GHNApiResponse<T>>(
-        path,
-        data
-      )
-      return this.unwrap(response.data, `POST ${path}`)
-    } catch (err: unknown) {
-      throw this.wrapError(err, `POST ${path}`)
-    }
-  }
-
-  private unwrap<T>(response: GHNApiResponse<T>, context: string): T {
-    if (response.code !== 200) {
-      throw new GHNError(
-        response.message ?? `GHN error ${response.code}`,
-        response.code_message ?? `GHN_${response.code}`,
-        response.code,
-        response
-      )
-    }
-    if (response.data === null) {
-      throw new GHNError(`GHN ${context} returned null data`, 'NULL_DATA', 200)
-    }
-    return response.data
-  }
+  // ─── Private helpers ──────────────────────────────────────────────────────────
 
   private wrapError(err: unknown, context: string): GHNError {
     if (err instanceof GHNError) return err
 
-    const axiosErr = err as {
-      response?: {
-        status: number
-        data?: GHNApiResponse<unknown>
-      }
-      message?: string
-    }
-
-    if (axiosErr.response) {
-      const status = axiosErr.response.status
-      const body = axiosErr.response.data
-      const message = body?.message ?? `GHN API error (HTTP ${status})`
-      const code = body?.code_message ?? `HTTP_${status}`
-      this.logger.error(
-        `GHN ${context} thất bại: [${code}] ${message} (HTTP ${status})`
-      )
-      return new GHNError(message, code, status, body)
-    }
-
-    const message = axiosErr.message ?? 'GHN network error'
-    this.logger.error(`GHN ${context} lỗi mạng: ${message}`)
-    return new GHNError(message, 'NETWORK_ERROR', 0)
+    const message = err instanceof Error ? err.message : String(err)
+    this.logger.error(`GHN ${context} thất bại: ${message}`)
+    return new GHNError(message, 'GHN_ERROR', 0)
   }
 }
