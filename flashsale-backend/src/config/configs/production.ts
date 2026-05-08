@@ -151,10 +151,16 @@ export const config = {
   ghn: {
     GHN_API_KEY: process.env.GHN_API_KEY,
     GHN_SHOP_ID: process.env.GHN_SHOP_ID,
-    GHN_SANDBOX: process.env.GHN_SANDBOX ?? 'false', // production: sandbox off
+    GHN_SANDBOX: process.env.GHN_SANDBOX,
     GHN_WEBHOOK_TOKEN: process.env.GHN_WEBHOOK_TOKEN,
     GHN_FROM_DISTRICT_ID: process.env.GHN_FROM_DISTRICT_ID,
-    GHN_FROM_WARD_CODE: process.env.GHN_FROM_WARD_CODE
+    GHN_FROM_WARD_CODE: process.env.GHN_FROM_WARD_CODE,
+    GHN_FROM_NAME: process.env.GHN_FROM_NAME,
+    GHN_FROM_PHONE: process.env.GHN_FROM_PHONE,
+    GHN_FROM_ADDRESS: process.env.GHN_FROM_ADDRESS,
+    GHN_FROM_WARD_NAME: process.env.GHN_FROM_WARD_NAME,
+    GHN_FROM_DISTRICT_NAME: process.env.GHN_FROM_DISTRICT_NAME,
+    GHN_FROM_PROVINCE_NAME: process.env.GHN_FROM_PROVINCE_NAME
   },
 
   apiagent: {
