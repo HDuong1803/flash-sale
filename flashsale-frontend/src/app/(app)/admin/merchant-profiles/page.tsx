@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Building2, Search, Download, Eye, CheckCircle, XCircle, Clock, AlertCircle, RefreshCcw } from 'lucide-react'
 import { GlassCard } from '@/components/shared/GlassCard'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { AutoRefreshTimer } from '@/components/shared/AutoRefreshTimer'
+import { PaginationBar } from '@/components/shared/PaginationBar'
 import { useAdminMerchantProfiles } from '@/hooks/queries/useAdminMerchantProfiles'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -18,11 +19,14 @@ import type { AdminMerchantProfile, KycStatus } from '@/types'
 // Force dynamic rendering to prevent auth-related build errors
 export const dynamic = 'force-dynamic'
 
+const PAGE_SIZE = 20
+
 export default function AdminMerchantProfilesPage() {
   const searchParams = useSearchParams()
   const [statusFilter, setStatusFilter] = useState<KycStatus | 'ALL'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedProfile, setSelectedProfile] = useState<AdminMerchantProfile | null>(null)
+  const [page, setPage] = useState(0)
 
   useEffect(() => {
     const initialSearch = searchParams.get('search')
@@ -35,7 +39,6 @@ export default function AdminMerchantProfilesPage() {
     statusFilter === 'ALL' ? undefined : statusFilter
   )
 
-  // Filter by search query
   const filteredProfiles = useMemo(() => {
     if (!searchQuery.trim()) return profiles
     const query = searchQuery.toLowerCase()
@@ -46,6 +49,21 @@ export default function AdminMerchantProfilesPage() {
       p.user.fullName.toLowerCase().includes(query)
     )
   }, [profiles, searchQuery])
+
+  const pagedProfiles = useMemo(() => {
+    const start = page * PAGE_SIZE
+    return filteredProfiles.slice(start, start + PAGE_SIZE)
+  }, [filteredProfiles, page])
+
+  const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q)
+    setPage(0)
+  }, [])
+
+  const handleStatusFilter = useCallback((v: KycStatus | 'ALL') => {
+    setStatusFilter(v)
+    setPage(0)
+  }, [])
 
   // Stats
   const stats = useMemo(() => {
@@ -141,11 +159,11 @@ export default function AdminMerchantProfilesPage() {
             <Input
               placeholder="Tìm theo tên, mã số thuế, email..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearch(e.target.value)}
               className="input-glass pl-10"
             />
           </div>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as KycStatus | 'ALL')}>
+          <Select value={statusFilter} onValueChange={(v) => handleStatusFilter(v as KycStatus | 'ALL')}>
             <SelectTrigger className="w-full sm:w-48 glass border-white/10">
               <SelectValue />
             </SelectTrigger>
@@ -199,7 +217,7 @@ export default function AdminMerchantProfilesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredProfiles.map((profile) => (
+                {pagedProfiles.map((profile) => (
                   <tr key={profile.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
@@ -243,6 +261,14 @@ export default function AdminMerchantProfilesPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="p-4 border-t border-white/5">
+            <PaginationBar
+              total={filteredProfiles.length}
+              page={page}
+              pageSize={PAGE_SIZE}
+              onPage={setPage}
+            />
           </div>
         </GlassCard>
       )}

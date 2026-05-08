@@ -12,6 +12,7 @@ import type {
   FraudStats, FraudEvent, IpBlacklistEntry,
   CampaignOverview, FunnelStep, HeatmapHour, AnalyticsSnapshot, StockoutPrediction,
   FulfillmentOrder, FulfillmentRule, Carrier, QcCheckpoint,
+  AdminOrder, AdminProduct,
 } from '@/types'
 
 class AdminService {
@@ -68,6 +69,12 @@ class AdminService {
   }
   getStats(): Promise<AdminStats> {
     return withRetry(() => apiClient.get('/admin/stats'))
+  }
+  getOrders(params: { page: number; limit: number; status?: string; search?: string }): Promise<{ items: AdminOrder[]; total: number }> {
+    return withRetry(() => apiClient.get('/admin/orders', { params }))
+  }
+  getProducts(params: { page: number; limit: number; search?: string; merchantId?: string }): Promise<{ items: AdminProduct[]; total: number }> {
+    return withRetry(() => apiClient.get('/admin/products', { params }))
   }
   getOrdersByTime(start: Date, end: Date): Promise<OrdersByHour[]> {
     return withRetry(() => apiClient.get(`/admin/stats/orders-by-time?start=${start.toISOString()}&end=${end.toISOString()}`))

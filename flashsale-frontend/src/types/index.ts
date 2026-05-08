@@ -903,3 +903,24 @@ export interface Carrier {
   sandboxMode: boolean
   active: boolean
 }
+
+export interface AdminOrder {
+  id: string
+  status: OrderStatus
+  totalAmount: number
+  shippingAddress: string
+  createdAt: string
+  customer: { id: string; fullName: string; email: string }
+  merchant: { id: string; businessName: string }
+  _count: { items: number }
+}
+
+export interface AdminProduct {
+  id: string
+  name: string
+  originalPrice: number
+  category?: string | null
+  status: ProductStatus
+  createdAt: string
+  merchant: { id: string; businessName: string }
+}

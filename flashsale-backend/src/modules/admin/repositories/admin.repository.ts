@@ -400,6 +400,118 @@ export class AdminRepository {
     })
   }
 
+  // ─── Orders ──────────────────────────────────────────────────────────
+
+  async findOrders(filters: {
+    status?: string
+    search?: string
+    page: number
+    limit: number
+  }) {
+    const where = {
+      ...(filters.status ? { status: filters.status as never } : {}),
+      ...(filters.search
+        ? {
+            OR: [
+              {
+                id: { contains: filters.search, mode: 'insensitive' as const }
+              },
+              {
+                customer: {
+                  fullName: {
+                    contains: filters.search,
+                    mode: 'insensitive' as const
+                  }
+                }
+              },
+              {
+                customer: {
+                  email: {
+                    contains: filters.search,
+                    mode: 'insensitive' as const
+                  }
+                }
+              }
+            ]
+          }
+        : {})
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.order.findMany({
+        where,
+        select: {
+          id: true,
+          status: true,
+          totalAmount: true,
+          shippingAddress: true,
+          createdAt: true,
+          customer: { select: { id: true, fullName: true, email: true } },
+          merchant: { select: { id: true, businessName: true } },
+          _count: { select: { items: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (filters.page - 1) * filters.limit,
+        take: filters.limit
+      }),
+      this.prisma.order.count({ where })
+    ])
+    return { items, total }
+  }
+
+  // ─── Products ────────────────────────────────────────────────────────
+
+  async findProducts(filters: {
+    search?: string
+    merchantId?: string
+    page: number
+    limit: number
+  }) {
+    const where = {
+      ...(filters.merchantId ? { merchantId: filters.merchantId } : {}),
+      ...(filters.search
+        ? {
+            OR: [
+              {
+                name: { contains: filters.search, mode: 'insensitive' as const }
+              },
+              {
+                merchant: {
+                  businessName: {
+                    contains: filters.search,
+                    mode: 'insensitive' as const
+                  }
+                }
+              }
+            ]
+          }
+        : {})
+    }
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.product.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          originalPrice: true,
+          category: true,
+          status: true,
+          createdAt: true,
+          images: {
+            select: { id: true, isPrimary: true },
+            take: 1,
+            orderBy: { isPrimary: 'desc' }
+          },
+          merchant: { select: { id: true, businessName: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (filters.page - 1) * filters.limit,
+        take: filters.limit
+      }),
+      this.prisma.product.count({ where })
+    ])
+    return { items, total }
+  }
+
   // ─── Statistics ─────────────────────────────────────────────────────
 
   async getStats() {

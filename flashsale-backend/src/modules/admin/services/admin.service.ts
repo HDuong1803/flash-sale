@@ -374,6 +374,28 @@ export class AdminService {
     }
   }
 
+  // ─── Orders ─────────────────────────────────────────────────────────
+
+  async getOrders(filters: {
+    page: number
+    limit: number
+    status?: string
+    search?: string
+  }) {
+    return this.adminRepository.findOrders(filters)
+  }
+
+  // ─── Products ────────────────────────────────────────────────────────
+
+  async getProducts(filters: {
+    page: number
+    limit: number
+    search?: string
+    merchantId?: string
+  }) {
+    return this.adminRepository.findProducts(filters)
+  }
+
   // ─── Statistics ─────────────────────────────────────────────────────
 
   async getStats() {

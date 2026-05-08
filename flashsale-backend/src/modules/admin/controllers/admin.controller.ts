@@ -363,6 +363,46 @@ export class AdminController {
     return this.adminService.activateUser(id)
   }
 
+  // ─── Orders ─────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Danh sách đơn hàng (ADMIN, có phân trang)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách đơn hàng' })
+  @Get('orders')
+  @HttpCode(HttpStatus.OK)
+  async getOrders(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('status') status?: string,
+    @Query('search') search?: string
+  ): Promise<unknown> {
+    return this.adminService.getOrders({
+      page: Math.max(1, parseInt(page, 10) || 1),
+      limit: Math.min(50, parseInt(limit, 10) || 20),
+      status,
+      search
+    })
+  }
+
+  // ─── Products ────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Danh sách sản phẩm (ADMIN, có phân trang)' })
+  @ApiResponse({ status: HttpStatus.OK, description: 'Danh sách sản phẩm' })
+  @Get('products')
+  @HttpCode(HttpStatus.OK)
+  async getProducts(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('search') search?: string,
+    @Query('merchantId') merchantId?: string
+  ): Promise<unknown> {
+    return this.adminService.getProducts({
+      page: Math.max(1, parseInt(page, 10) || 1),
+      limit: Math.min(50, parseInt(limit, 10) || 20),
+      search,
+      merchantId
+    })
+  }
+
   // ─── Statistics ─────────────────────────────────────────────────────
 
   @ApiOperation({ summary: 'Thống kê tổng quan hệ thống' })
