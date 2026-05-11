@@ -4,10 +4,9 @@
  * Admin Benchmark Dashboard — Async Background Jobs
  *
  * Tab 1 "Chạy mới":
- *   - Config form với 4 strategies + preset buttons
+ *   - Chọn chiến dịch → chọn sản phẩm → tự điền campaignProductId
  *   - POST /admin/benchmark/start → nhận runId (202 Accepted, không block)
  *   - Poll GET /admin/benchmark/runs/:id mỗi 2s cho đến khi COMPLETED | FAILED
- *   - Hiển thị kết quả StrategyCard khi COMPLETED
  *
  * Tab 2 "Lịch sử":
  *   - GET /admin/benchmark/history → danh sách tất cả runs
@@ -18,13 +17,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   FlaskConical, Zap, Database, Shield, AlertTriangle,
   CheckCircle, XCircle, Loader2, BarChart3, Clock,
-  Layers, History, RefreshCw, ChevronDown, ChevronUp
+  Layers, History, RefreshCw, ChevronDown, ChevronUp, Package
 } from 'lucide-react'
 import { adminService } from '@/services/admin.service'
-import { formatDate } from '@/lib/utils'
+import { campaignService } from '@/services/campaign.service'
+import { formatCurrency, formatDate } from '@/lib/utils'
 import type {
   BenchmarkResult, BenchmarkComparison, BenchmarkRun,
-  StrategyMode, BenchmarkRunStatus
+  StrategyMode, BenchmarkRunStatus, Campaign, CampaignProduct
 } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ function RunJobCard({ runId, onComplete }: { runId: string; onComplete: (run: Be
           onComplete(data)
         }
       } catch {
-        // Retry on next tick — withRetry already handles transient failures
+        // withRetry xử lý lỗi tạm thời — bỏ qua, retry lần sau
       }
     }
 
@@ -360,7 +360,30 @@ function RunJobCard({ runId, onComplete }: { runId: string; onComplete: (run: Be
 // ─── Tab 1: Chạy mới ──────────────────────────────────────────────────────────
 
 function RunTab() {
-  const [campaignProductId, setCampaignProductId] = useState('')
+  // ── Campaign / product picker ────────────────────────────────────────────
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [loadingCampaigns, setLoadingCampaigns] = useState(true)
+  const [selectedCampaignId, setSelectedCampaignId] = useState('')
+  const [selectedProductId, setSelectedProductId] = useState('')
+
+  useEffect(() => {
+    campaignService
+      .getAll()
+      .then(list => setCampaigns(list.filter(c => (c.campaignProducts?.length ?? 0) > 0)))
+      .catch(() => {})
+      .finally(() => setLoadingCampaigns(false))
+  }, [])
+
+  const selectedCampaign = campaigns.find(c => c.id === selectedCampaignId) ?? null
+  const products: CampaignProduct[] = selectedCampaign?.campaignProducts ?? []
+  const selectedProduct = products.find(p => p.id === selectedProductId) ?? null
+
+  const handleCampaignChange = (id: string) => {
+    setSelectedCampaignId(id)
+    setSelectedProductId('')
+  }
+
+  // ── Benchmark config ─────────────────────────────────────────────────────
   const [concurrentUsers, setConcurrentUsers] = useState(100)
   const [stockAmount, setStockAmount] = useState(50)
   const [strategy, setStrategy] = useState<StrategyMode>('REDIS_LUA')
@@ -369,15 +392,21 @@ function RunTab() {
   const [completedRun, setCompletedRun] = useState<BenchmarkRun | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Auto-fill stockAmount từ remainingQuantity khi chọn sản phẩm
+  useEffect(() => {
+    if (selectedProduct) {
+      setStockAmount(Math.max(1, Math.min(selectedProduct.remainingQuantity, 500)))
+    }
+  }, [selectedProduct])
+
   const handleComplete = useCallback((run: BenchmarkRun) => {
     setCompletedRun(run)
     setActiveRunId(null)
   }, [])
 
   const handleStart = async () => {
-    const pid = campaignProductId.trim()
-    if (!pid) {
-      setError('Vui lòng nhập Campaign Product ID.')
+    if (!selectedProductId) {
+      setError('Vui lòng chọn sản phẩm trong chiến dịch.')
       return
     }
     if (concurrentUsers < 1) {
@@ -396,10 +425,10 @@ function RunTab() {
 
     try {
       const { runId } = await adminService.startBenchmark({
-        campaignProductId: pid,
+        campaignProductId: selectedProductId,
         concurrentUsers,
         stockAmount,
-        strategyMode: strategy
+        strategyMode: strategy,
       })
       setActiveRunId(runId)
     } catch (err) {
@@ -444,19 +473,59 @@ function RunTab() {
           </div>
         </div>
 
-        {/* Form fields */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-1 space-y-1">
-            <label className="text-white/60 text-sm">Campaign Product ID</label>
-            <input
-              type="text"
-              value={campaignProductId}
-              onChange={e => setCampaignProductId(e.target.value)}
-              placeholder="Nhập ID sản phẩm trong chiến dịch"
-              className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-white/20 outline-none focus:ring-1 focus:ring-indigo-500/50"
-            />
+        {/* Campaign + Product picker */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-white/60 text-sm">Chiến dịch</label>
+            {loadingCampaigns ? (
+              <div className="glass rounded-xl px-4 py-2.5 flex items-center gap-2 text-white/40 text-sm">
+                <Loader2 size={14} className="animate-spin" />
+                Đang tải...
+              </div>
+            ) : (
+              <select
+                value={selectedCampaignId}
+                onChange={e => handleCampaignChange(e.target.value)}
+                className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-indigo-500/50 bg-transparent cursor-pointer"
+                style={{ colorScheme: 'dark' }}
+              >
+                <option value="" className="bg-slate-900">-- Chọn chiến dịch --</option>
+                {campaigns.map(c => (
+                  <option key={c.id} value={c.id} className="bg-slate-900">
+                    {c.name} · {c.status} · {c.campaignProducts?.length ?? 0} SP
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-white/60 text-sm">Sản phẩm</label>
+            <select
+              value={selectedProductId}
+              onChange={e => setSelectedProductId(e.target.value)}
+              disabled={products.length === 0}
+              className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-indigo-500/50 bg-transparent cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ colorScheme: 'dark' }}
+            >
+              <option value="" className="bg-slate-900">-- Chọn sản phẩm --</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id} className="bg-slate-900">
+                  {p.product?.name ?? p.productId} · {formatCurrency(p.salePrice)} · còn {p.remainingQuantity}
+                </option>
+              ))}
+            </select>
+            {selectedProduct && (
+              <p className="text-white/30 text-xs font-mono px-1 truncate">
+                <Package size={10} className="inline mr-1 text-indigo-400" />
+                {selectedProductId}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Concurrent Users + Stock Amount */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-white/60 text-sm">Concurrent Users</label>
             <input
@@ -468,13 +537,20 @@ function RunTab() {
             />
             {concurrentUsers > 5000 && (
               <p className="text-yellow-400/70 text-xs flex items-center gap-1">
-                <AlertTriangle size={10} /> Cảnh báo: {concurrentUsers.toLocaleString()} users — DB_LOCK sẽ rất chậm
+                <AlertTriangle size={10} /> {concurrentUsers.toLocaleString()} users — DB_LOCK sẽ rất chậm
               </p>
             )}
           </div>
 
           <div className="space-y-1">
-            <label className="text-white/60 text-sm">Stock Amount</label>
+            <label className="text-white/60 text-sm">
+              Stock Amount
+              {selectedProduct && (
+                <span className="text-white/30 ml-1.5 text-xs">
+                  (thực tế: {selectedProduct.remainingQuantity})
+                </span>
+              )}
+            </label>
             <input
               type="number"
               min={1}
@@ -487,7 +563,7 @@ function RunTab() {
 
         {/* Preset buttons */}
         <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-white/40 text-xs">Gợi ý:</span>
+          <span className="text-white/40 text-xs">Gợi ý users/stock:</span>
           {[
             { label: '100/50', users: 100, stock: 50 },
             { label: '500/100', users: 500, stock: 100 },
@@ -515,7 +591,7 @@ function RunTab() {
 
         <button
           onClick={handleStart}
-          disabled={submitting || activeRunId !== null}
+          disabled={submitting || activeRunId !== null || !selectedProductId}
           className="w-full py-3 rounded-xl font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)', boxShadow: '0 4px 20px rgba(99,102,241,0.35)' }}
         >
@@ -757,32 +833,13 @@ export default function AdminBenchmarkPage() {
           <FlaskConical size={24} className="text-violet-400" />
         </div>
         <div>
-          <h1 className="text-white text-2xl font-bold">Benchmark Distributed Lock</h1>
-          <p className="text-white/50 text-sm mt-1">
-            So sánh trực tiếp 3 chiến lược xử lý concurrent stock — async background jobs, real-time polling
-          </p>
+          <h1 className="text-white text-2xl font-bold">Đánh giá hiệu năng</h1>
         </div>
-      </div>
-
-      {/* Theory cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {(['NO_LOCK', 'DB_LOCK', 'REDIS_LUA', 'ALL'] as StrategyMode[]).map(s => {
-          const meta = STRATEGY_META[s]
-          return (
-            <div key={s} className={`glass rounded-xl p-3 border ${meta.borderColor} ${meta.bgColor}`}>
-              <div className={`flex items-center gap-1.5 mb-1.5 ${meta.textColor}`}>
-                {meta.icon}
-                <span className="font-mono text-xs font-semibold">{meta.shortLabel}</span>
-              </div>
-              <p className="text-white/50 text-xs leading-relaxed">{meta.desc}</p>
-            </div>
-          )
-        })}
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 glass rounded-xl p-1 max-w-xs">
-        {([['run', <Zap key="z" size={14} />, 'Chạy mới'], ['history', <History key="h" size={14} />, 'Lịch sử']] as [Tab, React.ReactNode, string][]).map(([id, icon, label]) => (
+        {([['run', <Zap key="z" size={14} />, 'Chạy kịch bản'], ['history', <History key="h" size={14} />, 'Lịch sử']] as [Tab, React.ReactNode, string][]).map(([id, icon, label]) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
