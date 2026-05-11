@@ -306,4 +306,8 @@ export class OrderGatewayService {
 
     throw new ForbiddenException('Không có quyền truy cập đơn hàng này')
   }
+
+  async confirmDelivery(orderId: string, userId: string): Promise<void> {
+    await this.orderRepository.confirmDelivery(orderId, userId)
+  }
 }

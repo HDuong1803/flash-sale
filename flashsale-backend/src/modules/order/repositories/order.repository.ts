@@ -1,5 +1,14 @@
-import { Injectable } from '@nestjs/common'
-import { Order, OrderStatus, ReservationStatus } from '@prisma/client'
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common'
+import {
+  FulfillmentStatus,
+  Order,
+  OrderStatus,
+  ReservationStatus
+} from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -207,5 +216,44 @@ export class OrderRepository {
         product: undefined
       }))
     })) as unknown as Order[]
+  }
+
+  /**
+   * confirmDelivery — Customer xác nhận đã nhận hàng thành công.
+   *
+   * Kiểm tra: ownership, order status phải là SHIPPING, fulfillment phải là DELIVERED.
+   * Cập nhật Order.status → DONE trong một transaction an toàn.
+   */
+  async confirmDelivery(orderId: string, customerId: string): Promise<void> {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, customerId },
+      select: { id: true, status: true }
+    })
+
+    if (!order) throw new NotFoundException('Đơn hàng không tồn tại')
+    if (order.status === OrderStatus.DONE)
+      throw new BadRequestException('Đơn hàng đã được xác nhận hoàn thành')
+    if (order.status !== OrderStatus.SHIPPING)
+      throw new BadRequestException(
+        'Đơn hàng chưa ở trạng thái đang giao — không thể xác nhận'
+      )
+
+    const fulfillment = await this.prisma.fulfillmentOrder.findFirst({
+      where: { orderId },
+      select: { fulfillStatus: true }
+    })
+
+    if (
+      !fulfillment ||
+      fulfillment.fulfillStatus !== FulfillmentStatus.DELIVERED
+    )
+      throw new BadRequestException(
+        'Đơn hàng chưa được giao thành công theo đơn vị vận chuyển'
+      )
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: { status: OrderStatus.DONE }
+    })
   }
 }

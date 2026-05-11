@@ -84,6 +84,10 @@ class OrderService {
   getFulfillmentTracking(orderId: string): Promise<FulfillmentOrder | null> {
     return withRetry(() => apiClient.get(`/fulfillment/orders/${orderId}`))
   }
+
+  confirmDelivery(orderId: string): Promise<void> {
+    return apiClient.patch(`/orders/${orderId}/confirm-delivery`)
+  }
 }
 
 export const orderService = new OrderService()

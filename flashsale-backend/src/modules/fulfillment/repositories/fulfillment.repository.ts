@@ -4,6 +4,7 @@ import {
   FulfillmentOrder,
   FulfillmentRule,
   FulfillmentStatus,
+  OrderStatus,
   TrackingEvent
 } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
@@ -290,6 +291,42 @@ export class FulfillmentRepository {
     return this.prisma.fulfillmentOrder.update({
       where: { id },
       data: { fulfillStatus, ...extraData }
+    })
+  }
+
+  /**
+   * updateStatusWithOrderSync — Cập nhật trạng thái fulfillment và đồng thời cập nhật
+   * Order.status trong cùng một transaction.
+   *
+   * Chỉ cập nhật Order sang orderStatus nếu Order hiện tại đang ở trạng thái CONFIRMED
+   * (tránh downgrade nếu customer đã confirm hoặc đơn đã DONE).
+   */
+  async updateStatusWithOrderSync(
+    id: string,
+    orderId: string,
+    fulfillStatus: FulfillmentStatus,
+    orderStatus: OrderStatus,
+    extraData?: Partial<
+      Pick<
+        FulfillmentOrder,
+        | 'shippedAt'
+        | 'deliveredAt'
+        | 'exceptionAt'
+        | 'exceptionReason'
+        | 'slaBreached'
+        | 'slaBreachedAt'
+      >
+    >
+  ): Promise<FulfillmentOrder> {
+    return this.prisma.$transaction(async tx => {
+      await tx.order.updateMany({
+        where: { id: orderId, status: OrderStatus.CONFIRMED },
+        data: { status: orderStatus }
+      })
+      return tx.fulfillmentOrder.update({
+        where: { id },
+        data: { fulfillStatus, ...extraData }
+      })
     })
   }
 

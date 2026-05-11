@@ -5,8 +5,9 @@ import { useParams, useRouter } from 'next/navigation'
 import {
   Package, Truck, CheckCircle2, AlertTriangle,
   MapPin, Clock, Loader2, ChevronLeft, ExternalLink,
-  RefreshCw, XCircle
+  RefreshCw, XCircle, PartyPopper
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { orderService } from '@/services/order.service'
 import type { FulfillmentOrder, FulfillmentStatus, TrackingEvent } from '@/types'
 
@@ -246,6 +247,7 @@ export default function OrderTrackingPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -270,6 +272,19 @@ export default function OrderTrackingPage() {
     const timer = setInterval(() => load(true), 120_000)
     return () => clearInterval(timer)
   }, [fulfillment, load])
+
+  const handleConfirmDelivery = useCallback(async () => {
+    setConfirming(true)
+    try {
+      await orderService.confirmDelivery(orderId)
+      toast.success('Xác nhận nhận hàng thành công! Đơn hàng đã hoàn thành.')
+      router.push(`/orders/${orderId}`)
+    } catch {
+      toast.error('Không thể xác nhận lúc này, vui lòng thử lại')
+    } finally {
+      setConfirming(false)
+    }
+  }, [orderId, router])
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -371,6 +386,39 @@ export default function OrderTrackingPage() {
               </div>
             </div>
           </div>
+
+          {/* Confirm delivery CTA — chỉ hiện khi đã giao thành công */}
+          {fulfillment.fulfillStatus === 'DELIVERED' && (
+            <div className="glass rounded-2xl p-5 border border-emerald-500/30 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                  <PartyPopper size={20} className="text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-sm">Bạn đã nhận được hàng?</p>
+                  <p className="text-white/40 text-xs mt-0.5">
+                    Xác nhận để hoàn tất đơn hàng và lưu lịch sử mua
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirmDelivery}
+                disabled={confirming}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 disabled:scale-100"
+                style={{
+                  background: 'linear-gradient(135deg,#059669,#10b981)',
+                  boxShadow: '0 4px 16px rgba(16,185,129,0.3)'
+                }}
+              >
+                {confirming ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <CheckCircle2 size={16} />
+                )}
+                {confirming ? 'Đang xác nhận...' : 'Xác nhận đã nhận hàng'}
+              </button>
+            </div>
+          )}
 
           {/* Progress steps — hide when AWAITING to avoid confusing UI */}
           {fulfillment.fulfillStatus !== 'AWAITING' && (

@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { FulfillmentStatus, NotificationType } from '@prisma/client'
+import {
+  FulfillmentStatus,
+  NotificationType,
+  OrderStatus
+} from '@prisma/client'
 import { GHNService } from '@infrastructure/ghn/ghn.service'
 import { NotificationService } from '@modules/notification/services/notification.service'
 import { FulfillmentRepository } from '../repositories/fulfillment.repository'
@@ -33,6 +37,14 @@ export class FulfillmentPollingService {
     damage: FulfillmentStatus.EXCEPTION,
     lost: FulfillmentStatus.EXCEPTION
   }
+
+  // Các trạng thái fulfillment cần cập nhật Order.status → SHIPPING
+  private static readonly SHIPPING_STATUSES = new Set<FulfillmentStatus>([
+    FulfillmentStatus.SHIPPED,
+    FulfillmentStatus.IN_TRANSIT,
+    FulfillmentStatus.OUT_FOR_DELIVERY,
+    FulfillmentStatus.DELIVERED
+  ])
 
   constructor(
     private readonly fulfillmentRepo: FulfillmentRepository,
@@ -104,7 +116,24 @@ export class FulfillmentPollingService {
           extraData.exceptionReason = `GHN: ${detail.status}`
         }
 
-        await this.fulfillmentRepo.updateStatus(order.id, newStatus, extraData)
+        const needsOrderSync =
+          FulfillmentPollingService.SHIPPING_STATUSES.has(newStatus)
+
+        if (needsOrderSync) {
+          await this.fulfillmentRepo.updateStatusWithOrderSync(
+            order.id,
+            order.orderId,
+            newStatus,
+            OrderStatus.SHIPPING,
+            extraData
+          )
+        } else {
+          await this.fulfillmentRepo.updateStatus(
+            order.id,
+            newStatus,
+            extraData
+          )
+        }
 
         this.logger.log(
           `Sync: order=${order.orderId}, tracking=${order.trackingNumber}, ` +

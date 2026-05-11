@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -154,5 +155,37 @@ export class OrderController {
       user.userId,
       user.role
     ) as unknown as OrderResponseDto
+  }
+
+  @ApiOperation({
+    summary: 'Xác nhận đã nhận hàng thành công (customer)'
+  })
+  @ApiParam({ name: 'id', description: 'ID đơn hàng' })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Xác nhận hoàn thành thành công'
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description:
+      'Đơn hàng chưa ở trạng thái đang giao hoặc chưa được giao bởi đơn vị vận chuyển'
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Đơn hàng không tồn tại hoặc không thuộc về bạn'
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Chưa đăng nhập'
+  })
+  @Patch(':id/confirm-delivery')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('CUSTOMER', 'MERCHANT')
+  async confirmDelivery(
+    @Param('id') id: string,
+    @CurrentUser() user: { userId: string }
+  ): Promise<void> {
+    return this.orderGatewayService.confirmDelivery(id, user.userId)
   }
 }
