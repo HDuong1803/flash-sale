@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { BenchmarkRun } from '@prisma/client'
 import { PrismaService } from '@infrastructure/prisma/prisma.service'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -84,6 +85,70 @@ export class BenchmarkRepository {
       WHERE id = ${campaignProductId}
     `
     return rows[0]?.remaining_quantity ?? 0
+  }
+
+  // ─── BenchmarkRun CRUD ────────────────────────────────────────────────────
+
+  async createRun(data: {
+    campaignProductId: string
+    concurrentUsers: number
+    stockAmount: number
+    strategyMode: string
+  }): Promise<{ id: string }> {
+    const run = await this.prisma.benchmarkRun.create({
+      data: {
+        campaignProductId: data.campaignProductId,
+        concurrentUsers: data.concurrentUsers,
+        stockAmount: data.stockAmount,
+        strategyMode: data.strategyMode,
+        status: 'PENDING'
+      },
+      select: { id: true }
+    })
+    return run
+  }
+
+  async updateRunStatus(
+    id: string,
+    status: string,
+    extra?: {
+      result?: object
+      errorMessage?: string
+      completedAt?: Date
+    }
+  ): Promise<void> {
+    await this.prisma.benchmarkRun.update({
+      where: { id },
+      data: {
+        status,
+        ...(extra?.result !== undefined && { result: extra.result }),
+        ...(extra?.errorMessage !== undefined && {
+          errorMessage: extra.errorMessage
+        }),
+        ...(extra?.completedAt !== undefined && {
+          completedAt: extra.completedAt
+        })
+      }
+    })
+  }
+
+  async findRunById(id: string): Promise<BenchmarkRun | null> {
+    return this.prisma.benchmarkRun.findUnique({ where: { id } })
+  }
+
+  async findHistory(
+    page: number,
+    limit: number
+  ): Promise<{ items: BenchmarkRun[]; total: number }> {
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.benchmarkRun.findMany({
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' }
+      }),
+      this.prisma.benchmarkRun.count()
+    ])
+    return { items, total }
   }
 
   async getBenchmarkProductContext(

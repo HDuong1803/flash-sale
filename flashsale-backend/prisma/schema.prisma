@@ -895,6 +895,24 @@ model TicketMessage {
   @@map("ticket_messages")
 }
 
+// BenchmarkRun — persistent record for async background benchmark jobs
+model BenchmarkRun {
+  id                String    @id @default(cuid())
+  campaignProductId String    @map("campaign_product_id")
+  concurrentUsers   Int       @map("concurrent_users")
+  stockAmount       Int       @map("stock_amount")
+  strategyMode      String    @map("strategy_mode") // NO_LOCK | DB_LOCK | REDIS_LUA | ALL
+  status            String    @default("PENDING")   // PENDING | RUNNING | COMPLETED | FAILED
+  result            Json?
+  errorMessage      String?   @map("error_message")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  completedAt       DateTime? @map("completed_at")
+
+  @@map("benchmark_runs")
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum UserRole {

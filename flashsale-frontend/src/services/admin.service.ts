@@ -9,6 +9,7 @@ import type {
   AdminMerchantOverview, AdminUserDetail,
   BenchmarkResult, BenchmarkComparison, RunBenchmarkParams,
   BenchmarkAuditLogResponse, LockStrategy,
+  BenchmarkRun, StrategyMode,
   FraudStats, FraudEvent, IpBlacklistEntry,
   CampaignOverview, FunnelStep, HeatmapHour, AnalyticsSnapshot, StockoutPrediction,
   FulfillmentOrder, FulfillmentRule, Carrier, QcCheckpoint,
@@ -174,6 +175,40 @@ class AdminService {
    */
   runBenchmarkOne(params: RunBenchmarkParams & { strategy: LockStrategy }): Promise<BenchmarkResult> {
     return apiClient.post('/admin/benchmark/run', params, { timeout: 300_000 })
+  }
+
+  // ─── Async Benchmark API ────────────────────────────────────────────────────
+
+  /**
+   * Bắt đầu benchmark job background — trả về runId ngay lập tức (202 Accepted).
+   */
+  startBenchmark(params: {
+    campaignProductId: string
+    concurrentUsers: number
+    stockAmount: number
+    strategyMode: StrategyMode
+  }): Promise<{ runId: string }> {
+    return apiClient.post('/admin/benchmark/start', params)
+  }
+
+  /**
+   * Poll trạng thái benchmark run theo runId.
+   * Dùng withRetry vì đây là GET, an toàn khi retry.
+   */
+  getBenchmarkRun(runId: string): Promise<BenchmarkRun> {
+    return withRetry(() => apiClient.get(`/admin/benchmark/runs/${runId}`))
+  }
+
+  /**
+   * Lấy lịch sử tất cả benchmark runs có phân trang.
+   */
+  getBenchmarkHistory(
+    page = 1,
+    limit = 20
+  ): Promise<{ items: BenchmarkRun[]; total: number; page: number; limit: number }> {
+    return withRetry(() =>
+      apiClient.get('/admin/benchmark/history', { params: { page, limit } })
+    )
   }
 
   /**

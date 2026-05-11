@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,6 +11,11 @@ import {
 } from 'class-validator'
 import { Transform } from 'class-transformer'
 import { LockStrategy } from '@prisma/client'
+
+// ─── Async benchmark types ────────────────────────────────────────────────────
+
+export type StrategyMode = 'NO_LOCK' | 'DB_LOCK' | 'REDIS_LUA' | 'ALL'
+export type BenchmarkRunStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
 
 // ─── Request DTOs ─────────────────────────────────────────────────────────────
 
@@ -155,6 +161,109 @@ export class BenchmarkComparisonDto {
     example: 'Redis Lua là lựa chọn tối ưu...'
   })
   conclusion: string
+}
+
+// ─── Async Benchmark DTOs ─────────────────────────────────────────────────────
+
+export class StartBenchmarkDto {
+  @ApiProperty({
+    description: 'ID của CampaignProduct dùng để test',
+    example: 'cld8a1b2c3d4e5f6'
+  })
+  @IsString()
+  campaignProductId: string
+
+  @ApiProperty({
+    description: 'Số lượng concurrent requests để mô phỏng',
+    example: 100,
+    minimum: 1
+  })
+  @IsInt()
+  @Min(1)
+  concurrentUsers: number
+
+  @ApiProperty({
+    description: 'Số lượng stock để reset trước khi chạy test',
+    example: 50,
+    minimum: 1
+  })
+  @IsInt()
+  @Min(1)
+  stockAmount: number
+
+  @ApiProperty({
+    description: 'Strategy cần test hoặc ALL để so sánh cả 3',
+    enum: ['NO_LOCK', 'DB_LOCK', 'REDIS_LUA', 'ALL'],
+    example: 'REDIS_LUA'
+  })
+  @IsIn(['NO_LOCK', 'DB_LOCK', 'REDIS_LUA', 'ALL'])
+  strategyMode: StrategyMode
+}
+
+export class BenchmarkRunDto {
+  @ApiProperty({ description: 'Run ID', example: 'cm...' })
+  id: string
+
+  @ApiProperty({ description: 'Campaign Product ID' })
+  campaignProductId: string
+
+  @ApiProperty({ description: 'Số concurrent users' })
+  concurrentUsers: number
+
+  @ApiProperty({ description: 'Stock amount' })
+  stockAmount: number
+
+  @ApiProperty({ enum: ['NO_LOCK', 'DB_LOCK', 'REDIS_LUA', 'ALL'] })
+  strategyMode: StrategyMode
+
+  @ApiProperty({ enum: ['PENDING', 'RUNNING', 'COMPLETED', 'FAILED'] })
+  status: BenchmarkRunStatus
+
+  @ApiPropertyOptional({
+    description: 'Kết quả benchmark (null khi chưa hoàn thành)'
+  })
+  result: BenchmarkResultDto | BenchmarkComparisonDto | null
+
+  @ApiPropertyOptional({ description: 'Error message nếu thất bại' })
+  errorMessage: string | null
+
+  @ApiProperty({ description: 'Thời điểm tạo' })
+  createdAt: string
+
+  @ApiPropertyOptional({ description: 'Thời điểm hoàn thành' })
+  completedAt: string | null
+}
+
+export class BenchmarkHistoryQueryDto {
+  @ApiPropertyOptional({
+    description: 'Số trang',
+    example: 1,
+    minimum: 1,
+    default: 1
+  })
+  @IsInt()
+  @Min(1)
+  @IsOptional()
+  @Transform(({ value }) =>
+    value !== undefined ? parseInt(String(value), 10) : 1
+  )
+  page?: number = 1
+
+  @ApiPropertyOptional({
+    description: 'Số records mỗi trang',
+    example: 20,
+    minimum: 1,
+    maximum: 50,
+    default: 20
+  })
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  @IsOptional()
+  @Transform(({ value }) =>
+    value !== undefined ? parseInt(String(value), 10) : 20
+  )
+  limit?: number = 20
 }
 
 export class StockAuditQueryDto {

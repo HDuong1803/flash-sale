@@ -654,6 +654,22 @@ export interface AdminUserDetail {
 // ─── Benchmark Types (Distributed Lock Demo) ────────────────────────────────
 
 export type LockStrategy = 'NO_LOCK' | 'DB_LOCK' | 'REDIS_LUA'
+export type StrategyMode = 'NO_LOCK' | 'DB_LOCK' | 'REDIS_LUA' | 'ALL'
+export type BenchmarkRunStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+
+/** Async benchmark run record */
+export interface BenchmarkRun {
+  id: string
+  campaignProductId: string
+  concurrentUsers: number
+  stockAmount: number
+  strategyMode: StrategyMode
+  status: BenchmarkRunStatus
+  result: BenchmarkResult | BenchmarkComparison | null
+  errorMessage: string | null
+  createdAt: string
+  completedAt: string | null
+}
 
 /** Kết quả benchmark một strategy */
 export interface BenchmarkResult {

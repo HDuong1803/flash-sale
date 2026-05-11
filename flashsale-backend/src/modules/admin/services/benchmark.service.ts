@@ -12,7 +12,11 @@ import {
   BenchmarkResultDto,
   BenchmarkComparisonDto,
   RunBenchmarkDto,
-  RunAllBenchmarkDto
+  RunAllBenchmarkDto,
+  StartBenchmarkDto,
+  BenchmarkRunDto,
+  StrategyMode,
+  BenchmarkRunStatus
 } from '../dto/benchmark.dto'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -35,6 +39,10 @@ interface SingleResult {
 
 const benchKey = (runId: string, type: 'nolock' | 'lua') =>
   `benchmark:${runId}:${type}`
+
+const runStatusKey = (runId: string) => `benchmark:run:${runId}:status`
+const runResultKey = (runId: string) => `benchmark:run:${runId}:result`
+const RUN_TTL = 86400 // 24 hours
 
 @Injectable()
 export class BenchmarkService {
@@ -153,6 +161,181 @@ export class BenchmarkService {
     const conclusion = buildConclusion(noLock, dbLock, redisLua)
 
     return { noLock, dbLock, redisLua, recommendation: 'REDIS_LUA', conclusion }
+  }
+
+  // ─── Async background benchmark ───────────────────────────────────────────
+
+  async startBenchmark(dto: StartBenchmarkDto): Promise<{ runId: string }> {
+    const { id: runId } = await this.benchmarkRepo.createRun({
+      campaignProductId: dto.campaignProductId,
+      concurrentUsers: dto.concurrentUsers,
+      stockAmount: dto.stockAmount,
+      strategyMode: dto.strategyMode
+    })
+
+    await this.redis.client.set(runStatusKey(runId), 'PENDING', 'EX', RUN_TTL)
+
+    // Fire-and-forget — intentionally not awaited
+    void this.executeRunAsync(runId, dto)
+
+    return { runId }
+  }
+
+  async getRunStatus(runId: string): Promise<BenchmarkRunDto> {
+    // Fast path: check Redis first
+    const redisStatus = await this.redis.client.get(runStatusKey(runId))
+
+    if (redisStatus !== null) {
+      let result: BenchmarkResultDto | BenchmarkComparisonDto | null = null
+
+      if (redisStatus === 'COMPLETED') {
+        const raw = await this.redis.client.get(runResultKey(runId))
+        if (raw) {
+          result = JSON.parse(raw) as
+            | BenchmarkResultDto
+            | BenchmarkComparisonDto
+        }
+      }
+
+      // For non-terminal statuses we still need the full run from DB for metadata
+      const run = await this.benchmarkRepo.findRunById(runId)
+      if (!run) {
+        throw new NotFoundException(`Benchmark run ${runId} không tồn tại`)
+      }
+
+      return this.mapRunToDto(run, result ?? this.parseJsonResult(run.result))
+    }
+
+    // Fallback to DB
+    const run = await this.benchmarkRepo.findRunById(runId)
+    if (!run) {
+      throw new NotFoundException(`Benchmark run ${runId} không tồn tại`)
+    }
+
+    return this.mapRunToDto(run, this.parseJsonResult(run.result))
+  }
+
+  async getHistory(
+    page: number,
+    limit: number
+  ): Promise<{
+    items: BenchmarkRunDto[]
+    total: number
+    page: number
+    limit: number
+  }> {
+    const { items, total } = await this.benchmarkRepo.findHistory(page, limit)
+    return {
+      items: items.map(run =>
+        this.mapRunToDto(run, this.parseJsonResult(run.result))
+      ),
+      total,
+      page,
+      limit
+    }
+  }
+
+  private parseJsonResult(
+    raw: unknown
+  ): BenchmarkResultDto | BenchmarkComparisonDto | null {
+    if (raw === null || raw === undefined) return null
+    return raw as unknown as BenchmarkResultDto | BenchmarkComparisonDto
+  }
+
+  private mapRunToDto(
+    run: {
+      id: string
+      campaignProductId: string
+      concurrentUsers: number
+      stockAmount: number
+      strategyMode: string
+      status: string
+      result: unknown
+      errorMessage: string | null
+      createdAt: Date
+      completedAt: Date | null
+    },
+    result: BenchmarkResultDto | BenchmarkComparisonDto | null
+  ): BenchmarkRunDto {
+    return {
+      id: run.id,
+      campaignProductId: run.campaignProductId,
+      concurrentUsers: run.concurrentUsers,
+      stockAmount: run.stockAmount,
+      strategyMode: run.strategyMode as StrategyMode,
+      status: run.status as BenchmarkRunStatus,
+      result: result ?? null,
+      errorMessage: run.errorMessage,
+      createdAt: run.createdAt.toISOString(),
+      completedAt: run.completedAt ? run.completedAt.toISOString() : null
+    }
+  }
+
+  private async executeRunAsync(
+    runId: string,
+    dto: StartBenchmarkDto
+  ): Promise<void> {
+    try {
+      await this.benchmarkRepo.updateRunStatus(runId, 'RUNNING')
+      await this.redis.client.set(runStatusKey(runId), 'RUNNING', 'EX', RUN_TTL)
+
+      let result: BenchmarkResultDto | BenchmarkComparisonDto
+
+      if (dto.strategyMode === 'ALL') {
+        result = await this.runAllStrategies({
+          campaignProductId: dto.campaignProductId,
+          concurrentUsers: dto.concurrentUsers,
+          stockAmount: dto.stockAmount
+        })
+      } else {
+        const strategyMap: Record<
+          Exclude<StrategyMode, 'ALL'>,
+          LockStrategy
+        > = {
+          NO_LOCK: LockStrategy.NO_LOCK,
+          DB_LOCK: LockStrategy.DB_LOCK,
+          REDIS_LUA: LockStrategy.REDIS_LUA
+        }
+        result = await this.runScenario({
+          campaignProductId: dto.campaignProductId,
+          concurrentUsers: dto.concurrentUsers,
+          stockAmount: dto.stockAmount,
+          strategy:
+            strategyMap[dto.strategyMode as Exclude<StrategyMode, 'ALL'>]
+        })
+      }
+
+      const completedAt = new Date()
+      await this.benchmarkRepo.updateRunStatus(runId, 'COMPLETED', {
+        result,
+        completedAt
+      })
+      await this.redis.client.set(
+        runStatusKey(runId),
+        'COMPLETED',
+        'EX',
+        RUN_TTL
+      )
+      await this.redis.client.set(
+        runResultKey(runId),
+        JSON.stringify(result),
+        'EX',
+        RUN_TTL
+      )
+
+      this.logger.log(`Benchmark run ${runId} completed successfully`)
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Unknown error occurred'
+
+      this.logger.error(`Benchmark run ${runId} failed: ${errorMessage}`)
+
+      await this.benchmarkRepo.updateRunStatus(runId, 'FAILED', {
+        errorMessage,
+        completedAt: new Date()
+      })
+      await this.redis.client.set(runStatusKey(runId), 'FAILED', 'EX', RUN_TTL)
+    }
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────────────
