@@ -194,12 +194,12 @@ export default function AdminBenchmarkPage() {
       setError('Vui lòng nhập Campaign Product ID để benchmark.')
       return
     }
-    if (concurrentUsers < 10 || concurrentUsers > 1000) {
-      setError('Số concurrent users phải từ 10 đến 1000.')
+    if (concurrentUsers < 1) {
+      setError('Số concurrent users phải ít nhất là 1.')
       return
     }
-    if (stockAmount < 1 || stockAmount > 500) {
-      setError('Stock amount phải từ 1 đến 500.')
+    if (stockAmount < 1) {
+      setError('Stock amount phải ít nhất là 1.')
       return
     }
 
@@ -298,31 +298,29 @@ export default function AdminBenchmarkPage() {
 
           <div className="space-y-1">
             <label className="text-white/60 text-sm">
-              Concurrent Users <span className="text-white/30">(10–1000)</span>
+              Concurrent Users
             </label>
             <input
               type="number"
-              min={10}
-              max={1000}
+              min={1}
               value={concurrentUsers}
-              onChange={e => setConcurrentUsers(Number(e.target.value))}
+              onChange={e => setConcurrentUsers(Math.max(1, Number(e.target.value)))}
               className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-indigo-500/50"
             />
             <p className="text-white/30 text-xs">
-              Số request đồng thời mô phỏng — nên &gt; stockAmount để thấy race condition
+              Không giới hạn — 10k–20k để thấy hệ thống vỡ tải với DB_LOCK
             </p>
           </div>
 
           <div className="space-y-1">
             <label className="text-white/60 text-sm">
-              Stock Amount <span className="text-white/30">(1–500)</span>
+              Stock Amount
             </label>
             <input
               type="number"
               min={1}
-              max={500}
               value={stockAmount}
-              onChange={e => setStockAmount(Number(e.target.value))}
+              onChange={e => setStockAmount(Math.max(1, Number(e.target.value)))}
               className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-indigo-500/50"
             />
             <p className="text-white/30 text-xs">
@@ -333,11 +331,14 @@ export default function AdminBenchmarkPage() {
 
         {/* Gợi ý cấu hình demo ấn tượng */}
         <div className="flex flex-wrap gap-2">
-          <span className="text-white/40 text-xs self-center">Gợi ý demo:</span>
+          <span className="text-white/40 text-xs self-center">Gợi ý:</span>
           {[
-            { label: 'Nhẹ (50 users / 20 stock)', users: 50, stock: 20 },
-            { label: 'Trung bình (100 / 50)', users: 100, stock: 50 },
-            { label: 'Nặng (200 / 100)', users: 200, stock: 100 },
+            { label: '100 / 50', users: 100, stock: 50 },
+            { label: '500 / 100', users: 500, stock: 100 },
+            { label: '2000 / 100', users: 2000, stock: 100 },
+            { label: '5000 / 100', users: 5000, stock: 100 },
+            { label: '10000 / 100 🔥', users: 10000, stock: 100 },
+            { label: '20000 / 100 💀', users: 20000, stock: 100 },
           ].map(preset => (
             <button
               key={preset.label}

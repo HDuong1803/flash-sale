@@ -162,17 +162,18 @@ class AdminService {
 
   /**
    * Chạy benchmark so sánh 3 strategies: NO_LOCK, DB_LOCK, REDIS_LUA.
-   * Chạy tuần tự nên có thể mất vài giây — không dùng withRetry vì là POST mutation.
+   * Timeout 5 phút — với 10k–20k users + DB_LOCK có thể mất nhiều phút.
    */
   runBenchmarkAll(params: RunBenchmarkParams): Promise<BenchmarkComparison> {
-    return apiClient.post('/admin/benchmark/run-all', params)
+    return apiClient.post('/admin/benchmark/run-all', params, { timeout: 300_000 })
   }
 
   /**
    * Chạy benchmark một strategy cụ thể.
+   * Timeout 5 phút cho kịch bản cực đại.
    */
   runBenchmarkOne(params: RunBenchmarkParams & { strategy: LockStrategy }): Promise<BenchmarkResult> {
-    return apiClient.post('/admin/benchmark/run', params)
+    return apiClient.post('/admin/benchmark/run', params, { timeout: 300_000 })
   }
 
   /**

@@ -25,23 +25,19 @@ export class RunBenchmarkDto {
   @ApiProperty({
     description: 'Số lượng concurrent requests để mô phỏng',
     example: 100,
-    minimum: 10,
-    maximum: 2000
+    minimum: 1
   })
   @IsInt()
-  @Min(10)
-  @Max(2000)
+  @Min(1)
   concurrentUsers: number
 
   @ApiProperty({
     description: 'Số lượng stock để reset trước khi chạy test',
     example: 50,
-    minimum: 1,
-    maximum: 1000
+    minimum: 1
   })
   @IsInt()
   @Min(1)
-  @Max(1000)
   stockAmount: number
 
   @ApiProperty({
@@ -64,23 +60,19 @@ export class RunAllBenchmarkDto {
   @ApiProperty({
     description: 'Số lượng concurrent requests cho mỗi strategy',
     example: 200,
-    minimum: 10,
-    maximum: 1000
+    minimum: 1
   })
   @IsInt()
-  @Min(10)
-  @Max(1000)
+  @Min(1)
   concurrentUsers: number
 
   @ApiProperty({
     description: 'Số lượng stock cho mỗi lần test',
     example: 100,
-    minimum: 1,
-    maximum: 500
+    minimum: 1
   })
   @IsInt()
   @Min(1)
-  @Max(500)
   stockAmount: number
 }
 
