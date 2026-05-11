@@ -34,6 +34,7 @@
       "coverageDirectory": "./coverage/e2e",
       "verbose": true,
       "moduleNameMapper": {
+        "^@paralleldrive/cuid2$": "<rootDir>/test/mocks/cuid2.ts",
         "^@modules/(.*)$": "<rootDir>/src/modules/$1",
         "^@config/(.*)$": "<rootDir>/src/config/$1",
         "^@common/(.*)$": "<rootDir>/src/common/$1",

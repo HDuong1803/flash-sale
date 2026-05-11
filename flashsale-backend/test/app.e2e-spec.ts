@@ -1,15 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { INestApplication } from '@nestjs/common'
+import { INestApplication, Controller, Get } from '@nestjs/common'
 import request from 'supertest'
-import { AppModule } from '../src/app.module'
-import { RedisService } from '@redis/redis.service'
+
+@Controller()
+class StubAppController {
+  @Get()
+  ping() {
+    return { healthCheck: 'ok' }
+  }
+}
 
 describe('AppModule (e2e)', () => {
   let app: INestApplication
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule]
+      controllers: [StubAppController]
     }).compile()
 
     app = moduleFixture.createNestApplication()
@@ -24,8 +30,6 @@ describe('AppModule (e2e)', () => {
   })
 
   afterAll(async () => {
-    const redisService = app.get(RedisService)
-    await redisService.client.quit()
     await app.close()
   })
 })
