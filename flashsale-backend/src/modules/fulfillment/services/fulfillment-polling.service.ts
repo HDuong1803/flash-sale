@@ -144,7 +144,7 @@ export class FulfillmentPollingService {
           newStatus === FulfillmentStatus.IN_TRANSIT ||
           newStatus === FulfillmentStatus.DELIVERED
         ) {
-          await this.notifyCustomerAsync(order.orderId, newStatus)
+          this.notifyCustomerAsync(order.orderId, newStatus)
         }
 
         synced++
