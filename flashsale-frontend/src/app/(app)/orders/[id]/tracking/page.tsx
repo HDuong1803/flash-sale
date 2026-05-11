@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { orderService } from '@/services/order.service'
+import { useAuthContext } from '@/contexts/auth-context'
 import type { FulfillmentOrder, FulfillmentStatus, TrackingEvent } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -243,6 +244,9 @@ export default function OrderTrackingPage() {
   const router = useRouter()
   const orderId = params.id as string
 
+  const { user } = useAuthContext()
+  const isCustomer = user?.role === 'CUSTOMER'
+
   const [fulfillment, setFulfillment] = useState<FulfillmentOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -387,8 +391,8 @@ export default function OrderTrackingPage() {
             </div>
           </div>
 
-          {/* Confirm delivery CTA — chỉ hiện khi đã giao thành công */}
-          {fulfillment.fulfillStatus === 'DELIVERED' && (
+          {/* Confirm delivery CTA — chỉ hiện cho CUSTOMER sở hữu đơn, khi đã giao thành công */}
+          {isCustomer && fulfillment.fulfillStatus === 'DELIVERED' && (
             <div className="glass rounded-2xl p-5 border border-emerald-500/30 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
