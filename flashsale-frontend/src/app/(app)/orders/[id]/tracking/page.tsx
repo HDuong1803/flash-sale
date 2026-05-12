@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Package, Truck, CheckCircle2, AlertTriangle,
   MapPin, Clock, Loader2, ChevronLeft, ExternalLink,
@@ -10,6 +11,7 @@ import {
 import { toast } from 'sonner'
 import { orderService } from '@/services/order.service'
 import { useAuthContext } from '@/contexts/auth-context'
+import { queryKeys } from '@/lib/query-keys'
 import type { FulfillmentOrder, FulfillmentStatus, TrackingEvent } from '@/types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -246,12 +248,14 @@ export default function OrderTrackingPage() {
 
   const { user } = useAuthContext()
   const isCustomer = user?.role === 'CUSTOMER'
+  const queryClient = useQueryClient()
 
   const [fulfillment, setFulfillment] = useState<FulfillmentOrder | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [orderDone, setOrderDone] = useState(false)
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -281,6 +285,8 @@ export default function OrderTrackingPage() {
     setConfirming(true)
     try {
       await orderService.confirmDelivery(orderId)
+      setOrderDone(true)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) })
       toast.success('Xác nhận nhận hàng thành công! Đơn hàng đã hoàn thành.')
       router.push(`/orders/${orderId}`)
     } catch {
@@ -288,7 +294,7 @@ export default function OrderTrackingPage() {
     } finally {
       setConfirming(false)
     }
-  }, [orderId, router])
+  }, [orderId, router, queryClient])
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -391,8 +397,8 @@ export default function OrderTrackingPage() {
             </div>
           </div>
 
-          {/* Confirm delivery CTA — chỉ hiện cho CUSTOMER sở hữu đơn, khi đã giao thành công */}
-          {isCustomer && fulfillment.fulfillStatus === 'DELIVERED' && (
+          {/* Confirm delivery CTA — chỉ hiện cho CUSTOMER sở hữu đơn, khi đã giao thành công và chưa xác nhận */}
+          {isCustomer && fulfillment.fulfillStatus === 'DELIVERED' && !orderDone && (
             <div className="glass rounded-2xl p-5 border border-emerald-500/30 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
