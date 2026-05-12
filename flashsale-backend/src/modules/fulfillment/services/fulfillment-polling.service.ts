@@ -6,6 +6,7 @@ import {
   OrderStatus
 } from '@prisma/client'
 import { GHNService } from '@infrastructure/ghn/ghn.service'
+import { GHNError } from '@infrastructure/ghn/ghn.types'
 import { NotificationService } from '@modules/notification/services/notification.service'
 import { FulfillmentRepository } from '../repositories/fulfillment.repository'
 
@@ -150,9 +151,33 @@ export class FulfillmentPollingService {
         synced++
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
-        this.logger.warn(
-          `Không thể sync tracking=${order.trackingNumber}: ${msg}`
-        )
+
+        // GHN 400 = đơn không tồn tại / vĩnh viễn không tìm được → mark EXCEPTION,
+        // loại khỏi polling queue để tránh spam lỗi mỗi chu kỳ
+        if (err instanceof GHNError && err.httpStatus === 400) {
+          try {
+            await this.fulfillmentRepo.updateStatus(
+              order.id,
+              FulfillmentStatus.EXCEPTION,
+              {
+                exceptionAt: new Date(),
+                exceptionReason: `GHN không tìm thấy: ${order.trackingNumber}`
+              }
+            )
+            this.logger.warn(
+              `tracking=${order.trackingNumber}: GHN 400 → đánh dấu EXCEPTION, dừng polling`
+            )
+          } catch {
+            this.logger.warn(
+              `Không thể sync tracking=${order.trackingNumber}: ${msg}`
+            )
+          }
+        } else {
+          this.logger.warn(
+            `Không thể sync tracking=${order.trackingNumber}: ${msg}`
+          )
+        }
+
         errors++
       }
     }
