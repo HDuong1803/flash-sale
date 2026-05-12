@@ -29,6 +29,12 @@ interface ConsumeOptions {
   failedQueue?: string
 }
 
+interface ConsumerRegistration {
+  queue: string
+  handler: (msg: amqplib.ConsumeMessage) => Promise<void>
+  options: ConsumeOptions
+}
+
 @Injectable()
 export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RabbitMQService.name)
@@ -39,6 +45,8 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   private isReconnecting = false
   private reconnectTimer: NodeJS.Timeout | null = null
   private isShuttingDown = false
+  // Lưu lại tất cả consumers đã đăng ký để re-register sau reconnect
+  private readonly registeredConsumers: ConsumerRegistration[] = []
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -57,6 +65,16 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
       await this.setupQueues()
       this.reconnectAttempts = 0
       this.logger.log('RabbitMQ connected')
+
+      // Re-register tất cả consumers đã đăng ký trước đó (sau reconnect)
+      if (this.registeredConsumers.length > 0) {
+        this.logger.log(
+          `Re-registering ${this.registeredConsumers.length} consumer(s) after reconnect`
+        )
+        for (const reg of this.registeredConsumers) {
+          await this.registerConsumer(reg.queue, reg.handler, reg.options)
+        }
+      }
 
       // Re-register listeners every time we get a fresh connection/channel
       this.connection.on('error', (err: Error) => {
@@ -215,10 +233,23 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
     handler: (msg: amqplib.ConsumeMessage) => Promise<void>,
     options: ConsumeOptions = {}
   ): Promise<void> {
+    // Lưu lại consumer registration để re-register sau reconnect
+    this.registeredConsumers.push({ queue, handler, options })
+
     if (!this.channel) {
-      this.logger.warn(`Cannot consume ${queue}: channel not ready`)
+      this.logger.warn(
+        `Cannot consume ${queue}: channel not ready — will register after reconnect`
+      )
       return
     }
+    await this.registerConsumer(queue, handler, options)
+  }
+
+  private async registerConsumer(
+    queue: string,
+    handler: (msg: amqplib.ConsumeMessage) => Promise<void>,
+    options: ConsumeOptions
+  ): Promise<void> {
     const prefetch = options.prefetch ?? 1
     const maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES
     const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS
@@ -281,6 +312,7 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
         this.channel.ack(msg)
       }
     })
+    this.logger.log(`Consumer registered for queue: ${queue}`)
   }
 
   private async republishForRetry(
