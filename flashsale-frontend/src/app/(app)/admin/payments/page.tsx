@@ -16,7 +16,8 @@ export default function AdminPaymentsPage() {
   const summaryQuery = useFinanceSummary()
   const trendQuery = useFinanceTrend(trendDays)
   const categoryQuery = useFinanceByCategory()
-  const loading = summaryQuery.loading || trendQuery.loading || categoryQuery.loading
+  const loading = summaryQuery.loading || categoryQuery.loading
+  const trendLoading = trendQuery.loading
   const error = summaryQuery.error || trendQuery.error || categoryQuery.error
 
   const summary = summaryQuery.data
@@ -89,7 +90,12 @@ export default function AdminPaymentsPage() {
                 <h2 className="text-white font-semibold">Xu hướng hoa hồng</h2>
                 <PeriodFilter value={trendDays} onChange={setTrendDays} />
               </div>
-              <div className="h-72">
+              <div className="h-72 relative">
+                {trendLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-xl z-10">
+                    <div className="w-5 h-5 border-2 border-emerald-400/50 border-t-emerald-400 rounded-full animate-spin" />
+                  </div>
+                )}
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={trend}>
                     <XAxis dataKey="date" stroke="#9ca3af" />

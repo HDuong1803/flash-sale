@@ -168,64 +168,78 @@ export default function AdminCampaignMonitorPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="glass rounded-2xl p-4">
-          <h2 className="text-white font-semibold mb-3">Dòng thời gian truy cập và giữ chỗ</h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={timelineQuery.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis
-                  dataKey="bucket"
-                  tickFormatter={(v) => new Date(v).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                  stroke="rgba(255,255,255,0.4)"
-                  interval="preserveStartEnd"
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(value, name) => [Number(value).toLocaleString(), metricLabelMap[String(name)] ?? String(name)]}
-                  labelFormatter={(label) => new Date(String(label)).toLocaleString('vi-VN')}
-                  contentStyle={{ background: 'rgba(17,24,39,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', paddingTop: 8 }} />
-                <Area type="monotone" dataKey="visits" stroke="#60a5fa" fill="#60a5fa33" name="Lượt truy cập" />
-                <Area type="monotone" dataKey="reservations" stroke="#34d399" fill="#34d39933" name="Giữ chỗ" />
-                <Brush dataKey="bucket" height={20} stroke="rgba(255,255,255,0.15)" fill="rgba(255,255,255,0.03)" travellerWidth={6} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      {(() => {
+        const pts = timelineQuery.data?.length ?? 0
+        // Giới hạn tối đa 12 nhãn trên trục X
+        const xInterval = pts > 12 ? Math.ceil(pts / 12) - 1 : 0
+        const fmtTick = (v: string) => {
+          const d = new Date(v)
+          return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        }
+        const fmtLabel = (label: unknown) =>
+          new Date(String(label)).toLocaleString('vi-VN', {
+            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+          })
+        const tooltipStyle = { background: 'rgba(17,24,39,0.95)', border: '1px solid rgba(255,255,255,0.1)' }
+        const legendStyle = { fontSize: 12, color: 'rgba(255,255,255,0.5)', paddingTop: 8 }
+        const axisProps = {
+          dataKey: 'bucket' as const,
+          tickFormatter: fmtTick,
+          stroke: 'rgba(255,255,255,0.4)',
+          interval: xInterval,
+          tick: { fontSize: 11 },
+          minTickGap: 40,
+        }
 
-        <div className="glass rounded-2xl p-4">
-          <h2 className="text-white font-semibold mb-3">Dòng thời gian chuyển đổi thanh toán</h2>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={timelineQuery.data}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                <XAxis
-                  dataKey="bucket"
-                  tickFormatter={(v) => new Date(v).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                  stroke="rgba(255,255,255,0.4)"
-                  interval="preserveStartEnd"
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis yAxisId="left" stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="right" orientation="right" stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-                <Tooltip
-                  formatter={(value, name) => [Number(value).toLocaleString(), metricLabelMap[String(name)] ?? String(name)]}
-                  labelFormatter={(label) => new Date(String(label)).toLocaleString('vi-VN')}
-                  contentStyle={{ background: 'rgba(17,24,39,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', paddingTop: 8 }} />
-                <Bar yAxisId="left" dataKey="successfulPayments" fill="#a78bfa" radius={[3, 3, 0, 0]} name="Thanh toán thành công" />
-                <Line yAxisId="right" type="monotone" dataKey="successRatePct" stroke="#fbbf24" strokeWidth={2} dot={false} name="Tỷ lệ thành công (%)" />
-                <Brush dataKey="bucket" height={20} stroke="rgba(255,255,255,0.15)" fill="rgba(255,255,255,0.03)" travellerWidth={6} />
-              </ComposedChart>
-            </ResponsiveContainer>
+        return (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="glass rounded-2xl p-4">
+              <h2 className="text-white font-semibold mb-3">Dòng thời gian truy cập và giữ chỗ</h2>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={timelineQuery.data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis {...axisProps} />
+                    <YAxis stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      formatter={(value, name) => [Number(value).toLocaleString(), metricLabelMap[String(name)] ?? String(name)]}
+                      labelFormatter={fmtLabel}
+                      contentStyle={tooltipStyle}
+                    />
+                    <Legend wrapperStyle={legendStyle} />
+                    <Area type="monotone" dataKey="visits" stroke="#60a5fa" fill="#60a5fa33" name="Lượt truy cập" dot={false} />
+                    <Area type="monotone" dataKey="reservations" stroke="#34d399" fill="#34d39933" name="Giữ chỗ" dot={false} />
+                    <Brush dataKey="bucket" height={20} stroke="rgba(255,255,255,0.15)" fill="rgba(255,255,255,0.03)" travellerWidth={6} tickFormatter={fmtTick} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-4">
+              <h2 className="text-white font-semibold mb-3">Dòng thời gian chuyển đổi thanh toán</h2>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={timelineQuery.data}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis {...axisProps} />
+                    <YAxis yAxisId="left" stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} />
+                    <YAxis yAxisId="right" orientation="right" stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} tickFormatter={(v) => `${Number(v).toFixed(0)}%`} />
+                    <Tooltip
+                      formatter={(value, name) => [Number(value).toLocaleString(), metricLabelMap[String(name)] ?? String(name)]}
+                      labelFormatter={fmtLabel}
+                      contentStyle={tooltipStyle}
+                    />
+                    <Legend wrapperStyle={legendStyle} />
+                    <Bar yAxisId="left" dataKey="successfulPayments" fill="#a78bfa" radius={[3, 3, 0, 0]} name="Thanh toán thành công" />
+                    <Line yAxisId="right" type="monotone" dataKey="successRatePct" stroke="#fbbf24" strokeWidth={2} dot={false} name="Tỷ lệ thành công (%)" />
+                    <Brush dataKey="bucket" height={20} stroke="rgba(255,255,255,0.15)" fill="rgba(255,255,255,0.03)" travellerWidth={6} tickFormatter={fmtTick} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        )
+      })()}
     </div>
   )
 }
