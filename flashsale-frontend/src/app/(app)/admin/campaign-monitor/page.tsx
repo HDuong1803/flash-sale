@@ -170,8 +170,8 @@ export default function AdminCampaignMonitorPage() {
 
       {(() => {
         const pts = timelineQuery.data?.length ?? 0
-        // Giới hạn tối đa 12 nhãn trên trục X
-        const xInterval = pts > 12 ? Math.ceil(pts / 12) - 1 : 0
+        // Giới hạn ~15 nhãn trên trục X: interval = bỏ qua bao nhiêu tick giữa 2 nhãn
+        const xInterval = Math.max(0, Math.floor(pts / 15))
         const fmtTick = (v: string) => {
           const d = new Date(v)
           return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
@@ -188,7 +188,7 @@ export default function AdminCampaignMonitorPage() {
           stroke: 'rgba(255,255,255,0.4)',
           interval: xInterval,
           tick: { fontSize: 11 },
-          minTickGap: 40,
+          minTickGap: 50,
         }
 
         return (
