@@ -175,12 +175,12 @@ function StrategyCard({
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <MetricBox label="Throughput" value={result.throughputRPS} unit="RPS" highlight={result.throughputRPS > 0} />
+        <MetricBox label="Thông lượng" value={result.throughputRPS} unit="RPS" highlight={result.throughputRPS > 0} />
         <MetricBox label="Thành công" value={result.succeeded} unit={`/ ${result.concurrentUsers}`} highlight={result.isCorrect} />
-        <MetricBox label="P50 Latency" value={result.p50LatencyMs} unit="ms" />
-        <MetricBox label="P95 Latency" value={result.p95LatencyMs} unit="ms" danger={result.p95LatencyMs > 500} />
+        <MetricBox label="Độ trễ P50" value={result.p50LatencyMs} unit="ms" />
+        <MetricBox label="Độ trễ P95" value={result.p95LatencyMs} unit="ms" danger={result.p95LatencyMs > 500} />
         <MetricBox label="Tồn kho cuối" value={result.finalStock ?? '?'} danger={(result.finalStock ?? 0) < 0} />
-        <MetricBox label="Oversell" value={result.oversellCount} danger={result.oversellCount > 0} />
+        <MetricBox label="Bán vượt (Oversell)" value={result.oversellCount} danger={result.oversellCount > 0} />
       </div>
 
       <p className="text-white/30 text-xs text-right">
@@ -205,7 +205,7 @@ function ComparisonResult({ data }: { data: BenchmarkComparison }) {
       <div className="glass rounded-2xl p-6 space-y-4">
         <h3 className="text-white font-medium flex items-center gap-2">
           <Zap size={16} className="text-indigo-400" />
-          So sánh Throughput (RPS)
+          So sánh thông lượng (RPS)
         </h3>
         {[
           { label: 'NO_LOCK', value: data.noLock.throughputRPS, safe: false, color: 'bg-red-500' },
@@ -238,7 +238,7 @@ function ComparisonResult({ data }: { data: BenchmarkComparison }) {
         <p className="text-white/70 text-sm leading-relaxed">{data.conclusion}</p>
         <div className="flex items-center gap-2 text-xs text-white/40">
           <CheckCircle size={12} className="text-emerald-400" />
-          <span>Khuyến nghị production: <span className="font-mono text-emerald-300">{data.recommendation}</span></span>
+          <span>Khuyến nghị cho production: <span className="font-mono text-emerald-300">{data.recommendation}</span></span>
         </div>
       </div>
     </div>
@@ -301,7 +301,7 @@ function RunJobCard({ runId, onComplete }: { runId: string; onComplete: (run: Be
       <div className="glass rounded-2xl p-6 flex items-center gap-3">
         <Loader2 size={20} className="text-indigo-400 animate-spin" />
         <div>
-          <p className="text-white font-medium text-sm">Đang khởi tạo job...</p>
+          <p className="text-white font-medium text-sm">Đang khởi tạo tác vụ...</p>
           <p className="text-white/40 text-xs font-mono mt-0.5">{runId}</p>
         </div>
       </div>
@@ -318,7 +318,7 @@ function RunJobCard({ runId, onComplete }: { runId: string; onComplete: (run: Be
           {run.status === 'COMPLETED' && <CheckCircle size={20} className="text-emerald-400 flex-shrink-0" />}
           {run.status === 'FAILED' && <XCircle size={20} className="text-red-400 flex-shrink-0" />}
           <div>
-            <p className="text-white font-medium text-sm">Job đang chạy</p>
+            <p className="text-white font-medium text-sm">Tác vụ đang chạy</p>
             <p className="text-white/40 text-xs font-mono mt-0.5">{run.id}</p>
           </div>
         </div>
@@ -327,15 +327,15 @@ function RunJobCard({ runId, onComplete }: { runId: string; onComplete: (run: Be
 
       <div className="grid grid-cols-3 gap-3 text-xs">
         <div className="glass rounded-lg p-2 text-center">
-          <p className="text-white/40">Strategy</p>
+          <p className="text-white/40">Chiến lược</p>
           <p className="text-white font-mono font-medium">{run.strategyMode}</p>
         </div>
         <div className="glass rounded-lg p-2 text-center">
-          <p className="text-white/40">Users</p>
+          <p className="text-white/40">Người dùng</p>
           <p className="text-white font-medium">{run.concurrentUsers.toLocaleString()}</p>
         </div>
         <div className="glass rounded-lg p-2 text-center">
-          <p className="text-white/40">Stock</p>
+          <p className="text-white/40">Tồn kho</p>
           <p className="text-white font-medium">{run.stockAmount}</p>
         </div>
       </div>
@@ -410,11 +410,11 @@ function RunTab() {
       return
     }
     if (concurrentUsers < 1) {
-      setError('Số concurrent users phải ít nhất là 1.')
+      setError('Số người dùng đồng thời phải ít nhất là 1.')
       return
     }
     if (stockAmount < 1) {
-      setError('Stock amount phải ít nhất là 1.')
+      setError('Số lượng hàng phải ít nhất là 1.')
       return
     }
 
@@ -451,7 +451,7 @@ function RunTab() {
 
         {/* Strategy selector */}
         <div className="space-y-2">
-          <label className="text-white/60 text-sm">Strategy</label>
+          <label className="text-white/60 text-sm">Chiến lược</label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {strategyOrder.map(s => {
               const meta = STRATEGY_META[s]
@@ -527,7 +527,7 @@ function RunTab() {
         {/* Concurrent Users + Stock Amount */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="text-white/60 text-sm">Concurrent Users</label>
+            <label className="text-white/60 text-sm">Người dùng đồng thời</label>
             <input
               type="number"
               min={1}
@@ -539,7 +539,7 @@ function RunTab() {
 
           <div className="space-y-1">
             <label className="text-white/60 text-sm">
-              Stock Amount
+              Số lượng hàng
               {selectedProduct && (
                 <span className="text-white/30 ml-1.5 text-xs">
                   (thực tế: {selectedProduct.remainingQuantity})
@@ -680,11 +680,11 @@ function HistoryRunRow({ run }: { run: BenchmarkRun }) {
             <p className="text-white text-xs font-medium truncate">{formatDate(run.createdAt)}</p>
           </div>
           <div>
-            <p className="text-white/50 text-xs">Strategy</p>
+            <p className="text-white/50 text-xs">Chiến lược</p>
             <p className={`text-xs font-mono font-semibold ${meta.textColor}`}>{run.strategyMode}</p>
           </div>
           <div>
-            <p className="text-white/50 text-xs">Users / Stock</p>
+            <p className="text-white/50 text-xs">Người dùng / Tồn kho</p>
             <p className="text-white text-xs">{run.concurrentUsers.toLocaleString()} / {run.stockAmount}</p>
           </div>
           <div>
@@ -755,7 +755,7 @@ function HistoryTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-white/50 text-sm">{total} benchmark runs</p>
+        <p className="text-white/50 text-sm">{total} lần chạy benchmark</p>
         <button
           onClick={() => { void load(page) }}
           disabled={loading}
