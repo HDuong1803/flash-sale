@@ -9,7 +9,7 @@ import {
   Min
 } from 'class-validator'
 import { Type } from 'class-transformer'
-import { FulfillmentStatus } from '@prisma/client'
+import { FulfillmentStatus, OrderStatus } from '@prisma/client'
 
 // ─── Request DTOs ─────────────────────────────────────────────────────────────
 
@@ -189,6 +189,14 @@ export class FulfillmentOrderResponseDto {
 
   @ApiProperty({ description: 'Địa chỉ đã normalize', required: false })
   normalizedAddress?: object | null
+
+  @ApiProperty({
+    description:
+      'Trạng thái đơn hàng (để FE biết đơn đã DONE chưa, chỉ có trong tracking endpoint)',
+    enum: OrderStatus,
+    required: false
+  })
+  orderStatus?: OrderStatus
 
   @ApiProperty({
     description: 'Lịch sử tracking events',

@@ -535,11 +535,6 @@ function RunTab() {
               onChange={e => setConcurrentUsers(Math.max(1, Number(e.target.value)))}
               className="w-full glass rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:ring-1 focus:ring-indigo-500/50"
             />
-            {concurrentUsers > 5000 && (
-              <p className="text-yellow-400/70 text-xs flex items-center gap-1">
-                <AlertTriangle size={10} /> {concurrentUsers.toLocaleString()} users — DB_LOCK sẽ rất chậm
-              </p>
-            )}
           </div>
 
           <div className="space-y-1">
@@ -568,9 +563,9 @@ function RunTab() {
             { label: '100/50', users: 100, stock: 50 },
             { label: '500/100', users: 500, stock: 100 },
             { label: '2000/100', users: 2000, stock: 100 },
-            { label: '5000/100', users: 5000, stock: 100 },
-            { label: '10000/100 🔥', users: 10000, stock: 100 },
-            { label: '20000/100 💀', users: 20000, stock: 100 }
+            { label: '10000/100', users: 10000, stock: 100 },
+            { label: '50000/100', users: 50000, stock: 100 },
+            { label: '100000/100', users: 100000, stock: 100 }
           ].map(p => (
             <button
               key={p.label}

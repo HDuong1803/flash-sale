@@ -35,7 +35,10 @@ import {
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor'
 import { FulfillmentService } from '../services/fulfillment.service'
 import { FulfillmentPollingService } from '../services/fulfillment-polling.service'
-import { FulfillmentRepository } from '../repositories/fulfillment.repository'
+import {
+  FulfillmentOrderWithCarrier,
+  FulfillmentRepository
+} from '../repositories/fulfillment.repository'
 import {
   BookLabelDto,
   CarrierResponseDto,
@@ -139,7 +142,10 @@ export class FulfillmentController {
     await this.assertOrderAccess(orderId, user, true)
     const fulfillment = await this.fulfillmentRepo.findByOrderId(orderId)
     if (!fulfillment) return null
-    return this.mapFulfillmentResponse(fulfillment)
+    return {
+      ...this.mapFulfillmentResponse(fulfillment),
+      orderStatus: fulfillment.order.status
+    }
   }
 
   @ApiOperation({ summary: 'Mua shipping label cho đơn hàng (ADMIN/MERCHANT)' })
@@ -470,9 +476,8 @@ export class FulfillmentController {
   // ─── Private mappers ───────────────────────────────────────────────────────
 
   private mapFulfillmentResponse(
-    f: Awaited<ReturnType<FulfillmentRepository['findByOrderId']>>
+    f: FulfillmentOrderWithCarrier
   ): FulfillmentOrderResponseDto {
-    if (!f) throw new Error('Fulfillment not found')
     return {
       id: f.id,
       orderId: f.orderId,

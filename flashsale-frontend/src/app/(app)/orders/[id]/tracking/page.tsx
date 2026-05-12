@@ -255,7 +255,6 @@ export default function OrderTrackingPage() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const [orderDone, setOrderDone] = useState(false)
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -285,8 +284,9 @@ export default function OrderTrackingPage() {
     setConfirming(true)
     try {
       await orderService.confirmDelivery(orderId)
-      setOrderDone(true)
       await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) })
+      // Cập nhật local state để nút ẩn ngay, không cần reload
+      setFulfillment(prev => prev ? { ...prev, orderStatus: 'DONE' } : prev)
       toast.success('Xác nhận nhận hàng thành công! Đơn hàng đã hoàn thành.')
       router.push(`/orders/${orderId}`)
     } catch {
@@ -397,8 +397,8 @@ export default function OrderTrackingPage() {
             </div>
           </div>
 
-          {/* Confirm delivery CTA — chỉ hiện cho CUSTOMER sở hữu đơn, khi đã giao thành công và chưa xác nhận */}
-          {isCustomer && fulfillment.fulfillStatus === 'DELIVERED' && !orderDone && (
+          {/* Confirm delivery CTA — chỉ hiện cho CUSTOMER sở hữu đơn, khi đã giao thành công và đơn chưa DONE */}
+          {isCustomer && fulfillment.fulfillStatus === 'DELIVERED' && fulfillment.orderStatus !== 'DONE' && (
             <div className="glass rounded-2xl p-5 border border-emerald-500/30 space-y-3">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">

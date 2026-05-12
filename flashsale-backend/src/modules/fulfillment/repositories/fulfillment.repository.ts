@@ -151,9 +151,7 @@ export class FulfillmentRepository {
     return this.prisma.fulfillmentOrder.create({ data: input })
   }
 
-  async findByOrderId(
-    orderId: string
-  ): Promise<FulfillmentOrderWithCarrier | null> {
+  async findByOrderId(orderId: string) {
     return this.prisma.fulfillmentOrder.findUnique({
       where: { orderId },
       include: {
@@ -161,7 +159,8 @@ export class FulfillmentRepository {
         trackingEvents: {
           orderBy: { occurredAt: 'desc' },
           take: 20
-        }
+        },
+        order: { select: { status: true } }
       }
     })
   }

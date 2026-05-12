@@ -860,6 +860,7 @@ export interface FulfillmentOrder {
   id: string
   orderId: string
   fulfillStatus: FulfillmentStatus
+  orderStatus?: OrderStatus
   carrier?: FulfillmentCarrier | null
   trackingNumber?: string | null
   trackingUrl?: string | null
