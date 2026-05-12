@@ -57,6 +57,20 @@ export function formatTimeAgo(dateString: string): string {
   return `${Math.floor(hrs / 24)} ngày trước`
 }
 
+/**
+ * Định dạng số tiền gọn cho trục/nhãn biểu đồ.
+ * Ví dụ: 30_000_000 → "30tr" | 1_500_000 → "1.5tr" | 500_000 → "500K" | 12_000 → "12K"
+ */
+export function formatChartMoney(v: number): string {
+  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}tỷ`
+  if (v >= 1_000_000) {
+    const n = v / 1_000_000
+    return `${Number.isInteger(n) ? n : n.toFixed(1)}tr`
+  }
+  if (v >= 1_000) return `${Math.round(v / 1_000)}K`
+  return v.toLocaleString('vi-VN')
+}
+
 export function calculateDiscount(original: number, sale: number): number {
   return Math.round(((original - sale) / original) * 100)
 }

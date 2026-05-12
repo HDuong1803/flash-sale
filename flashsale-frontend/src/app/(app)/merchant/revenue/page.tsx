@@ -11,7 +11,7 @@ import { useMerchantRevenue } from '@/hooks/queries/useMerchantRevenue'
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { EmptyState } from '@/components/shared/EmptyState'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatChartMoney } from '@/lib/utils'
 import type { RevenueDateRange, MerchantRevenueSummary } from '@/types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -247,7 +247,7 @@ export default function MerchantRevenuePage() {
               />
               <YAxis
                 tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }}
-                tickFormatter={v => `${(v / 1_000_000).toFixed(0)}tr`}
+                tickFormatter={(v) => formatChartMoney(Number(v))}
                 axisLine={false} tickLine={false} width={40}
               />
               <Tooltip

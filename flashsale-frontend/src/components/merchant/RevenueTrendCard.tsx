@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { useMerchantRevenue } from '@/hooks/queries/useMerchantRevenue'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatChartMoney } from '@/lib/utils'
 
 function toDateStr(d: Date) {
   return d.toISOString().split('T')[0]
@@ -81,7 +81,7 @@ export function RevenueTrendCard() {
                 tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v: number) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : `${(v / 1000).toFixed(0)}k`}
+                tickFormatter={(v: number) => formatChartMoney(v)}
                 width={45}
               />
               <Tooltip

@@ -1,10 +1,10 @@
 'use client'
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { AlertCircle, Wallet, TrendingUp, Percent, Layers } from 'lucide-react'
 import { GlassCard } from '@/components/shared/GlassCard'
 import { AutoRefreshTimer } from '@/components/shared/AutoRefreshTimer'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, formatChartMoney } from '@/lib/utils'
 import { useFinanceSummary } from '@/hooks/queries/useFinanceSummary'
 import { useFinanceTrend } from '@/hooks/queries/useFinanceTrend'
 import { useFinanceByCategory } from '@/hooks/queries/useFinanceByCategory'
@@ -87,7 +87,7 @@ export default function AdminPaymentsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={trend}>
                     <XAxis dataKey="date" stroke="#9ca3af" />
-                    <YAxis stroke="#9ca3af" tickFormatter={(v) => `${Math.round(v / 1000000)}M`} />
+                    <YAxis stroke="#9ca3af" tickFormatter={(v) => formatChartMoney(Number(v))} />
                     <Tooltip
                       contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12 }}
                       formatter={(value) => [formatCurrency(Number(value ?? 0)), 'Hoa hồng']}
@@ -103,7 +103,16 @@ export default function AdminPaymentsPage() {
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={110} label>
+                    <Pie
+                      data={pieData}
+                      dataKey="value"
+                      nameKey="name"
+                      outerRadius={90}
+                      label={({ percent, value }) =>
+                        `${formatChartMoney(Number(value))} (${((percent ?? 0) * 100).toFixed(0)}%)`
+                      }
+                      labelLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                    >
                       {pieData.map((_, idx) => (
                         <Cell key={idx} fill={pieColors[idx % pieColors.length]} />
                       ))}
@@ -111,6 +120,9 @@ export default function AdminPaymentsPage() {
                     <Tooltip
                       contentStyle={{ background: 'rgba(15,23,42,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12 }}
                       formatter={(value) => [formatCurrency(Number(value ?? 0)), 'Hoa hồng']}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', paddingTop: 8 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

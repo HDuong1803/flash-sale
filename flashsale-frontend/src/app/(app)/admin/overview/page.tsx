@@ -15,7 +15,7 @@ import { useRevenueTrend } from '@/hooks/queries/useRevenueTrend'
 import { useActivity } from '@/hooks/queries/useActivity'
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
-import { formatCurrency, formatTimeAgo } from '@/lib/utils'
+import { formatCurrency, formatTimeAgo, formatChartMoney } from '@/lib/utils'
 import { useAdminStream } from '@/hooks/useAdminStream'
 
 // ─── Time range helpers ────────────────────────────────────────────────────────
@@ -282,7 +282,7 @@ export default function AdminOverviewPage() {
             <ResponsiveContainer width="100%" height={192}>
               <AreaChart data={revenueTrend}>
                 <XAxis dataKey="date" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatChartMoney(Number(v))} />
                 <Tooltip contentStyle={tooltipStyle} formatter={(v) => [typeof v === 'number' ? formatCurrency(v) : v, 'Doanh thu']} />
                 <Area type="monotone" dataKey="revenue" stroke="#818cf8" fill="rgba(99,102,241,0.15)" strokeWidth={2} />
               </AreaChart>

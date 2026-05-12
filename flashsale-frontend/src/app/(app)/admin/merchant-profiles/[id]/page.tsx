@@ -31,7 +31,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GlassCard } from '@/components/shared/GlassCard'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { useAdminMerchantOverview } from '@/hooks/queries/useAdminMerchantOverview'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, formatChartMoney } from '@/lib/utils'
 
 const RANGE_OPTIONS = [
   { label: '7 ngày', value: 7 },
@@ -303,7 +303,7 @@ export default function AdminMerchantDetailPage() {
                     <BarChart data={topCampaignRevenueChart}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                       <XAxis dataKey="name" stroke="rgba(255,255,255,0.45)" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={58} />
-                      <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(v) => `${Math.round(Number(v) / 1_000_000)}tr`} />
+                      <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(v) => formatChartMoney(Number(v))} />
                       <Tooltip
                         formatter={(value) => formatCurrency(Number(value ?? 0))}
                         contentStyle={{
@@ -328,7 +328,7 @@ export default function AdminMerchantDetailPage() {
                     <BarChart data={topProductRevenueChart}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                       <XAxis dataKey="name" stroke="rgba(255,255,255,0.45)" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={58} />
-                      <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(v) => `${Math.round(Number(v) / 1_000_000)}tr`} />
+                      <YAxis stroke="rgba(255,255,255,0.45)" tickFormatter={(v) => formatChartMoney(Number(v))} />
                       <Tooltip
                         formatter={(value) => formatCurrency(Number(value ?? 0))}
                         contentStyle={{
