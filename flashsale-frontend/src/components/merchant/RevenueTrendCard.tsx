@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { useMerchantRevenue } from '@/hooks/queries/useMerchantRevenue'
+import { PeriodFilter } from '@/components/shared/PeriodFilter'
 import { formatCurrency, formatChartMoney } from '@/lib/utils'
 
 function toDateStr(d: Date) {
@@ -14,12 +15,14 @@ function toDateStr(d: Date) {
 }
 
 export function RevenueTrendCard() {
-  const range = useMemo(() => ({
-    startDate: toDateStr(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)),
-    endDate: toDateStr(new Date()),
-  }), [])
+  const [days, setDays] = useState(7)
 
-  const { data, loading } = useMerchantRevenue(range)
+  const { start, end } = useMemo(() => ({
+    start: toDateStr(new Date(Date.now() - (days - 1) * 86400000)),
+    end: toDateStr(new Date()),
+  }), [days])
+
+  const { data, loading } = useMerchantRevenue({ startDate: start, endDate: end })
 
   const chartData = data?.dailyRevenue.map(d => ({
     date: new Date(d.date).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh',  day: '2-digit', month: '2-digit' }),
@@ -36,7 +39,7 @@ export function RevenueTrendCard() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div>
           <h2 className="text-white font-semibold">Xu hướng doanh thu</h2>
-          <p className="text-white/40 text-xs mt-0.5">7 ngày gần nhất</p>
+          <PeriodFilter value={days} onChange={setDays} />
         </div>
         <div className="flex items-center gap-4">
           {summary && (

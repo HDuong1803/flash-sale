@@ -3,10 +3,10 @@ import { queryKeys } from '@/lib/query-keys'
 import { adminService } from '@/services/admin.service'
 import type { RevenueTrend } from '@/types'
 
-export function useRevenueTrend() {
+export function useRevenueTrend(days = 7) {
   const query = useQuery<RevenueTrend[]>({
-    queryKey: queryKeys.admin.revenueTrend(),
-    queryFn: () => adminService.getRevenueTrend(),
+    queryKey: [...queryKeys.admin.revenueTrend(), days],
+    queryFn: () => adminService.getRevenueTrend(days),
     refetchInterval: 60_000,
   })
 

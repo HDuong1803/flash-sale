@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -429,12 +431,14 @@ export class AdminController {
     )
   }
 
-  @ApiOperation({ summary: 'Biểu đồ doanh thu 7 ngày gần nhất' })
+  @ApiOperation({ summary: 'Biểu đồ doanh thu theo số ngày gần nhất' })
   @ApiResponse({ status: HttpStatus.OK, type: [RevenueTrendItemDto] })
   @Get('stats/revenue-trend')
   @HttpCode(HttpStatus.OK)
-  async getRevenueTrend(): Promise<RevenueTrendItemDto[]> {
-    return this.adminService.getRevenueTrend()
+  async getRevenueTrend(
+    @Query('days', new DefaultValuePipe(7), ParseIntPipe) days: number
+  ): Promise<RevenueTrendItemDto[]> {
+    return this.adminService.getRevenueTrend(days)
   }
 
   @ApiOperation({ summary: 'Danh sách hoạt động gần đây' })
@@ -531,8 +535,12 @@ export class AdminController {
   @ApiResponse({ status: HttpStatus.OK, type: [FinanceTrendItemDto] })
   @Get('finance/trend')
   @HttpCode(HttpStatus.OK)
-  async getFinanceTrend(): Promise<FinanceTrendItemDto[]> {
-    return this.adminService.getFinanceTrend() as unknown as FinanceTrendItemDto[]
+  async getFinanceTrend(
+    @Query('days', new DefaultValuePipe(7), ParseIntPipe) days: number
+  ): Promise<FinanceTrendItemDto[]> {
+    return this.adminService.getFinanceTrend(
+      days
+    ) as unknown as FinanceTrendItemDto[]
   }
 
   @ApiOperation({ summary: 'Phân rã doanh thu hoa hồng theo danh mục (admin)' })

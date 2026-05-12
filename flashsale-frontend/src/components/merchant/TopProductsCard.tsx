@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useMerchantRevenue } from '@/hooks/queries/useMerchantRevenue'
+import { PeriodFilter } from '@/components/shared/PeriodFilter'
 import { formatCurrency } from '@/lib/utils'
 
 function toDateStr(d: Date) {
@@ -16,10 +17,12 @@ const RANK_STYLE = [
 ]
 
 export function TopProductsCard() {
+  const [days, setDays] = useState(30)
+
   const range = useMemo(() => ({
-    startDate: toDateStr(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)),
+    startDate: toDateStr(new Date(Date.now() - (days - 1) * 86400000)),
     endDate: toDateStr(new Date()),
-  }), [])
+  }), [days])
 
   const { data, loading } = useMerchantRevenue(range)
 
@@ -31,7 +34,7 @@ export function TopProductsCard() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
         <div>
           <h2 className="text-white font-semibold">Sản phẩm bán chạy</h2>
-          <p className="text-white/40 text-xs mt-0.5">30 ngày qua</p>
+          <PeriodFilter value={days} onChange={setDays} />
         </div>
         <Link href="/merchant/revenue" className="text-indigo-400 text-xs hover:text-indigo-300 transition-colors">
           Xem báo cáo →

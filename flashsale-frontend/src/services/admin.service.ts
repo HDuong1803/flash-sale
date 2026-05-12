@@ -80,8 +80,8 @@ class AdminService {
   getOrdersByTime(start: Date, end: Date): Promise<OrdersByHour[]> {
     return withRetry(() => apiClient.get(`/admin/stats/orders-by-time?start=${start.toISOString()}&end=${end.toISOString()}`))
   }
-  getRevenueTrend(): Promise<RevenueTrend[]> {
-    return withRetry(() => apiClient.get('/admin/stats/revenue-trend'))
+  getRevenueTrend(days = 7): Promise<RevenueTrend[]> {
+    return withRetry(() => apiClient.get('/admin/stats/revenue-trend', { params: { days } }))
   }
   getActivity(): Promise<ActivityLog[]> {
     return withRetry(() => apiClient.get('/admin/activity'))
@@ -125,8 +125,8 @@ class AdminService {
     return withRetry(() => apiClient.get('/admin/finance/summary'))
   }
 
-  getFinanceTrend(): Promise<FinanceTrendItem[]> {
-    return withRetry(() => apiClient.get('/admin/finance/trend'))
+  getFinanceTrend(days = 7): Promise<FinanceTrendItem[]> {
+    return withRetry(() => apiClient.get('/admin/finance/trend', { params: { days } }))
   }
 
   getFinanceByCategory(): Promise<CommissionCategoryBreakdown[]> {

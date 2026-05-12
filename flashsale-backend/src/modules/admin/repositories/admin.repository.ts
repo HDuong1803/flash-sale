@@ -582,16 +582,18 @@ export class AdminRepository {
       .sort((a, b) => a.bucket.localeCompare(b.bucket))
   }
 
-  async getRevenueTrend(): Promise<Array<{ dayStart: Date; revenue: number }>> {
-    const days = Array.from({ length: 7 }, (_, i) => {
+  async getRevenueTrend(
+    days = 7
+  ): Promise<Array<{ dayStart: Date; revenue: number }>> {
+    const dayStarts = Array.from({ length: days }, (_, i) => {
       const d = new Date()
-      d.setDate(d.getDate() - (6 - i))
+      d.setDate(d.getDate() - (days - 1 - i))
       d.setHours(0, 0, 0, 0)
       return d
     })
 
     return Promise.all(
-      days.map(async dayStart => {
+      dayStarts.map(async dayStart => {
         const dayEnd = new Date(dayStart)
         dayEnd.setDate(dayEnd.getDate() + 1)
         const result = await this.prisma.order.aggregate({

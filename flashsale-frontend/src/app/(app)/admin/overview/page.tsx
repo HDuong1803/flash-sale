@@ -15,6 +15,7 @@ import { useRevenueTrend } from '@/hooks/queries/useRevenueTrend'
 import { useActivity } from '@/hooks/queries/useActivity'
 import { StatCardSkeleton } from '@/components/shared/skeletons/StatCardSkeleton'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { PeriodFilter } from '@/components/shared/PeriodFilter'
 import { formatCurrency, formatTimeAgo, formatChartMoney } from '@/lib/utils'
 import { useAdminStream } from '@/hooks/useAdminStream'
 
@@ -194,8 +195,9 @@ export default function AdminOverviewPage() {
   const [ordersRange, setOrdersRange] = useState<{ start: Date; end: Date }>(
     () => getPresetRange('today')
   )
+  const [revDays, setRevDays] = useState(7)
   const { data: ordersByHour, loading: ordersLoading } = useOrdersByTime(ordersRange.start, ordersRange.end)
-  const { data: revenueTrend, loading: revenueLoading } = useRevenueTrend()
+  const { data: revenueTrend, loading: revenueLoading } = useRevenueTrend(revDays)
   const { data: activity, loading: activityLoading } = useActivity()
   const showAlert = !alertDismissed && (pendingMerchants.length > 0 || pendingCampaigns.length > 0)
 
@@ -273,7 +275,10 @@ export default function AdminOverviewPage() {
 
         {/* Revenue trend */}
         <div className="glass rounded-2xl p-6 space-y-4">
-          <h2 className="text-white font-semibold">Doanh thu 7 ngày</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-white font-semibold">Xu hướng doanh thu</h2>
+            <PeriodFilter value={revDays} onChange={setRevDays} />
+          </div>
           {revenueLoading ? (
             <div className="h-48 animate-pulse bg-white/5 rounded-xl" />
           ) : revenueTrend.length === 0 ? (

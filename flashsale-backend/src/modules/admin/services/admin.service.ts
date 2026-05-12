@@ -407,8 +407,8 @@ export class AdminService {
     return rows.map(r => ({ bucket: r.bucket, orders: Number(r.count) }))
   }
 
-  async getRevenueTrend() {
-    const rows = await this.adminRepository.getRevenueTrend()
+  async getRevenueTrend(days = 7) {
+    const rows = await this.adminRepository.getRevenueTrend(days)
     return rows.map(({ dayStart, revenue }) => ({
       date: dayStart.toLocaleDateString('vi-VN', {
         day: '2-digit',
@@ -551,8 +551,8 @@ export class AdminService {
     return this.adminRepository.getFinanceSummary()
   }
 
-  async getFinanceTrend() {
-    const rows = await this.adminRepository.getFinanceTrend()
+  async getFinanceTrend(days = 7) {
+    const rows = await this.adminRepository.getFinanceTrend(days)
     return rows.map(({ dayStart, commissionRevenue, grossRevenue }) => ({
       date: dayStart.toLocaleDateString('vi-VN', {
         day: '2-digit',

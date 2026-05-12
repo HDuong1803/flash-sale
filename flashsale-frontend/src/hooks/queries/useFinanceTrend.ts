@@ -3,10 +3,10 @@ import { queryKeys } from '@/lib/query-keys'
 import { adminService } from '@/services/admin.service'
 import type { FinanceTrendItem } from '@/types'
 
-export function useFinanceTrend() {
+export function useFinanceTrend(days = 7) {
   const query = useQuery<FinanceTrendItem[]>({
-    queryKey: queryKeys.admin.financeTrend(),
-    queryFn: () => adminService.getFinanceTrend(),
+    queryKey: [...queryKeys.admin.financeTrend(), days],
+    queryFn: () => adminService.getFinanceTrend(days),
   })
 
   return {

@@ -1,17 +1,20 @@
 'use client'
 
+import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { AlertCircle, Wallet, TrendingUp, Percent, Layers } from 'lucide-react'
 import { GlassCard } from '@/components/shared/GlassCard'
 import { AutoRefreshTimer } from '@/components/shared/AutoRefreshTimer'
+import { PeriodFilter } from '@/components/shared/PeriodFilter'
 import { formatCurrency, formatChartMoney } from '@/lib/utils'
 import { useFinanceSummary } from '@/hooks/queries/useFinanceSummary'
 import { useFinanceTrend } from '@/hooks/queries/useFinanceTrend'
 import { useFinanceByCategory } from '@/hooks/queries/useFinanceByCategory'
 
 export default function AdminPaymentsPage() {
+  const [trendDays, setTrendDays] = useState(7)
   const summaryQuery = useFinanceSummary()
-  const trendQuery = useFinanceTrend()
+  const trendQuery = useFinanceTrend(trendDays)
   const categoryQuery = useFinanceByCategory()
   const loading = summaryQuery.loading || trendQuery.loading || categoryQuery.loading
   const error = summaryQuery.error || trendQuery.error || categoryQuery.error
@@ -82,7 +85,10 @@ export default function AdminPaymentsPage() {
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <GlassCard className="p-4">
-              <h2 className="text-white font-semibold mb-3">Xu hướng hoa hồng 7 ngày</h2>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-white font-semibold">Xu hướng hoa hồng</h2>
+                <PeriodFilter value={trendDays} onChange={setTrendDays} />
+              </div>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={trend}>
