@@ -2,7 +2,8 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  NotFoundException
+  NotFoundException,
+  OnApplicationBootstrap
 } from '@nestjs/common'
 import { createId } from '@paralleldrive/cuid2'
 import { LockStrategy } from '@prisma/client'
@@ -44,14 +45,30 @@ const runStatusKey = (runId: string) => `benchmark:run:${runId}:status`
 const runResultKey = (runId: string) => `benchmark:run:${runId}:result`
 const RUN_TTL = 86400 // 24 hours
 
+// Max concurrent promises per batch — DB_LOCK nhỏ hơn để tránh pool exhaustion
+const BATCH_SIZE: Record<LockStrategy, number> = {
+  [LockStrategy.NO_LOCK]: 500,
+  [LockStrategy.DB_LOCK]: 50,
+  [LockStrategy.REDIS_LUA]: 500
+}
+
 @Injectable()
-export class BenchmarkService {
+export class BenchmarkService implements OnApplicationBootstrap {
   private readonly logger = new Logger(BenchmarkService.name)
 
   constructor(
     private readonly redis: RedisService,
     private readonly benchmarkRepo: BenchmarkRepository
   ) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    const count = await this.benchmarkRepo.markOrphanedRunsFailed()
+    if (count > 0) {
+      this.logger.warn(
+        `Đánh dấu ${count} benchmark job bị orphan (RUNNING) thành FAILED khi khởi động`
+      )
+    }
+  }
 
   // ─── Public API ─────────────────────────────────────────────────────────────
 
@@ -387,10 +404,20 @@ export class BenchmarkService {
     n: number,
     strategy: LockStrategy
   ): Promise<SingleResult[]> {
-    const promises = Array.from({ length: n }, (_, i) =>
-      this.simulateSingle(runId, campaignProductId, i, strategy)
-    )
-    return Promise.all(promises)
+    const batchSize = BATCH_SIZE[strategy]
+    const results: SingleResult[] = []
+
+    for (let i = 0; i < n; i += batchSize) {
+      const count = Math.min(batchSize, n - i)
+      const batch = await Promise.all(
+        Array.from({ length: count }, (_, j) =>
+          this.simulateSingle(runId, campaignProductId, i + j, strategy)
+        )
+      )
+      results.push(...batch)
+    }
+
+    return results
   }
 
   private async simulateSingle(

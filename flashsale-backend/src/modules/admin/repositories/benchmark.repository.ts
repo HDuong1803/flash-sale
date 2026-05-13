@@ -136,6 +136,18 @@ export class BenchmarkRepository {
     return this.prisma.benchmarkRun.findUnique({ where: { id } })
   }
 
+  async markOrphanedRunsFailed(): Promise<number> {
+    const result = await this.prisma.benchmarkRun.updateMany({
+      where: { status: 'RUNNING' },
+      data: {
+        status: 'FAILED',
+        errorMessage: 'Server khởi động lại trong khi job đang chạy',
+        completedAt: new Date()
+      }
+    })
+    return result.count
+  }
+
   async findHistory(
     page: number,
     limit: number
