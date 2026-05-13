@@ -29,14 +29,12 @@ export class RunBenchmarkDto {
   campaignProductId: string
 
   @ApiProperty({
-    description: 'Số lượng concurrent requests để mô phỏng (tối đa 10,000)',
+    description: 'Số lượng concurrent requests để mô phỏng',
     example: 100,
-    minimum: 1,
-    maximum: 10000
+    minimum: 1
   })
   @IsInt()
   @Min(1)
-  @Max(10000)
   concurrentUsers: number
 
   @ApiProperty({
@@ -66,15 +64,12 @@ export class RunAllBenchmarkDto {
   campaignProductId: string
 
   @ApiProperty({
-    description:
-      'Số lượng concurrent requests cho mỗi strategy (tối đa 10,000)',
+    description: 'Số lượng concurrent requests cho mỗi strategy',
     example: 200,
-    minimum: 1,
-    maximum: 10000
+    minimum: 1
   })
   @IsInt()
   @Min(1)
-  @Max(10000)
   concurrentUsers: number
 
   @ApiProperty({
@@ -179,14 +174,12 @@ export class StartBenchmarkDto {
   campaignProductId: string
 
   @ApiProperty({
-    description: 'Số lượng concurrent requests để mô phỏng (tối đa 10,000)',
+    description: 'Số lượng concurrent requests để mô phỏng',
     example: 100,
-    minimum: 1,
-    maximum: 10000
+    minimum: 1
   })
   @IsInt()
   @Min(1)
-  @Max(10000)
   concurrentUsers: number
 
   @ApiProperty({

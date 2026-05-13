@@ -3,10 +3,13 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnApplicationBootstrap
+  OnApplicationBootstrap,
+  OnModuleDestroy
 } from '@nestjs/common'
 import { createId } from '@paralleldrive/cuid2'
 import { LockStrategy } from '@prisma/client'
+import * as path from 'path'
+import { Worker } from 'worker_threads'
 import { RedisService } from '@infrastructure/redis/redis.service'
 import { BenchmarkRepository } from '../repositories/benchmark.repository'
 import {
@@ -36,7 +39,7 @@ interface SingleResult {
   latencyMs: number
 }
 
-// ─── Redis key helpers ─────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const benchKey = (runId: string, type: 'nolock' | 'lua') =>
   `benchmark:${runId}:${type}`
@@ -45,7 +48,14 @@ const runStatusKey = (runId: string) => `benchmark:run:${runId}:status`
 const runResultKey = (runId: string) => `benchmark:run:${runId}:result`
 const RUN_TTL = 86400 // 24 hours
 
-// Max concurrent promises per batch — DB_LOCK nhỏ hơn để tránh pool exhaustion
+// Giới hạn theo strategy (chỉ áp dụng NO_LOCK và DB_LOCK)
+const MAX_CONCURRENT: Partial<Record<string, number>> = {
+  NO_LOCK: 10000,
+  DB_LOCK: 2000,
+  ALL: 2000 // bị giới hạn bởi DB_LOCK chạy bên trong
+}
+
+// Batch sizes cho các strategy trong sync endpoints
 const BATCH_SIZE: Record<LockStrategy, number> = {
   [LockStrategy.NO_LOCK]: 500,
   [LockStrategy.DB_LOCK]: 50,
@@ -53,8 +63,11 @@ const BATCH_SIZE: Record<LockStrategy, number> = {
 }
 
 @Injectable()
-export class BenchmarkService implements OnApplicationBootstrap {
+export class BenchmarkService
+  implements OnApplicationBootstrap, OnModuleDestroy
+{
   private readonly logger = new Logger(BenchmarkService.name)
+  private readonly activeWorkers = new Map<string, Worker>()
 
   constructor(
     private readonly redis: RedisService,
@@ -68,6 +81,17 @@ export class BenchmarkService implements OnApplicationBootstrap {
         `Đánh dấu ${count} benchmark job bị orphan (RUNNING) thành FAILED khi khởi động`
       )
     }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    for (const [runId, worker] of this.activeWorkers) {
+      await worker.terminate()
+      await this.benchmarkRepo.updateRunStatus(runId, 'FAILED', {
+        errorMessage: 'Server đang tắt',
+        completedAt: new Date()
+      })
+    }
+    this.activeWorkers.clear()
   }
 
   // ─── Public API ─────────────────────────────────────────────────────────────
@@ -160,8 +184,6 @@ export class BenchmarkService implements OnApplicationBootstrap {
   async runAllStrategies(
     dto: RunAllBenchmarkDto
   ): Promise<BenchmarkComparisonDto> {
-    // Chạy tuần tự để tránh tranh chấp tài nguyên giữa các scenario.
-    // Mỗi scenario được reset stock sạch sẽ qua initStock trước khi chạy.
     const noLock = await this.runScenario({
       ...dto,
       strategy: LockStrategy.NO_LOCK
@@ -183,6 +205,17 @@ export class BenchmarkService implements OnApplicationBootstrap {
   // ─── Async background benchmark ───────────────────────────────────────────
 
   async startBenchmark(dto: StartBenchmarkDto): Promise<{ runId: string }> {
+    // Giới hạn per-strategy để tránh DB pool exhaustion
+    const limit = MAX_CONCURRENT[dto.strategyMode]
+    if (limit !== undefined && dto.concurrentUsers > limit) {
+      throw new BadRequestException(
+        `Chiến lược ${
+          dto.strategyMode
+        } tối đa ${limit.toLocaleString()} người dùng đồng thời. ` +
+          `REDIS_LUA không có giới hạn.`
+      )
+    }
+
     const { id: runId } = await this.benchmarkRepo.createRun({
       campaignProductId: dto.campaignProductId,
       concurrentUsers: dto.concurrentUsers,
@@ -192,14 +225,13 @@ export class BenchmarkService implements OnApplicationBootstrap {
 
     await this.redis.client.set(runStatusKey(runId), 'PENDING', 'EX', RUN_TTL)
 
-    // Fire-and-forget — intentionally not awaited
-    void this.executeRunAsync(runId, dto)
+    // Chạy trong Worker Thread riêng — không block main event loop
+    void this.spawnBenchmarkWorker(runId, dto)
 
     return { runId }
   }
 
   async getRunStatus(runId: string): Promise<BenchmarkRunDto> {
-    // Fast path: check Redis first
     const redisStatus = await this.redis.client.get(runStatusKey(runId))
 
     if (redisStatus !== null) {
@@ -214,7 +246,6 @@ export class BenchmarkService implements OnApplicationBootstrap {
         }
       }
 
-      // For non-terminal statuses we still need the full run from DB for metadata
       const run = await this.benchmarkRepo.findRunById(runId)
       if (!run) {
         throw new NotFoundException(`Benchmark run ${runId} không tồn tại`)
@@ -223,7 +254,6 @@ export class BenchmarkService implements OnApplicationBootstrap {
       return this.mapRunToDto(run, result ?? this.parseJsonResult(run.result))
     }
 
-    // Fallback to DB
     const run = await this.benchmarkRepo.findRunById(runId)
     if (!run) {
       throw new NotFoundException(`Benchmark run ${runId} không tồn tại`)
@@ -252,43 +282,31 @@ export class BenchmarkService implements OnApplicationBootstrap {
     }
   }
 
-  private parseJsonResult(
-    raw: unknown
-  ): BenchmarkResultDto | BenchmarkComparisonDto | null {
-    if (raw === null || raw === undefined) return null
-    return raw as unknown as BenchmarkResultDto | BenchmarkComparisonDto
-  }
+  async killRun(runId: string): Promise<void> {
+    const worker = this.activeWorkers.get(runId)
+    if (worker) {
+      await worker.terminate()
+      this.activeWorkers.delete(runId)
+      this.logger.warn(`Worker cho run ${runId} đã bị terminate`)
+    }
 
-  private mapRunToDto(
-    run: {
-      id: string
-      campaignProductId: string
-      concurrentUsers: number
-      stockAmount: number
-      strategyMode: string
-      status: string
-      result: unknown
-      errorMessage: string | null
-      createdAt: Date
-      completedAt: Date | null
-    },
-    result: BenchmarkResultDto | BenchmarkComparisonDto | null
-  ): BenchmarkRunDto {
-    return {
-      id: run.id,
-      campaignProductId: run.campaignProductId,
-      concurrentUsers: run.concurrentUsers,
-      stockAmount: run.stockAmount,
-      strategyMode: run.strategyMode as StrategyMode,
-      status: run.status as BenchmarkRunStatus,
-      result: result ?? null,
-      errorMessage: run.errorMessage,
-      createdAt: run.createdAt.toISOString(),
-      completedAt: run.completedAt ? run.completedAt.toISOString() : null
+    const run = await this.benchmarkRepo.findRunById(runId)
+    if (!run) {
+      throw new NotFoundException(`Benchmark run ${runId} không tồn tại`)
+    }
+
+    if (run.status === 'RUNNING' || run.status === 'PENDING') {
+      await this.benchmarkRepo.updateRunStatus(runId, 'FAILED', {
+        errorMessage: 'Tác vụ bị dừng thủ công',
+        completedAt: new Date()
+      })
+      await this.redis.client.set(runStatusKey(runId), 'FAILED', 'EX', RUN_TTL)
     }
   }
 
-  private async executeRunAsync(
+  // ─── Private: Worker Thread ────────────────────────────────────────────────
+
+  private async spawnBenchmarkWorker(
     runId: string,
     dto: StartBenchmarkDto
   ): Promise<void> {
@@ -296,66 +314,108 @@ export class BenchmarkService implements OnApplicationBootstrap {
       await this.benchmarkRepo.updateRunStatus(runId, 'RUNNING')
       await this.redis.client.set(runStatusKey(runId), 'RUNNING', 'EX', RUN_TTL)
 
-      let result: BenchmarkResultDto | BenchmarkComparisonDto
+      // Detect ts-node vs compiled JS để load đúng worker file
+      const isTsNode = __filename.endsWith('.ts')
+      const workerFile = isTsNode
+        ? path.resolve(__dirname, '../workers/benchmark.worker.ts')
+        : path.resolve(__dirname, '../workers/benchmark.worker.js')
 
-      if (dto.strategyMode === 'ALL') {
-        result = await this.runAllStrategies({
-          campaignProductId: dto.campaignProductId,
-          concurrentUsers: dto.concurrentUsers,
-          stockAmount: dto.stockAmount
-        })
-      } else {
-        const strategyMap: Record<
-          Exclude<StrategyMode, 'ALL'>,
-          LockStrategy
-        > = {
-          NO_LOCK: LockStrategy.NO_LOCK,
-          DB_LOCK: LockStrategy.DB_LOCK,
-          REDIS_LUA: LockStrategy.REDIS_LUA
+      const worker = new Worker(workerFile, {
+        execArgv: isTsNode
+          ? ['-r', 'ts-node/register', '-r', 'tsconfig-paths/register']
+          : [],
+        workerData: {
+          runId,
+          dto,
+          redisOptions: {
+            host: process.env.REDIS_HOST ?? 'localhost',
+            port: parseInt(process.env.REDIS_PORT ?? '6379'),
+            password: process.env.REDIS_PASSWORD
+          },
+          databaseUrl: process.env.DATABASE_URL ?? ''
         }
-        result = await this.runScenario({
-          campaignProductId: dto.campaignProductId,
-          concurrentUsers: dto.concurrentUsers,
-          stockAmount: dto.stockAmount,
-          strategy:
-            strategyMap[dto.strategyMode as Exclude<StrategyMode, 'ALL'>]
-        })
-      }
-
-      const completedAt = new Date()
-      await this.benchmarkRepo.updateRunStatus(runId, 'COMPLETED', {
-        result,
-        completedAt
       })
-      await this.redis.client.set(
-        runStatusKey(runId),
-        'COMPLETED',
-        'EX',
-        RUN_TTL
-      )
-      await this.redis.client.set(
-        runResultKey(runId),
-        JSON.stringify(result),
-        'EX',
-        RUN_TTL
+
+      this.activeWorkers.set(runId, worker)
+
+      worker.on(
+        'message',
+        async (msg: { type: string; result?: object; error?: string }) => {
+          if (msg.type === 'done') {
+            const completedAt = new Date()
+            await this.benchmarkRepo.updateRunStatus(runId, 'COMPLETED', {
+              result: msg.result,
+              completedAt
+            })
+            await this.redis.client.set(
+              runStatusKey(runId),
+              'COMPLETED',
+              'EX',
+              RUN_TTL
+            )
+            await this.redis.client.set(
+              runResultKey(runId),
+              JSON.stringify(msg.result),
+              'EX',
+              RUN_TTL
+            )
+            this.logger.log(`Benchmark run ${runId} hoàn thành thành công`)
+          } else if (msg.type === 'error') {
+            await this.benchmarkRepo.updateRunStatus(runId, 'FAILED', {
+              errorMessage: msg.error,
+              completedAt: new Date()
+            })
+            await this.redis.client.set(
+              runStatusKey(runId),
+              'FAILED',
+              'EX',
+              RUN_TTL
+            )
+            this.logger.error(
+              `Benchmark run ${runId} thất bại: ${msg.error ?? 'unknown'}`
+            )
+          }
+          this.activeWorkers.delete(runId)
+        }
       )
 
-      this.logger.log(`Benchmark run ${runId} completed successfully`)
+      worker.on('error', async (err: Error) => {
+        this.logger.error(`Worker error cho run ${runId}: ${err.message}`)
+        await this.benchmarkRepo.updateRunStatus(runId, 'FAILED', {
+          errorMessage: err.message,
+          completedAt: new Date()
+        })
+        await this.redis.client.set(
+          runStatusKey(runId),
+          'FAILED',
+          'EX',
+          RUN_TTL
+        )
+        this.activeWorkers.delete(runId)
+      })
+
+      worker.on('exit', (code: number) => {
+        this.activeWorkers.delete(runId)
+        if (code !== 0 && code !== null) {
+          this.logger.warn(`Worker exited với code ${code} cho run ${runId}`)
+        }
+      })
     } catch (err: unknown) {
       const errorMessage =
         err instanceof Error ? err.message : 'Unknown error occurred'
-
-      this.logger.error(`Benchmark run ${runId} failed: ${errorMessage}`)
-
+      this.logger.error(
+        `Không thể spawn worker cho run ${runId}: ${errorMessage}`
+      )
       await this.benchmarkRepo.updateRunStatus(runId, 'FAILED', {
         errorMessage,
         completedAt: new Date()
       })
       await this.redis.client.set(runStatusKey(runId), 'FAILED', 'EX', RUN_TTL)
+      this.activeWorkers.delete(runId)
     }
   }
 
-  // ─── Private helpers ─────────────────────────────────────────────────────────
+  // ─── Private: Simulation cho sync endpoints ────────────────────────────────
 
   private async initStock(
     runId: string,
@@ -449,16 +509,6 @@ export class BenchmarkService implements OnApplicationBootstrap {
     }
   }
 
-  /**
-   * NO_LOCK: Mô phỏng race condition thực tế.
-   *
-   * Vấn đề: hai bước GET và DECRBY không phải là atomic.
-   * Nếu 1000 users đồng thời GET stock=100, tất cả thấy > 0,
-   * và tất cả DECRBY → stock = 100 - 1000 = -900 (oversell nghiêm trọng).
-   *
-   * Edge case: `current` có thể trở thành âm nếu nhiều goroutines/coroutines
-   * vượt qua check cùng lúc.
-   */
   private async purchaseNoLock(runId: string): Promise<PurchaseOutcome> {
     const key = benchKey(runId, 'nolock')
     const raw = await this.redis.client.get(key)
@@ -468,18 +518,12 @@ export class BenchmarkService implements OnApplicationBootstrap {
       return 'SOLD_OUT'
     }
 
-    // Race window: giữa GET và DECRBY, một thread khác có thể đã DECRBY → oversell
-    // Thêm một micro-delay để tăng xác suất race condition xảy ra trong demo
     await microDelay()
 
     await this.redis.client.decrby(key, 1)
     return 'SUCCESS'
   }
 
-  /**
-   * DB_LOCK: SELECT FOR UPDATE serializes concurrent access tại DB level.
-   * An toàn nhưng slow vì mỗi operation cần DB roundtrip + lock contention.
-   */
   private async purchaseDbLock(
     campaignProductId: string
   ): Promise<PurchaseOutcome> {
@@ -489,10 +533,6 @@ export class BenchmarkService implements OnApplicationBootstrap {
     return result.success ? 'SUCCESS' : 'SOLD_OUT'
   }
 
-  /**
-   * REDIS_LUA: Atomic Lua script — production implementation.
-   * Không thể bị race condition vì Redis thực thi Lua single-threaded.
-   */
   private async purchaseRedisLua(runId: string): Promise<PurchaseOutcome> {
     const key = benchKey(runId, 'lua')
     const script = `
@@ -524,15 +564,46 @@ export class BenchmarkService implements OnApplicationBootstrap {
       }
     }
   }
+
+  private parseJsonResult(
+    raw: unknown
+  ): BenchmarkResultDto | BenchmarkComparisonDto | null {
+    if (raw === null || raw === undefined) return null
+    return raw as unknown as BenchmarkResultDto | BenchmarkComparisonDto
+  }
+
+  private mapRunToDto(
+    run: {
+      id: string
+      campaignProductId: string
+      concurrentUsers: number
+      stockAmount: number
+      strategyMode: string
+      status: string
+      result: unknown
+      errorMessage: string | null
+      createdAt: Date
+      completedAt: Date | null
+    },
+    result: BenchmarkResultDto | BenchmarkComparisonDto | null
+  ): BenchmarkRunDto {
+    return {
+      id: run.id,
+      campaignProductId: run.campaignProductId,
+      concurrentUsers: run.concurrentUsers,
+      stockAmount: run.stockAmount,
+      strategyMode: run.strategyMode as StrategyMode,
+      status: run.status as BenchmarkRunStatus,
+      result: result ?? null,
+      errorMessage: run.errorMessage,
+      createdAt: run.createdAt.toISOString(),
+      completedAt: run.completedAt ? run.completedAt.toISOString() : null
+    }
+  }
 }
 
 // ─── Pure functions ────────────────────────────────────────────────────────────
 
-/**
- * Micro-delay ngẫu nhiên 0–5ms để mô phỏng race condition trong NO_LOCK.
- * Trong production, network latency + OS scheduling đã tạo đủ race window.
- * Trong benchmark in-process, delay giả tạo giúp demo race condition rõ ràng hơn.
- */
 function microDelay(): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, Math.random() * 5))
 }

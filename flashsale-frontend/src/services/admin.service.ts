@@ -212,6 +212,13 @@ class AdminService {
   }
 
   /**
+   * Dừng benchmark run đang chạy (terminate worker thread).
+   */
+  killBenchmarkRun(runId: string): Promise<{ killed: boolean }> {
+    return apiClient.delete(`/admin/benchmark/runs/${runId}`)
+  }
+
+  /**
    * Lấy stock audit log — lịch sử mọi thao tác stock.
    */
   getStockAuditLogs(params?: {

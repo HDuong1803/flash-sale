@@ -17,7 +17,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   FlaskConical, Zap, Database, Shield, AlertTriangle,
   CheckCircle, XCircle, Loader2, BarChart3, Clock,
-  Layers, History, RefreshCw, ChevronDown, ChevronUp, Package
+  Layers, History, RefreshCw, ChevronDown, ChevronUp, Package, StopCircle
 } from 'lucide-react'
 import { adminService } from '@/services/admin.service'
 import { campaignService } from '@/services/campaign.service'
@@ -656,13 +656,28 @@ function RunTab() {
 
 // ─── Tab 2: Lịch sử ──────────────────────────────────────────────────────────
 
-function HistoryRunRow({ run }: { run: BenchmarkRun }) {
+function HistoryRunRow({ run, onKilled }: { run: BenchmarkRun; onKilled: () => void }) {
   const [expanded, setExpanded] = useState(false)
+  const [killing, setKilling] = useState(false)
   const meta = STRATEGY_META[run.strategyMode]
 
   const durationMs = run.completedAt
     ? new Date(run.completedAt).getTime() - new Date(run.createdAt).getTime()
     : null
+
+  const handleKill = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!confirm('Dừng benchmark run này?')) return
+    setKilling(true)
+    try {
+      await adminService.killBenchmarkRun(run.id)
+      onKilled()
+    } catch {
+      // ignore
+    } finally {
+      setKilling(false)
+    }
+  }
 
   return (
     <div className="glass rounded-xl border border-white/8 overflow-hidden">
@@ -699,10 +714,22 @@ function HistoryRunRow({ run }: { run: BenchmarkRun }) {
           </div>
         </div>
 
-        <div className="flex-shrink-0 text-white/40">
-          {run.result
-            ? expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />
-            : null}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {(run.status === 'RUNNING' || run.status === 'PENDING') && (
+            <button
+              onClick={handleKill}
+              disabled={killing}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 hover:bg-red-500/25 disabled:opacity-50 transition-colors"
+            >
+              {killing ? <Loader2 size={10} className="animate-spin" /> : <StopCircle size={10} />}
+              Dừng
+            </button>
+          )}
+          <span className="text-white/40">
+            {run.result
+              ? expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+              : null}
+          </span>
         </div>
       </button>
 
@@ -787,7 +814,7 @@ function HistoryTab() {
       )}
 
       {!loading && runs.map(run => (
-        <HistoryRunRow key={run.id} run={run} />
+        <HistoryRunRow key={run.id} run={run} onKilled={() => { void load(page) }} />
       ))}
 
       {!loading && totalPages > 1 && (

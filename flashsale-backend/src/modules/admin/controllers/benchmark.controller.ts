@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -171,6 +172,30 @@ export class BenchmarkController {
     limit: number
   }> {
     return this.benchmarkService.getHistory(query.page ?? 1, query.limit ?? 20)
+  }
+
+  @Delete('runs/:id')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Dừng benchmark run đang chạy',
+    description:
+      'Terminate worker thread và đánh dấu run là FAILED. ' +
+      'Chỉ hoạt động với run đang RUNNING hoặc PENDING.'
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Job đã được dừng',
+    schema: { properties: { killed: { type: 'boolean' } } }
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Run không tồn tại'
+  })
+  @ApiResponse({ status: HttpStatus.UNAUTHORIZED, description: 'Unauthorized' })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Không đủ quyền' })
+  async killRun(@Param('id') id: string): Promise<{ killed: boolean }> {
+    await this.benchmarkService.killRun(id)
+    return { killed: true }
   }
 
   @Get('audit-logs')
